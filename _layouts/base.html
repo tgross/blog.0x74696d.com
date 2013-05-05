@@ -1,0 +1,69 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>{{ page.title }}</title>
+  <meta name="author" content="{{ site.author.name }}" />
+  <meta name="description" content="{{ site.description }}" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  <link type="text/css" rel="stylesheet" href="http://fast.fonts.com/cssapi/d70ca5cd-778e-48cc-9e59-6b276425c670.css"/>
+
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="screen, projection" />
+  <link media="only screen and (max-device-width: 480px)" href="/css/mobile.css" type="text/css" rel="stylesheet" />
+  <link rel="stylesheet" href="/webfonts/ss-social.css" type="text/css" />
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+
+  <!-- if for some crazy reason you want my ugly mug on your iOS home screen -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>{{ site.title }}</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/{{ site.author.github }}">Projects</a></li>
+        <!-- <li><a href="/community.html">Community</a></li> -->
+        <li><a href="/me.html">Me</a></li>
+      </ul>
+
+    </div>
+  </div>
+
+
+{{ content }}
+
+<section class="meta">
+  <a class="block" href="https://twitter.com/{{ site.author.twitter }}">
+    <span class="ss-social-circle ss-twitter" />
+    <div>Follow me on Twitter.</div>
+  </a>
+
+  <a class="block" href="https://github.com/{{ site.author.github }}">
+    <span class="ss-social-circle ss-octocat" />
+    <div>See my github profile.</div>
+  </a>
+
+  <a class="block" href="mailto:{{ site.author.email }}">
+    <span class="ss-social-circle ss-mail" />
+    <div>Get in touch.</div>
+  </a>
+
+  <a class="block" href="/rss.xml">
+    <span class="ss-social-circle ss-rss" />
+    <div>RSS Feed</div>
+  </a>
+
+  <div style="clear: both"></div>
+</section>
+
+</body>
+</html>

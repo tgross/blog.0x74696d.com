@@ -1,0 +1,14 @@
+markdown: rdiscount
+pygments: true
+permalink: /posts/:title
+auto: true
+rdiscount:
+  extensions: [smart]
+title : "0x74696d"
+production_url : http://tgross.github.io
+description: "T-Minus 15.193792102158E+9 years until the universe closes!"
+author :
+  name : Tim Gross
+  github : tgross
+  twitter : "0x74696d"
+  email: &#116;&#105;&#109;&#43;&#98;&#108;&#111;&#103;&#64;&#48;&#120;&#55;&#52;&#54;&#57;&#54;&#100;&#46;&#99;&#111;&#109;

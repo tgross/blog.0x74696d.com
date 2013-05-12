@@ -63,12 +63,10 @@ blockquote {
 
   .name a {
     font-size: 50px;
-    //font-family: 'Avenir Next W01 Thin';
     font-weight: normal;
   }
   .name b {
     font-family: Monaco, Droid Sans Mono, Consolas, Tahoma, sans-serif;
-    //font-family: 'Avenir Next LT W01 Bold';
     font-weight: normal;
   }
 

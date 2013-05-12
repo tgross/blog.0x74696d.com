@@ -1,14 +1,14 @@
 tgross.github.io
 --------------
 
-This is the repo for my Github Pages-hosted blog.
+This is the repo for my Github Pages-hosted blog, served on [0x74696d.com](http://0x74696d.com).
 
 ## License
 
 This Jekyll project is a fork from [Up](http://github.com/caarlos0/up). The code of this blog and all code content is [MIT](https://github.com/tgross/tgross.github.io/blob/master/LICENSE) licensed, except where a given piece of code is attributed to another author and has a more restrictive license.
 The original written prose and images in this repo are licensed under [Creative Common Attribution 3.0 Unported License](http://creativecommons.org/licenses/by-sa/3.0/deed.en_US).
 
-It should be easy to fork and modify this repo if you want, but it's going to be chock full of my personal idiosyncracies.  You can follow the installation directions below but I'd really encourage you to just to use Up(http://github.com/caarlos0/up) instead.
+It should be easy to fork and modify this repo if you want, but it's going to be chock full of my personal idiosyncrasies.  You can follow the installation directions below but I'd really encourage you to just to use Up(http://github.com/caarlos0/up) instead.
 
 
 ## Installation

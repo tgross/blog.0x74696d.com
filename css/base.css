@@ -73,7 +73,7 @@ blockquote {
   .menu {
     padding: 0;
     margin: 5px 0;
-    font-family: 'Avenir Next W01 Thin';
+    font-family: 'Avenir Next W01 Thin', Helvetica, sans-serif;
     font-weight: normal;
   }
   .menu li {
@@ -148,8 +148,8 @@ h1 {
 
 }
   .content i, .content em {
-    font-family: 'AvenirNextLTW01-Italic';
-    font-style: normal;
+    font-family: 'AvenirNextLTW01-Regular', Helvetica, sans-serif;
+    font-style: italic;
   }
   .content b, .content strong {
     font-family: 'Avenir Next LT W01 Bold';
@@ -167,8 +167,8 @@ h1 {
   }
   .error i {
     font-size: 16px;
-    font-family: 'AvenirNextLTW01-Italic';
-    font-style: normal;
+    font-family: 'AvenirNextLTW01-Regular', Helvetica, sans-serif;
+    font-style: italic;
   }
   .content img, .content video {
     margin: 0 -60px;

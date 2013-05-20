@@ -1,6 +1,7 @@
 ---
 layout: post
 title: Securing Charles Proxy with a Personal CA
+category: security
 ---
 
 Some of the guys in my shop like to use [Charles](http://www.charlesproxy.com) proxy to help debug their web and mobile applications. It's no good for non-HTTP traffic so it's a bit of a unitasker, but modulo some questionable UI choices it's not bad.  Charles is user-friendly enough that you can hand it off to a wet-behind-the-ears web developer who wouldn't know a TCP SYN flag if you waved it at him.  And it has some nice features like on-the-fly traffic throttling that we find handy in the online video business -- as far as I know you can't do that with [Burp suite](http://portswigger.net/burp/).

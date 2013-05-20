@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2010 Google Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+  Original slides: Marcin Wichary (mwichary@google.com)
+  Modifications: Ernest Delgado (ernestd@google.com)
+                 Alex Russell (slightlyoff@chromium.org)
+
+  landslide modifications: Adam Zapletal (adamzap@gmail.com)
+                           Nicolas Perriault (nperriault@gmail.com)
+-->
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Django Database<br/>Anti-Patterns</title>
+    <!-- Styles -->
+    
+    <link rel="stylesheet" media="print" href="file:///Users/tim/Projects/tgross.github.io/slides/theme/css/print.css">
+    <link rel="stylesheet" media="screen, projection" href="file:///Users/tim/Projects/tgross.github.io/slides/theme/css/screen.css">
+    
+    
+    <!-- /Styles -->
+    <!-- Javascripts -->
+    
+    <script type="text/javascript" src="file:///Users/tim/Projects/tgross.github.io/slides/theme/js/slides.js"></script>
+    
+    
+    <!-- /Javascripts -->
+</head>
+<body>
+  <div id="blank"></div>
+  <div class="presentation">
+    <div id="current_presenter_notes">
+      <div id="presenter_note"></div>
+    </div>
+    <div class="slides">
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Django Database<br/>Anti-Patterns</h1></header>
+            
+            <section><div style="position: absolute; bottom: 0">
+<p>tim gross | @0x74696d</p>
+<p>http://0x74696d.com/posts/django-db-antipatterns/</p>
+</div></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              1/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            
+            <p><img alt="Summary" src="http://0x74696d.com/images/20130519/DjangoAntiPatternsSummary.png" /></p>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              2/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code has_notes">
+          <div class="inner">
+            
+            <header><h1>1+n queries</h1></header>
+            
+            <section><p>Minimal view:</p>
+<div class="highlight"><pre><span class="lineno">1</span> <span class="k">def</span> <span class="nf">get_books_by_date</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+<span class="lineno">2</span>    <span class="n">start</span> <span class="o">=</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+<span class="lineno">3</span>    <span class="n">end</span> <span class="o">=</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">end</span><span class="p">)</span>
+<span class="lineno">4</span>    <span class="n">books</span> <span class="o">=</span> <span class="n">Book</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pub_date__gte</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">pub_date__lte</span><span class="o">=</span><span class="n">end</span><span class="p">)</span>\
+<span class="lineno">5</span>                        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s">&#39;pub_date&#39;</span><span class="p">)</span>
+<span class="lineno">6</span>    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;template.html&#39;</span><span class="p">,</span>
+<span class="lineno">7</span>                 <span class="p">{</span><span class="s">&#39;books&#39;</span><span class="p">:</span> <span class="n">books</span><span class="p">,</span> <span class="s">&#39;start&#39;</span><span class="p">:</span> <span class="n">start</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">:</span> <span class="n">end</span><span class="p">})</span>
+</pre></div>
+
+<p><br/>
+Minimal template:</p>
+<div class="highlight"><pre><span class="lineno">1</span> <span class="x">&lt;html&gt;&lt;body&gt;</span>
+<span class="lineno">2</span> <span class="x">&lt;h1&gt;Books&lt;/h1&gt;</span>
+<span class="lineno">3</span> <span class="x">Published between </span><span class="cp">{{</span><span class="nv">start</span><span class="o">|</span><span class="nf">date</span><span class="s2">:&quot;Y M d&quot;</span><span class="cp">}}</span><span class="x"> and </span><span class="cp">{{</span><span class="nv">end</span><span class="o">|</span><span class="nf">date</span><span class="s2">:&quot;Y M d&quot;</span><span class="cp">}}</span><span class="x"></span>
+<span class="lineno">4</span> <span class="x">&lt;table&gt;</span>
+<span class="lineno">5</span> <span class="cp">{%</span> <span class="k">for</span> <span class="nv">book</span> <span class="k">in</span> <span class="nv">books</span> <span class="cp">%}</span><span class="x"></span>
+<span class="lineno">6</span> <span class="x">&lt;tr&gt;</span><span class="cp">{{</span><span class="nv">book.title</span><span class="cp">}}</span><span class="x">: </span><span class="cp">{{</span><span class="nv">book.pub_date</span><span class="cp">}}</span><span class="x">&lt;/tr&gt;</span>
+<span class="lineno">7</span> <span class="cp">{%</span> <span class="k">endfor</span> <span class="cp">%}</span><span class="x">&lt;/table&gt;</span>
+<span class="lineno">8</span> <span class="x">&lt;/body&gt; &lt;/html&gt;</span>
+</pre></div>
+
+<p class="notes">Really easy for template code to produce a <code>1+n SELECTs</code> situation.</p></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              3/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>1+n queries</h1></header>
+            
+            <section><p>Run this:</p>
+<div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">def</span> <span class="nf">test_get_books_by_date</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="lineno"> 2</span>    <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 3</span> <span class="sd">   Given a range of dates strings, return books published between</span>
+<span class="lineno"> 4</span> <span class="sd">   those dates (inclusive).</span>
+<span class="lineno"> 5</span> <span class="sd">   &quot;&quot;&quot;</span>
+<span class="lineno"> 6</span>    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">(</span><span class="n">DEBUG</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+<span class="lineno"> 7</span>        <span class="n">request</span> <span class="o">=</span> <span class="n">RequestFactory</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/&#39;</span><span class="p">)</span>
+<span class="lineno"> 8</span>        <span class="n">resp</span> <span class="o">=</span> <span class="n">get_books_by_date</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;2013-05-16&#39;</span><span class="p">,</span> <span class="s">&#39;2013-05-31&#39;</span><span class="p">)</span>
+<span class="lineno"> 9</span>        <span class="k">print</span> <span class="s">&#39;{} SELECT(s)</span><span class="se">\n</span><span class="s">-------&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">queries</span><span class="p">))</span>
+<span class="lineno">10</span>        <span class="k">print</span> <span class="n">connection</span><span class="o">.</span><span class="n">queries</span>
+</pre></div>
+
+<p>We get:</p>
+<pre><code>1 SELECT(s)
+-------
+[{'time': '0.000',
+'sql': u'SELECT "books_book"."id", "books_book"."title",
+"books_book"."publisher_id", "books_book"."pub_date" FROM "books_book"
+WHERE ("books_book"."pub_date" &gt;= 2013-05-16 AND "books_book"."pub_date"
+&lt;= 2013-05-31 ) ORDER BY "books_book"."pub_date" ASC'}]
+</code></pre></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              4/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>1+n queries</h1></header>
+            
+            <section><p>Change the template to:</p>
+<div class="highlight"><pre><span class="lineno">1</span> <span class="x">&lt;html&gt;&lt;body&gt;</span>
+<span class="lineno">2</span> <span class="x">&lt;h1&gt;Books&lt;/h1&gt;</span>
+<span class="lineno">3</span> <span class="x">Published between </span><span class="cp">{{</span><span class="nv">start</span><span class="o">|</span><span class="nf">date</span><span class="s2">:&quot;Y M d&quot;</span><span class="cp">}}</span><span class="x"> and </span><span class="cp">{{</span><span class="nv">end</span><span class="o">|</span><span class="nf">date</span><span class="s2">:&quot;Y M d&quot;</span><span class="cp">}}</span><span class="x"></span>
+<span class="lineno">4</span> <span class="x">&lt;table&gt;</span>
+<span class="lineno">5</span> <span class="cp">{%</span> <span class="k">for</span> <span class="nv">book</span> <span class="k">in</span> <span class="nv">books</span> <span class="cp">%}</span><span class="x"></span>
+<span class="lineno">6</span> <span class="x">&lt;tr&gt;</span><span class="cp">{{</span><span class="nv">book.title</span><span class="cp">}}</span><span class="x">: </span><span class="cp">{{</span><span class="nv">book.publisher</span><span class="cp">}}</span><span class="x">, </span><span class="cp">{{</span><span class="nv">book.pub_date</span><span class="cp">}}</span><span class="x">&lt;/tr&gt;</span>
+<span class="lineno">7</span> <span class="cp">{%</span> <span class="k">endfor</span> <span class="cp">%}</span><span class="x">&lt;/table&gt;</span>
+<span class="lineno">8</span> <span class="x">&lt;/body&gt; &lt;/html&gt;</span>
+</pre></div>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              5/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>1+n queries</h1></header>
+            
+            <section><p>Now we get:</p>
+<pre><code> 14 SELECT(s)
+-------
+[{'time': '0.000', 'sql': u'SELECT "books_book"."id",
+"books_book"."title", "books_book"."publisher_id",
+"books_book"."pub_date" FROM "books_book" WHERE
+("books_book"."pub_date" &gt;= 2013-05-16  AND
+"books_book"."pub_date" &lt;= 2013-05-31 ) ORDER BY
+"books_book"."pub_date" ASC'},
+{'time': '0.000', 'sql': u'SELECT "books_publisher"."id",
+"books_publisher"."name", "books_publisher"."address",
+"books_publisher"."city", "books_publisher"."state",
+"books_publisher"."country", "books_publisher"."website"
+FROM "books_publisher" WHERE "books_publisher"."id" = 1 '},
+{'time': '0.000', 'sql': u'SELECT "books_publisher"."id",
+"books_publisher"."name", "books_publisher"."address",
+"books_publisher"."city", "books_publisher"."state",
+"books_publisher"."country", "books_publisher"."website"
+FROM "books_publisher" WHERE "books_publisher"."id" = 2 '},
+{'time': '0.000', 'sql': u'SELECT "books_publisher"."id",
+"books_publisher"."name", "books_publisher"."address",
+"books_publisher"."city", "books_publisher"."state",
+"books_publisher"."country", "books_publisher"."website"
+FROM "books_publisher" WHERE "books_publisher"."id" = 3 '},
+...
+</code></pre></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              6/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code has_notes">
+          <div class="inner">
+            
+            <header><h1>1+n queries</h1></header>
+            
+            <section><div class="highlight"><pre><span class="lineno">1</span> <span class="k">def</span> <span class="nf">get_books_by_date</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+<span class="lineno">2</span>    <span class="n">start</span> <span class="o">=</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+<span class="lineno">3</span>    <span class="n">end</span> <span class="o">=</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">end</span><span class="p">)</span>
+<span class="lineno">4</span>    <span class="n">books</span> <span class="o">=</span> <span class="n">Book</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pub_date__gte</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">pub_date__lte</span><span class="o">=</span><span class="n">end</span><span class="p">)</span>\
+<span class="lineno">5</span>                        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s">&#39;pub_date&#39;</span><span class="p">)</span>
+<span class="lineno">6</span>                        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s">&#39;publisher&#39;</span><span class="p">)</span>
+<span class="lineno">7</span>    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;template.html&#39;</span><span class="p">,</span>
+<span class="lineno">8</span>                 <span class="p">{</span><span class="s">&#39;books&#39;</span><span class="p">:</span> <span class="n">books</span><span class="p">,</span> <span class="s">&#39;start&#39;</span><span class="p">:</span> <span class="n">start</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">:</span> <span class="n">end</span><span class="p">})</span>
+</pre></div>
+
+<p class="notes">In a non-trivial application, this query would probably be in a ModelManager method.  Which means when the front-end designer adds a reference to one of our foreign key attributes in the template, our <code>models.py</code> file has to change (breaking encapsulation).</p></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              7/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>1+n queries</h1></header>
+            
+            <section><p>And this gives us:</p>
+<pre><code>1 SELECT(s)
+-------
+[{'time': '0.000',
+'sql': u'SELECT "books_book"."id", "books_book"."title",
+"books_book"."publisher_id", "books_book"."pub_date",
+"books_publisher"."id", "books_publisher"."name",
+"books_publisher"."address", "books_publisher"."city",
+"books_publisher"."state", "books_publisher"."country",
+"books_publisher"."website"
+FROM "books_book"
+INNER JOIN "books_publisher"
+ON ("books_book"."publisher_id" = "books_publisher"."id")
+WHERE ("books_book"."pub_date" &gt;= 2013-05-16  AND
+"books_book"."pub_date" &lt;= 2013-05-31 )
+ORDER BY "books_book"."pub_date" ASC'}]
+</code></pre></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              8/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>So what?<br/>RTFM, right?</h1></header>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              9/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_notes">
+          <div class="inner">
+            
+            <header><h1>MVT but no separation of concerns</h1></header>
+            
+            <section><ul>
+<li>
+<h2>Change template.html --&gt; change models.py</h2>
+</li>
+<li>
+<h2>Now all callers of your ModelManager methods have extra JOINs they didn't need.</h2>
+</li>
+<li>
+<h2>Can't have template work done by designers who aren't versed in Django ORM.</h2>
+</li>
+<li>
+<h2>Reliable source of performance-related defects.</h2>
+</li>
+</ul>
+<p class="notes"> Unless you factor out a version of the manager method without the <code>select_related</code> you're now performing a <code>JOIN</code> and <code>SELECT</code>ing all the extra fields <em>everywhere</em> the method is called and not just in this one view.</p></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              10/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>many-to-many relationships</h1></header>
+            
+            <section><p>To do this:</p>
+<div class="highlight"><pre><span class="lineno"> 1</span> <span class="x">&lt;html&gt;&lt;body&gt;</span>
+<span class="lineno"> 2</span> <span class="x">&lt;h1&gt;Books&lt;/h1&gt;</span>
+<span class="lineno"> 3</span> <span class="x">Published between </span><span class="cp">{{</span><span class="nv">start</span><span class="o">|</span><span class="nf">date</span><span class="s1">:&#39;Y M d&#39;</span><span class="cp">}}</span><span class="x"> and </span><span class="cp">{{</span><span class="nv">end</span><span class="o">|</span><span class="nf">date</span><span class="s1">:&#39;Y M d&#39;</span><span class="cp">}}</span><span class="x"></span>
+<span class="lineno"> 4</span> <span class="x">&lt;table&gt;</span>
+<span class="lineno"> 5</span> <span class="cp">{%</span> <span class="k">for</span> <span class="nv">book</span> <span class="k">in</span> <span class="nv">books</span> <span class="cp">%}</span><span class="x"></span>
+<span class="lineno"> 6</span> <span class="x">  &lt;tr&gt;</span><span class="cp">{{</span><span class="nv">book.title</span><span class="cp">}}</span><span class="x"> by</span>
+<span class="lineno"> 7</span> <span class="x">    </span><span class="cp">{%</span> <span class="k">for</span> <span class="nv">author</span> <span class="k">in</span> <span class="nv">book.authors.all</span> <span class="cp">%}</span><span class="x"></span>
+<span class="lineno"> 8</span> <span class="x">      </span><span class="cp">{{</span><span class="nv">author.name</span><span class="cp">}}</span><span class="x"></span>
+<span class="lineno"> 9</span> <span class="x">    </span><span class="cp">{%</span> <span class="k">endfor</span> <span class="cp">%}</span><span class="x"></span>
+<span class="lineno">10</span> <span class="x">    </span><span class="cp">{{</span><span class="nv">book.publisher</span><span class="cp">}}</span><span class="x">,</span>
+<span class="lineno">11</span> <span class="x">    </span><span class="cp">{{</span><span class="nv">book.pub_date</span><span class="cp">}}</span><span class="x">&lt;/tr&gt;</span>
+<span class="lineno">12</span> <span class="cp">{%</span> <span class="k">endfor</span> <span class="cp">%}</span><span class="x">&lt;/table&gt;</span>
+<span class="lineno">13</span> <span class="x">&lt;/body&gt; &lt;/html&gt;</span>
+</pre></div>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              11/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code has_notes">
+          <div class="inner">
+            
+            <header><h1>many-to-many relationships</h1></header>
+            
+            <section><p>You need this:</p>
+<div class="highlight"><pre><span class="lineno">1</span> <span class="k">def</span> <span class="nf">get_books_by_date</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+<span class="lineno">2</span>    <span class="n">start</span> <span class="o">=</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+<span class="lineno">3</span>    <span class="n">end</span> <span class="o">=</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">end</span><span class="p">)</span>
+<span class="lineno">4</span>    <span class="n">books</span> <span class="o">=</span> <span class="n">Book</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pub_date__gte</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">pub_date__lte</span><span class="o">=</span><span class="n">end</span><span class="p">)</span>\
+<span class="lineno">5</span>            <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s">&#39;publisher&#39;</span><span class="p">)</span>\
+<span class="lineno">6</span>            <span class="o">.</span><span class="n">prefetch_related</span><span class="p">(</span><span class="s">&#39;authors&#39;</span><span class="p">)</span>\
+<span class="lineno">7</span>            <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s">&#39;pub_date&#39;</span><span class="p">)</span>
+<span class="lineno">8</span>    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;template.html&#39;</span><span class="p">,</span>
+<span class="lineno">9</span>                 <span class="p">{</span><span class="s">&#39;books&#39;</span><span class="p">:</span> <span class="n">books</span><span class="p">,</span> <span class="s">&#39;start&#39;</span><span class="p">:</span> <span class="n">start</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">:</span> <span class="n">end</span><span class="p">})</span>
+</pre></div>
+
+<p class="notes">This will knock us down to 2 <code>SELECTS</code>, one of which uses an <code>IN</code> parameter.  The performance on that may not be great either, but it probably beats separate <code>SELECT</code>s for each row.  Keep in mind when you do this that you're performing a <code>JOIN</code>-equivalent in Python, so you'll want to be aware of how what kind of memory hit you're taking for this operation.</p></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              12/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>deferred attributes</h1></header>
+            
+            <section><p>You can avoid <code>SELECT</code>ing on every column by using <code>only</code> and <code>defer</code>.</p>
+<div class="highlight"><pre><span class="lineno">1</span> <span class="k">def</span> <span class="nf">get_publishers_by_state</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+<span class="lineno">2</span>    <span class="n">publishers</span> <span class="o">=</span> <span class="n">Publisher</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">)</span><span class="o">.</span>\
+<span class="lineno">3</span>                          <span class="o">.</span><span class="n">defer</span><span class="p">(</span><span class="s">&#39;address&#39;</span><span class="p">,</span> <span class="s">&#39;city&#39;</span><span class="p">,</span> <span class="s">&#39;country&#39;</span><span class="p">)</span>
+<span class="lineno">4</span>    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;template.html&#39;</span><span class="p">,</span>
+<span class="lineno">5</span>                  <span class="p">{</span><span class="s">&#39;publishers&#39;</span><span class="p">:</span> <span class="n">publishers</span><span class="p">})</span>
+</pre></div>
+
+<p>Results in:</p>
+<pre><code>[{'time': '0.001',
+'sql': u'SELECT "books_publisher"."id", "books_publisher"."name",
+"books_publisher"."state", "books_publisher"."website"
+FROM "books_publisher" WHERE "books_publisher"."state" = New York'}]
+</code></pre>
+<p><br/>
+But you get 1+n again if you access one of the deferred columns!</p></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              13/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Testing</h1></header>
+            
+            <section><p>Django provides tools for query tuning in the Django shell or unit tests.</p>
+<p><br/></p>
+<ul>
+<li>Check <code>django.db.connection.queries</code> to see what queries a test case has executed.</li>
+<li>Check the <code>query</code> attribute of Queryset to get the SQL executed by a query.</li>
+<li>Check <code>_state.db</code> attribute of an object in a QuerySet to verify multiple DB routing behavior (ex. if you're using a read slave).</li>
+</ul>
+<p>Using <code>connection.queries</code> requires that you are in DEBUG mode, so if you're running this in your tests you'll need to use a context manager to override your settings.</p>
+<p>Do a <code>db.reset_queries()</code> in your <code>setUp</code> method between tests.</p></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              14/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_notes">
+          <div class="inner">
+            
+            <header><h1>Anti-patterns</h1></header>
+            
+            <section><p>The anti-patterns are those in the development process:<br/></p>
+<ul>
+<li>Having designers work on templates without knowledge of the underlying view code.</li>
+<li>Having work done on templates treated as unimportant "front-end stuff" that doesn't need code review.</li>
+<li>Adding attribute access on related objects without checking the view or model manager code.</li>
+<li>Writing tests for Model collections with only one fixture row for that Model.</li>
+<li>Writing tests for ModelManager methods that don't include a check on the number of queries and/or cache hits made.</li>
+</ul>
+<p class="notes">It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns -- a rich source for defects unless you know what to look for.</p></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              15/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Django Database<br/>Anti-Patterns</h1></header>
+            
+            <section><div style="position: absolute; bottom: 0">
+<p>tim gross | @0x74696d</p>
+<p>http://0x74696d.com/posts/django-db-antipatterns/</p>
+</div></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              16/16
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  
+  <div id="toc" class="sidebar hidden">
+    <h2>Table of Contents</h2>
+    <table>
+      <caption>Table of Contents</caption>
+      
+      <tr id="toc-row-1">
+        <th><a href="#slide1">Django Database<br/>Anti-Patterns</a></th>
+        <td><a href="#slide1">1</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-2">
+        <th><a href="#slide2">-</a></th>
+        <td><a href="#slide2">2</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-3">
+        <th><a href="#slide3">1+n queries</a></th>
+        <td><a href="#slide3">3</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-4">
+        <th><a href="#slide4">1+n queries</a></th>
+        <td><a href="#slide4">4</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-5">
+        <th><a href="#slide5">1+n queries</a></th>
+        <td><a href="#slide5">5</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-6">
+        <th><a href="#slide6">1+n queries</a></th>
+        <td><a href="#slide6">6</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-7">
+        <th><a href="#slide7">1+n queries</a></th>
+        <td><a href="#slide7">7</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-8">
+        <th><a href="#slide8">1+n queries</a></th>
+        <td><a href="#slide8">8</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-9">
+        <th><a href="#slide9">So what?<br/>RTFM, right?</a></th>
+        <td><a href="#slide9">9</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-10">
+        <th><a href="#slide10">MVT but no separation of concerns</a></th>
+        <td><a href="#slide10">10</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-11">
+        <th><a href="#slide11">many-to-many relationships</a></th>
+        <td><a href="#slide11">11</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-12">
+        <th><a href="#slide12">many-to-many relationships</a></th>
+        <td><a href="#slide12">12</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-13">
+        <th><a href="#slide13">deferred attributes</a></th>
+        <td><a href="#slide13">13</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-14">
+        <th><a href="#slide14">Testing</a></th>
+        <td><a href="#slide14">14</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-15">
+        <th><a href="#slide15">Anti-patterns</a></th>
+        <td><a href="#slide15">15</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-16">
+        <th><a href="#slide16">Django Database<br/>Anti-Patterns</a></th>
+        <td><a href="#slide16">16</a></td>
+      </tr>
+      
+      
+    </table>
+  </div>
+  
+  <div id="help" class="sidebar hidden">
+    <h2>Help</h2>
+    <table>
+      <caption>Help</caption>
+      <tr>
+        <th>Table of Contents</th>
+        <td>t</td>
+      </tr>
+      <tr>
+        <th>Exposé</th>
+        <td>ESC</td>
+      </tr>
+      <tr>
+        <th>Full screen slides</th>
+        <td>e</td>
+      </tr>
+      <tr>
+        <th>Presenter View</th>
+        <td>p</td>
+      </tr>
+      <tr>
+        <th>Source Files</th>
+        <td>s</td>
+      </tr>
+      <tr>
+        <th>Slide Numbers</th>
+        <td>n</td>
+      </tr>
+      <tr>
+        <th>Toggle screen blanking</th>
+        <td>b</td>
+      </tr>
+      <tr>
+        <th>Show/hide slide context</th>
+        <td>c</td>
+      </tr>
+      <tr>
+        <th>Notes</th>
+        <td>2</td>
+      </tr>
+      <tr>
+        <th>Help</th>
+        <td>h</td>
+      </tr>
+    </table>
+  </div>
+  <script>main()</script>
+</body>
+</html>

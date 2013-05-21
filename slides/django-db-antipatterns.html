@@ -75,7 +75,7 @@
             </aside>
             
             <aside class="page_number">
-              1/16
+              1/17
             </aside>
           </footer>
         </div>
@@ -86,8 +86,62 @@
         <div class="slide">
           <div class="inner">
             
+            <header><h1>In Summary</h1></header>
             
-            <p><img alt="Summary" src="http://0x74696d.com/images/20130519/DjangoAntiPatternsSummary.png" /></p>
+            <section><p><img alt="Summary" src="http://0x74696d.com/images/20130519/DjangoAntiPatternsSummary.png" /></p>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <p>Really easy for template code to produce a <code>1+n SELECTs</code> situation.</p>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="django-db-antipatterns.md">django-db-antipatterns.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              2/17
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: django-db-antipatterns.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>1+n queries</h1></header>
+            
+            <section><p>Books app (Djangobook):</p>
+<div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">class</span> <span class="nc">Publisher</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+<span class="lineno"> 2</span>     <span class="n">name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="lineno"> 3</span>     <span class="n">address</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<span class="lineno"> 4</span>     <span class="n">city</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+<span class="lineno"> 5</span>     <span class="n">state</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="lineno"> 6</span>     <span class="n">country</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<span class="lineno"> 7</span>     <span class="n">website</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">URLField</span><span class="p">()</span>
+<span class="lineno"> 8</span> 
+<span class="lineno"> 9</span> <span class="k">class</span> <span class="nc">Author</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+<span class="lineno">10</span>     <span class="n">first_name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="lineno">11</span>     <span class="n">last_name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">40</span><span class="p">)</span>
+<span class="lineno">12</span>     <span class="n">email</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">EmailField</span><span class="p">()</span>
+<span class="lineno">13</span> 
+<span class="lineno">14</span> <span class="k">class</span> <span class="nc">Book</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+<span class="lineno">15</span>     <span class="n">title</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="lineno">16</span>     <span class="n">authors</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Author</span><span class="p">)</span>  <span class="c"># many-to-many relation</span>
+<span class="lineno">17</span>     <span class="n">publisher</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Publisher</span><span class="p">)</span>  <span class="c"># 1-to-many relation</span>
+<span class="lineno">18</span>     <span class="n">pub_date</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateField</span><span class="p">()</span>
+</pre></div>
+</section>
             
             
           </div>
@@ -104,7 +158,7 @@
             </aside>
             
             <aside class="page_number">
-              2/16
+              3/17
             </aside>
           </footer>
         </div>
@@ -112,7 +166,7 @@
       
       <!-- slide source: django-db-antipatterns.md -->
       <div class="slide-wrapper">
-        <div class="slide has_code has_notes">
+        <div class="slide has_code">
           <div class="inner">
             
             <header><h1>1+n queries</h1></header>
@@ -139,13 +193,15 @@ Minimal template:</p>
 <span class="lineno">8</span> <span class="x">&lt;/body&gt; &lt;/html&gt;</span>
 </pre></div>
 
-<p class="notes">Really easy for template code to produce a <code>1+n SELECTs</code> situation.</p></section>
+</section>
             
             
           </div>
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <p>Important point here is that our view should be a simple select and this will work because our template just references non-relationship fields of the model instance.</p>
             
             </section>
           </div>
@@ -156,7 +212,7 @@ Minimal template:</p>
             </aside>
             
             <aside class="page_number">
-              3/16
+              4/17
             </aside>
           </footer>
         </div>
@@ -207,7 +263,7 @@ WHERE ("books_book"."pub_date" &gt;= 2013-05-16 AND "books_book"."pub_date"
             </aside>
             
             <aside class="page_number">
-              4/16
+              5/17
             </aside>
           </footer>
         </div>
@@ -230,6 +286,7 @@ WHERE ("books_book"."pub_date" &gt;= 2013-05-16 AND "books_book"."pub_date"
 <span class="lineno">7</span> <span class="cp">{%</span> <span class="k">endfor</span> <span class="cp">%}</span><span class="x">&lt;/table&gt;</span>
 <span class="lineno">8</span> <span class="x">&lt;/body&gt; &lt;/html&gt;</span>
 </pre></div>
+
 </section>
             
             
@@ -237,6 +294,8 @@ WHERE ("books_book"."pub_date" &gt;= 2013-05-16 AND "books_book"."pub_date"
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <p>All we've changed is dereferenced an attribute that's a FK relationship.</p>
             
             </section>
           </div>
@@ -247,7 +306,7 @@ WHERE ("books_book"."pub_date" &gt;= 2013-05-16 AND "books_book"."pub_date"
             </aside>
             
             <aside class="page_number">
-              5/16
+              6/17
             </aside>
           </footer>
         </div>
@@ -302,7 +361,7 @@ FROM "books_publisher" WHERE "books_publisher"."id" = 3 '},
             </aside>
             
             <aside class="page_number">
-              6/16
+              7/17
             </aside>
           </footer>
         </div>
@@ -310,7 +369,7 @@ FROM "books_publisher" WHERE "books_publisher"."id" = 3 '},
       
       <!-- slide source: django-db-antipatterns.md -->
       <div class="slide-wrapper">
-        <div class="slide has_code has_notes">
+        <div class="slide has_code">
           <div class="inner">
             
             <header><h1>1+n queries</h1></header>
@@ -325,13 +384,15 @@ FROM "books_publisher" WHERE "books_publisher"."id" = 3 '},
 <span class="lineno">8</span>                 <span class="p">{</span><span class="s">&#39;books&#39;</span><span class="p">:</span> <span class="n">books</span><span class="p">,</span> <span class="s">&#39;start&#39;</span><span class="p">:</span> <span class="n">start</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">:</span> <span class="n">end</span><span class="p">})</span>
 </pre></div>
 
-<p class="notes">In a non-trivial application, this query would probably be in a ModelManager method.  Which means when the front-end designer adds a reference to one of our foreign key attributes in the template, our <code>models.py</code> file has to change (breaking encapsulation).</p></section>
+</section>
             
             
           </div>
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <p>In a non-trivial application, this query would probably be in a ModelManager method.  Which means when the front-end designer adds a reference to one of our foreign key attributes in the template, our <code>models.py</code> file has to change (breaking encapsulation).</p>
             
             </section>
           </div>
@@ -342,7 +403,7 @@ FROM "books_publisher" WHERE "books_publisher"."id" = 3 '},
             </aside>
             
             <aside class="page_number">
-              7/16
+              8/17
             </aside>
           </footer>
         </div>
@@ -388,7 +449,7 @@ ORDER BY "books_book"."pub_date" ASC'}]
             </aside>
             
             <aside class="page_number">
-              8/16
+              9/17
             </aside>
           </footer>
         </div>
@@ -416,7 +477,7 @@ ORDER BY "books_book"."pub_date" ASC'}]
             </aside>
             
             <aside class="page_number">
-              9/16
+              10/17
             </aside>
           </footer>
         </div>
@@ -424,7 +485,7 @@ ORDER BY "books_book"."pub_date" ASC'}]
       
       <!-- slide source: django-db-antipatterns.md -->
       <div class="slide-wrapper">
-        <div class="slide has_notes">
+        <div class="slide">
           <div class="inner">
             
             <header><h1>MVT but no separation of concerns</h1></header>
@@ -443,13 +504,15 @@ ORDER BY "books_book"."pub_date" ASC'}]
 <h2>Reliable source of performance-related defects.</h2>
 </li>
 </ul>
-<p class="notes"> Unless you factor out a version of the manager method without the <code>select_related</code> you're now performing a <code>JOIN</code> and <code>SELECT</code>ing all the extra fields <em>everywhere</em> the method is called and not just in this one view.</p></section>
+</section>
             
             
           </div>
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <p>And, unless you factor out a version of the manager method without the <code>select_related</code> you're now performing a <code>JOIN</code> and <code>SELECT</code>ing all the extra fields <em>everywhere</em> the method is called and not just in this one view.</p>
             
             </section>
           </div>
@@ -460,7 +523,7 @@ ORDER BY "books_book"."pub_date" ASC'}]
             </aside>
             
             <aside class="page_number">
-              10/16
+              11/17
             </aside>
           </footer>
         </div>
@@ -488,6 +551,7 @@ ORDER BY "books_book"."pub_date" ASC'}]
 <span class="lineno">12</span> <span class="cp">{%</span> <span class="k">endfor</span> <span class="cp">%}</span><span class="x">&lt;/table&gt;</span>
 <span class="lineno">13</span> <span class="x">&lt;/body&gt; &lt;/html&gt;</span>
 </pre></div>
+
 </section>
             
             
@@ -495,6 +559,8 @@ ORDER BY "books_book"."pub_date" ASC'}]
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <p>Same problem; we add a reference to a relational field in the template.</p>
             
             </section>
           </div>
@@ -505,7 +571,7 @@ ORDER BY "books_book"."pub_date" ASC'}]
             </aside>
             
             <aside class="page_number">
-              11/16
+              12/17
             </aside>
           </footer>
         </div>
@@ -513,7 +579,7 @@ ORDER BY "books_book"."pub_date" ASC'}]
       
       <!-- slide source: django-db-antipatterns.md -->
       <div class="slide-wrapper">
-        <div class="slide has_code has_notes">
+        <div class="slide has_code">
           <div class="inner">
             
             <header><h1>many-to-many relationships</h1></header>
@@ -530,13 +596,15 @@ ORDER BY "books_book"."pub_date" ASC'}]
 <span class="lineno">9</span>                 <span class="p">{</span><span class="s">&#39;books&#39;</span><span class="p">:</span> <span class="n">books</span><span class="p">,</span> <span class="s">&#39;start&#39;</span><span class="p">:</span> <span class="n">start</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">:</span> <span class="n">end</span><span class="p">})</span>
 </pre></div>
 
-<p class="notes">This will knock us down to 2 <code>SELECTS</code>, one of which uses an <code>IN</code> parameter.  The performance on that may not be great either, but it probably beats separate <code>SELECT</code>s for each row.  Keep in mind when you do this that you're performing a <code>JOIN</code>-equivalent in Python, so you'll want to be aware of how what kind of memory hit you're taking for this operation.</p></section>
+</section>
             
             
           </div>
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <p>This will knock us down to 2 <code>SELECTS</code>, one of which uses an <code>IN</code> parameter.  The performance on that may not be great either, but it probably beats separate <code>SELECT</code>s for each row.  Keep in mind when you do this that you're performing a <code>JOIN</code>-equivalent in Python, so you'll want to be aware of how what kind of memory hit you're taking for this operation.</p>
             
             </section>
           </div>
@@ -547,7 +615,7 @@ ORDER BY "books_book"."pub_date" ASC'}]
             </aside>
             
             <aside class="page_number">
-              12/16
+              13/17
             </aside>
           </footer>
         </div>
@@ -575,13 +643,16 @@ ORDER BY "books_book"."pub_date" ASC'}]
 FROM "books_publisher" WHERE "books_publisher"."state" = New York'}]
 </code></pre>
 <p><br/>
-But you get 1+n again if you access one of the deferred columns!</p></section>
+But you get 1+n again if you access one of the deferred columns!</p>
+</section>
             
             
           </div>
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <p>Deferred attributes avoid performing SELECTs across all the fields of a wide table.  Ex. text fields when you just want one row.</p>
             
             </section>
           </div>
@@ -592,7 +663,7 @@ But you get 1+n again if you access one of the deferred columns!</p></section>
             </aside>
             
             <aside class="page_number">
-              13/16
+              14/17
             </aside>
           </footer>
         </div>
@@ -630,7 +701,7 @@ But you get 1+n again if you access one of the deferred columns!</p></section>
             </aside>
             
             <aside class="page_number">
-              14/16
+              15/17
             </aside>
           </footer>
         </div>
@@ -638,7 +709,7 @@ But you get 1+n again if you access one of the deferred columns!</p></section>
       
       <!-- slide source: django-db-antipatterns.md -->
       <div class="slide-wrapper">
-        <div class="slide has_notes">
+        <div class="slide">
           <div class="inner">
             
             <header><h1>Anti-patterns</h1></header>
@@ -651,13 +722,15 @@ But you get 1+n again if you access one of the deferred columns!</p></section>
 <li>Writing tests for Model collections with only one fixture row for that Model.</li>
 <li>Writing tests for ModelManager methods that don't include a check on the number of queries and/or cache hits made.</li>
 </ul>
-<p class="notes">It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns -- a rich source for defects unless you know what to look for.</p></section>
+</section>
             
             
           </div>
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <p>It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns -- a rich source for defects unless you know what to look for.</p>
             
             </section>
           </div>
@@ -668,7 +741,7 @@ But you get 1+n again if you access one of the deferred columns!</p></section>
             </aside>
             
             <aside class="page_number">
-              15/16
+              16/17
             </aside>
           </footer>
         </div>
@@ -701,7 +774,7 @@ But you get 1+n again if you access one of the deferred columns!</p></section>
             </aside>
             
             <aside class="page_number">
-              16/16
+              17/17
             </aside>
           </footer>
         </div>
@@ -722,7 +795,7 @@ But you get 1+n again if you access one of the deferred columns!</p></section>
       
       
       <tr id="toc-row-2">
-        <th><a href="#slide2">-</a></th>
+        <th><a href="#slide2">In Summary</a></th>
         <td><a href="#slide2">2</a></td>
       </tr>
       
@@ -764,19 +837,19 @@ But you get 1+n again if you access one of the deferred columns!</p></section>
       
       
       <tr id="toc-row-9">
-        <th><a href="#slide9">So what?<br/>RTFM, right?</a></th>
+        <th><a href="#slide9">1+n queries</a></th>
         <td><a href="#slide9">9</a></td>
       </tr>
       
       
       <tr id="toc-row-10">
-        <th><a href="#slide10">MVT but no separation of concerns</a></th>
+        <th><a href="#slide10">So what?<br/>RTFM, right?</a></th>
         <td><a href="#slide10">10</a></td>
       </tr>
       
       
       <tr id="toc-row-11">
-        <th><a href="#slide11">many-to-many relationships</a></th>
+        <th><a href="#slide11">MVT but no separation of concerns</a></th>
         <td><a href="#slide11">11</a></td>
       </tr>
       
@@ -788,26 +861,32 @@ But you get 1+n again if you access one of the deferred columns!</p></section>
       
       
       <tr id="toc-row-13">
-        <th><a href="#slide13">deferred attributes</a></th>
+        <th><a href="#slide13">many-to-many relationships</a></th>
         <td><a href="#slide13">13</a></td>
       </tr>
       
       
       <tr id="toc-row-14">
-        <th><a href="#slide14">Testing</a></th>
+        <th><a href="#slide14">deferred attributes</a></th>
         <td><a href="#slide14">14</a></td>
       </tr>
       
       
       <tr id="toc-row-15">
-        <th><a href="#slide15">Anti-patterns</a></th>
+        <th><a href="#slide15">Testing</a></th>
         <td><a href="#slide15">15</a></td>
       </tr>
       
       
       <tr id="toc-row-16">
-        <th><a href="#slide16">Django Database<br/>Anti-Patterns</a></th>
+        <th><a href="#slide16">Anti-patterns</a></th>
         <td><a href="#slide16">16</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-17">
+        <th><a href="#slide17">Django Database<br/>Anti-Patterns</a></th>
+        <td><a href="#slide17">17</a></td>
       </tr>
       
       

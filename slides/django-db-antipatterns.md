@@ -7,7 +7,39 @@
 
 ---
 
+# In Summary
 ![Summary](http://0x74696d.com/images/20130519/DjangoAntiPatternsSummary.png)
+
+
+# Presenter Notes
+
+Really easy for template code to produce a `1+n SELECTs` situation.
+
+---
+
+# 1+n queries
+
+Books app (Djangobook):
+
+    !python
+    class Publisher(models.Model):
+        name = models.CharField(max_length=30)
+        address = models.CharField(max_length=50)
+        city = models.CharField(max_length=60)
+        state = models.CharField(max_length=30)
+        country = models.CharField(max_length=50)
+        website = models.URLField()
+
+    class Author(models.Model):
+        first_name = models.CharField(max_length=30)
+        last_name = models.CharField(max_length=40)
+        email = models.EmailField()
+
+    class Book(models.Model):
+        title = models.CharField(max_length=100)
+        authors = models.ManyToManyField(Author)  # many-to-many relation
+        publisher = models.ForeignKey(Publisher)  # 1-to-many relation
+        pub_date = models.DateField()
 
 ---
 
@@ -37,7 +69,11 @@ Minimal template:
     {% endfor %}</table>
     </body> </html>
 
-.notes: Really easy for template code to produce a `1+n SELECTs` situation.
+
+# Presenter Notes
+
+Important point here is that our view should be a simple select and this will work because our template just references non-relationship fields of the model instance.
+
 
 ---
 
@@ -82,6 +118,11 @@ Change the template to:
     <tr>{{book.title}}: {{book.publisher}}, {{book.pub_date}}</tr>
     {% endfor %}</table>
     </body> </html>
+
+
+# Presenter Notes
+
+All we've changed is dereferenced an attribute that's a FK relationship.
 
 ---
 
@@ -128,7 +169,10 @@ Now we get:
        return render(request, 'template.html',
                     {'books': books, 'start': start, 'end': end})
 
-.notes: In a non-trivial application, this query would probably be in a ModelManager method.  Which means when the front-end designer adds a reference to one of our foreign key attributes in the template, our `models.py` file has to change (breaking encapsulation).
+
+# Presenter Notes
+
+In a non-trivial application, this query would probably be in a ModelManager method.  Which means when the front-end designer adds a reference to one of our foreign key attributes in the template, our `models.py` file has to change (breaking encapsulation).
 
 ---
 
@@ -168,7 +212,10 @@ And this gives us:
 
 - ## Reliable source of performance-related defects. ##
 
-.notes:  Unless you factor out a version of the manager method without the `select_related` you're now performing a `JOIN` and `SELECT`ing all the extra fields _everywhere_ the method is called and not just in this one view.
+
+# Presenter Notes
+
+And, unless you factor out a version of the manager method without the `select_related` you're now performing a `JOIN` and `SELECT`ing all the extra fields _everywhere_ the method is called and not just in this one view.
 
 ---
 
@@ -192,6 +239,12 @@ To do this:
     {% endfor %}</table>
     </body> </html>
 
+
+# Presenter Notes
+
+Same problem; we add a reference to a relational field in the template.
+
+
 ---
 
 # many-to-many relationships
@@ -209,7 +262,10 @@ You need this:
        return render(request, 'template.html',
                     {'books': books, 'start': start, 'end': end})
 
-.notes: This will knock us down to 2 `SELECTS`, one of which uses an `IN` parameter.  The performance on that may not be great either, but it probably beats separate `SELECT`s for each row.  Keep in mind when you do this that you're performing a `JOIN`-equivalent in Python, so you'll want to be aware of how what kind of memory hit you're taking for this operation.
+
+# Presenter Notes
+
+This will knock us down to 2 `SELECTS`, one of which uses an `IN` parameter.  The performance on that may not be great either, but it probably beats separate `SELECT`s for each row.  Keep in mind when you do this that you're performing a `JOIN`-equivalent in Python, so you'll want to be aware of how what kind of memory hit you're taking for this operation.
 
 ---
 
@@ -233,6 +289,11 @@ Results in:
 
 <br/>
 But you get 1+n again if you access one of the deferred columns!
+
+
+# Presenter Notes
+
+Deferred attributes avoid performing SELECTs across all the fields of a wide table.  Ex. text fields when you just want one row.
 
 ---
 
@@ -262,7 +323,9 @@ The anti-patterns are those in the development process:<br/>
 - Writing tests for Model collections with only one fixture row for that Model.
 - Writing tests for ModelManager methods that don't include a check on the number of queries and/or cache hits made.
 
-.notes: It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns -- a rich source for defects unless you know what to look for.
+# Presenter Notes
+
+It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns -- a rich source for defects unless you know what to look for.
 
 ---
 

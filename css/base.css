@@ -1,16 +1,8 @@
-/*
-font-family:'Avenir Next W01 Thin';
-font-family:'AvenirNextW01-ThinItali';
-font-family:'AvenirNextLTW01-Regular';
-font-family:'AvenirNextLTW01-Italic';
-font-family:'Avenir Next LT W01 Bold';
-font-family:'AvenirNextLTW01-BoldIta';
-*/
-
 body {
   margin: 0;
   padding: 0;
-  font-family: 'AvenirNextLTW01-Regular', Helvetica, sans-serif;
+  font-family: 'Lato', Helvetica, sans-serif;
+  font-weight: 300;
 }
 
 a {
@@ -73,8 +65,8 @@ blockquote {
   .menu {
     padding: 0;
     margin: 5px 0;
-    font-family: 'Avenir Next W01 Thin', Helvetica, sans-serif;
-    font-weight: normal;
+    font-family: 'Lato', Helvetica, sans-serif;
+    font-weight: 100;
   }
   .menu li {
     display: inline;
@@ -148,17 +140,18 @@ h1 {
 
 }
   .content i, .content em {
-    font-family: 'AvenirNextLTW01-Regular', Helvetica, sans-serif;
+    font-family: 'Lato', Helvetica, sans-serif;
+    font-weight: 100;
     font-style: italic;
   }
   .content b, .content strong {
-    font-family: 'Avenir Next LT W01 Bold';
-    font-weight: normal;
+    font-family: 'Lato', Helvetica, sans-serif;
+    font-weight: 700;
   }
   .content em b {
-    font-family: 'AvenirNextLTW01-BoldIta';
-    font-weight: normal;
-    font-style: normal;
+    font-family: 'Lato', Helvetica, sans-serif;
+    font-weight: 700;
+    font-style: italic;
   }
   .content p {
     font-size: 20px;
@@ -167,7 +160,7 @@ h1 {
   }
   .error i {
     font-size: 16px;
-    font-family: 'AvenirNextLTW01-Regular', Helvetica, sans-serif;
+    font-family: 'Lato', Helvetica, sans-serif;
     font-style: italic;
   }
   .content img, .content video {

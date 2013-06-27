@@ -76,6 +76,8 @@ Vector Clock
 # Presenter Notes
 
 - No state on the server
+- Note order of operations in serialize/deserialize
+- Racy!
 
 ---
 
@@ -84,7 +86,7 @@ Vector Clock
 HMAC-signed client-side cookies store session data
 
 - data can be read by client unless cookie data is encrypted server-side first
-- data can't be undetectably tampered
+- data can't be undetectably tampered with
 - Flask ships with `itsdangerous` to do client-side session cookie
 
 # Presenter Notes
@@ -106,6 +108,7 @@ HMAC-signed client-side cookies store session data
 - needs to be fast, highly-available
 - cookie token should be hard to spoof
 - N.B. both stateless and stateful should protect w/ httponly/SSL-only if used for auth
+- Riak/Dynamo/any-eventually-consistent-store sessions are still racy!
 
 ---
 
@@ -151,14 +154,13 @@ HMAC-signed client-side cookies store session data
 
 # Flask-RiakSessions
 
-`flask_riaksessions.py`
 
     !python
     class RiakSessions(object):
         """
-        Sets up the Flask-RiakSessions extension during application startup.
-        Instantiate this class and pass the application to the `app`
-        argument to set it up.
+        Sets up the Flask-RiakSessions extension during application
+        startup. Instantiate this class and pass the application to
+        the `app` argument to set it up.
 
         """
         def __init__(self, app=None):
@@ -168,8 +170,8 @@ HMAC-signed client-side cookies store session data
 
         def init_app(self, app):
             """
-            Sets up default config variables and instantiates the session
-            interface.
+            Sets up default config variables and instantiates the
+            session interface.
 
             """
             app.config.setdefault('RIAK_BIN_DIR',
@@ -201,6 +203,7 @@ HMAC-signed client-side cookies store session data
     app = Flask(__name__)
     app.config.from_object(__name__)
     app.config['SECRET_KEY'] = 'mysecretkey'
+
     RiakSessions(app)
 
 
@@ -276,11 +279,11 @@ HMAC-signed client-side cookies store session data
     !python
     def generate_sid(app, ip, user_agent):
         """
-        Uses the IP and user-agent as the inputs to an HMAC to be used as
-        part of the unique session ID.
+        Uses the IP and user-agent as the inputs to an HMAC to be used
+        as part of the unique session ID.
 
         """
-        sid = get_hmac(app, '{}.{}'.format(ip, base64.b64encode(user_agent)))
+        sid = get_hmac(app, '{}.{}'.format(ip,base64.b64encode(user_agent)))
         return sid
 
 
@@ -301,6 +304,8 @@ HMAC-signed client-side cookies store session data
 
 - Using user agent & IP address not enough to ID user
 - concat w/ UUID, username, etc.
+- Using IP/User-Agent is a standin
+- will use an HMAC of user information for authenticated users + browser identifiers
 
 ---
 
@@ -309,9 +314,9 @@ HMAC-signed client-side cookies store session data
     !python
     def get(self, cookie, app, ip, user_agent):
         """
-        Gets the session data from the Riak datastore and compares the HMAC
-        signatures of the IP and User-Agent against the session ID to ensure
-        it has not been altered.
+        Gets the session data from the Riak datastore and compares the
+        HMAC signatures of inputs against the session ID to ensure it
+        has not been altered.
 
         """
         sid = generate_sid(app, ip, user_agent)
@@ -320,7 +325,7 @@ HMAC-signed client-side cookies store session data
         if cookie_sid != sid:
             raise SessionValidationError('Tampered session.')
 
-        # this uses the python `riak` client
+        # this uses `riak-python-client` from basho
         session_bucket = self.client.bucket('sessions')
         stored_value = session_bucket.get(cookie)
 
@@ -341,6 +346,7 @@ HMAC-signed client-side cookies store session data
 
 - instantiated riak client in __init__ (trivial)
 - `date_hook` in deserialization is a custom decoder subclass to decode datetimes
+- validation is stand-in still.
 
 ---
 
@@ -405,8 +411,8 @@ HMAC-signed client-side cookies store session data
 
 Need to verify program correctness and service robustness, make available to developers
 
-
-- Test rig that exercises node failure conditions on Riak dev server
+- Interface w/ user accounts for validation
+- Test rig for exercising Riak (node failure, stale vector clocks)
 - Test `setup.py` deployments
 - Vagrant file to build a Riak cluster of VMs for
 - Package for Cheese Shop (open source w/ MIT license)
@@ -416,6 +422,12 @@ Compare vs DynamoDB
 - Build similar library for DynamoDB
 - Provisioning cost estimation for EC2 vs. DynamoDB
 - Load testing on EC2 and DynamoDB (`ab` or similar)
+
+
+# Presenter Notes
+
+- Riak gives you plenty of interface tools
+- Riak dev server is broken currently (at least on OS X under certain installs).
 
 ---
 

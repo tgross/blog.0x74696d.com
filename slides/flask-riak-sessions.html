@@ -238,6 +238,8 @@
             
               <ul>
 <li>No state on the server</li>
+<li>Note order of operations in serialize/deserialize</li>
+<li>Racy!</li>
 </ul>
             
             </section>
@@ -265,7 +267,7 @@
             <section><p>HMAC-signed client-side cookies store session data</p>
 <ul>
 <li>data can be read by client unless cookie data is encrypted server-side first</li>
-<li>data can't be undetectably tampered</li>
+<li>data can't be undetectably tampered with</li>
 <li>Flask ships with <code>itsdangerous</code> to do client-side session cookie</li>
 </ul>
 </section>
@@ -319,6 +321,7 @@
 <li>needs to be fast, highly-available</li>
 <li>cookie token should be hard to spoof</li>
 <li>N.B. both stateless and stateful should protect w/ httponly/SSL-only if used for auth</li>
+<li>Riak/Dynamo/any-eventually-consistent-store sessions are still racy!</li>
 </ul>
             
             </section>
@@ -405,12 +408,11 @@
             
             <header><h1>Flask-RiakSessions</h1></header>
             
-            <section><p><code>flask_riaksessions.py</code></p>
-<div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">class</span> <span class="nc">RiakSessions</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+            <section><div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">class</span> <span class="nc">RiakSessions</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 <span class="lineno"> 2</span>     <span class="sd">&quot;&quot;&quot;</span>
-<span class="lineno"> 3</span> <span class="sd">    Sets up the Flask-RiakSessions extension during application startup.</span>
-<span class="lineno"> 4</span> <span class="sd">    Instantiate this class and pass the application to the `app`</span>
-<span class="lineno"> 5</span> <span class="sd">    argument to set it up.</span>
+<span class="lineno"> 3</span> <span class="sd">    Sets up the Flask-RiakSessions extension during application</span>
+<span class="lineno"> 4</span> <span class="sd">    startup. Instantiate this class and pass the application to</span>
+<span class="lineno"> 5</span> <span class="sd">    the `app` argument to set it up.</span>
 <span class="lineno"> 6</span> 
 <span class="lineno"> 7</span> <span class="sd">    &quot;&quot;&quot;</span>
 <span class="lineno"> 8</span>     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
@@ -420,8 +422,8 @@
 <span class="lineno">12</span> 
 <span class="lineno">13</span>     <span class="k">def</span> <span class="nf">init_app</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
 <span class="lineno">14</span>         <span class="sd">&quot;&quot;&quot;</span>
-<span class="lineno">15</span> <span class="sd">        Sets up default config variables and instantiates the session</span>
-<span class="lineno">16</span> <span class="sd">        interface.</span>
+<span class="lineno">15</span> <span class="sd">        Sets up default config variables and instantiates the</span>
+<span class="lineno">16</span> <span class="sd">        session interface.</span>
 <span class="lineno">17</span> 
 <span class="lineno">18</span> <span class="sd">        &quot;&quot;&quot;</span>
 <span class="lineno">19</span>         <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;RIAK_BIN_DIR&#39;</span><span class="p">,</span>
@@ -469,15 +471,16 @@
             <header><h1>Flask-RiakSession</h1></header>
             
             <section><p><code>app.py</code> (example)</p>
-<div class="highlight"><pre><span class="lineno">1</span> <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
-<span class="lineno">2</span> 
-<span class="lineno">3</span> <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">session</span><span class="p">,</span> <span class="n">request</span>
-<span class="lineno">4</span> <span class="kn">from</span> <span class="nn">flask.ext.riaksessions</span> <span class="kn">import</span> <span class="n">RiakSessions</span>
-<span class="lineno">5</span> 
-<span class="lineno">6</span> <span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
-<span class="lineno">7</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">from_object</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
-<span class="lineno">8</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&#39;SECRET_KEY&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;mysecretkey&#39;</span>
-<span class="lineno">9</span> <span class="n">RiakSessions</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+<div class="highlight"><pre><span class="lineno"> 1</span> <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">session</span><span class="p">,</span> <span class="n">request</span>
+<span class="lineno"> 4</span> <span class="kn">from</span> <span class="nn">flask.ext.riaksessions</span> <span class="kn">import</span> <span class="n">RiakSessions</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span> <span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+<span class="lineno"> 7</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">from_object</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+<span class="lineno"> 8</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&#39;SECRET_KEY&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;mysecretkey&#39;</span>
+<span class="lineno"> 9</span> 
+<span class="lineno">10</span> <span class="n">RiakSessions</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
 </pre></div>
 
 </section>
@@ -623,11 +626,11 @@
             
             <section><div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">def</span> <span class="nf">generate_sid</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">ip</span><span class="p">,</span> <span class="n">user_agent</span><span class="p">):</span>
 <span class="lineno"> 2</span>     <span class="sd">&quot;&quot;&quot;</span>
-<span class="lineno"> 3</span> <span class="sd">    Uses the IP and user-agent as the inputs to an HMAC to be used as</span>
-<span class="lineno"> 4</span> <span class="sd">    part of the unique session ID.</span>
+<span class="lineno"> 3</span> <span class="sd">    Uses the IP and user-agent as the inputs to an HMAC to be used</span>
+<span class="lineno"> 4</span> <span class="sd">    as part of the unique session ID.</span>
 <span class="lineno"> 5</span> 
 <span class="lineno"> 6</span> <span class="sd">    &quot;&quot;&quot;</span>
-<span class="lineno"> 7</span>     <span class="n">sid</span> <span class="o">=</span> <span class="n">get_hmac</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="s">&#39;{}.{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">user_agent</span><span class="p">)))</span>
+<span class="lineno"> 7</span>     <span class="n">sid</span> <span class="o">=</span> <span class="n">get_hmac</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="s">&#39;{}.{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span><span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">user_agent</span><span class="p">)))</span>
 <span class="lineno"> 8</span>     <span class="k">return</span> <span class="n">sid</span>
 <span class="lineno"> 9</span> 
 <span class="lineno">10</span> 
@@ -655,6 +658,8 @@
               <ul>
 <li>Using user agent &amp; IP address not enough to ID user</li>
 <li>concat w/ UUID, username, etc.</li>
+<li>Using IP/User-Agent is a standin</li>
+<li>will use an HMAC of user information for authenticated users + browser identifiers</li>
 </ul>
             
             </section>
@@ -681,9 +686,9 @@
             
             <section><div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cookie</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">ip</span><span class="p">,</span> <span class="n">user_agent</span><span class="p">):</span>
 <span class="lineno"> 2</span>     <span class="sd">&quot;&quot;&quot;</span>
-<span class="lineno"> 3</span> <span class="sd">    Gets the session data from the Riak datastore and compares the HMAC</span>
-<span class="lineno"> 4</span> <span class="sd">    signatures of the IP and User-Agent against the session ID to ensure</span>
-<span class="lineno"> 5</span> <span class="sd">    it has not been altered.</span>
+<span class="lineno"> 3</span> <span class="sd">    Gets the session data from the Riak datastore and compares the</span>
+<span class="lineno"> 4</span> <span class="sd">    HMAC signatures of inputs against the session ID to ensure it</span>
+<span class="lineno"> 5</span> <span class="sd">    has not been altered.</span>
 <span class="lineno"> 6</span> 
 <span class="lineno"> 7</span> <span class="sd">    &quot;&quot;&quot;</span>
 <span class="lineno"> 8</span>     <span class="n">sid</span> <span class="o">=</span> <span class="n">generate_sid</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">ip</span><span class="p">,</span> <span class="n">user_agent</span><span class="p">)</span>
@@ -692,7 +697,7 @@
 <span class="lineno">11</span>     <span class="k">if</span> <span class="n">cookie_sid</span> <span class="o">!=</span> <span class="n">sid</span><span class="p">:</span>
 <span class="lineno">12</span>         <span class="k">raise</span> <span class="n">SessionValidationError</span><span class="p">(</span><span class="s">&#39;Tampered session.&#39;</span><span class="p">)</span>
 <span class="lineno">13</span> 
-<span class="lineno">14</span>     <span class="c"># this uses the python `riak` client</span>
+<span class="lineno">14</span>     <span class="c"># this uses `riak-python-client` from basho</span>
 <span class="lineno">15</span>     <span class="n">session_bucket</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">bucket</span><span class="p">(</span><span class="s">&#39;sessions&#39;</span><span class="p">)</span>
 <span class="lineno">16</span>     <span class="n">stored_value</span> <span class="o">=</span> <span class="n">session_bucket</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cookie</span><span class="p">)</span>
 <span class="lineno">17</span> 
@@ -720,6 +725,7 @@
               <ul>
 <li>instantiated riak client in <strong>init</strong> (trivial)</li>
 <li><code>date_hook</code> in deserialization is a custom decoder subclass to decode datetimes</li>
+<li>validation is stand-in still.</li>
 </ul>
             
             </section>
@@ -852,7 +858,8 @@
             
             <section><p>Need to verify program correctness and service robustness, make available to developers</p>
 <ul>
-<li>Test rig that exercises node failure conditions on Riak dev server</li>
+<li>Interface w/ user accounts for validation</li>
+<li>Test rig for exercising Riak (node failure, stale vector clocks)</li>
 <li>Test <code>setup.py</code> deployments</li>
 <li>Vagrant file to build a Riak cluster of VMs for</li>
 <li>Package for Cheese Shop (open source w/ MIT license)</li>
@@ -862,13 +869,19 @@
 <li>Build similar library for DynamoDB</li>
 <li>Provisioning cost estimation for EC2 vs. DynamoDB</li>
 <li>Load testing on EC2 and DynamoDB (<code>ab</code> or similar)</li>
-</ul></section>
+</ul>
+</section>
             
             
           </div>
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <ul>
+<li>Riak gives you plenty of interface tools</li>
+<li>Riak dev server is broken currently (at least on OS X under certain installs).</li>
+</ul>
             
             </section>
           </div>

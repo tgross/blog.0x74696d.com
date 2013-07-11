@@ -164,7 +164,6 @@ h1 {
     font-style: italic;
   }
   .content img, .content video {
-    margin: 0 -60px;
     max-width: 770px;
     box-shadow: 0 0 10px #ccc;
     padding: 1px;

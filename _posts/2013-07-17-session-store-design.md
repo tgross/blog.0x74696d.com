@@ -13,7 +13,7 @@ Client-side Sessions
 
 Client-side sessions leave no state behind on the server and instead put session data into a cookie that is transmitted back and forth between the browser (or other client) and the server. I like to think of this as having the state stored "on the wire." The workflow looks like this:
 
-![client-side sessions workflow](http://0x74696d.com/slides/images/20130627/client-side-sessions.png)
+![client-side sessions workflow](/images/20130717/client-side-sessions.png)
 
 Note that the session has been signed using HMAC to detect tampering. Order of operations is important here. The application framework has to check the HMAC *before* decoding and deserializing the cookie value. Otherwise you're potentially deserializing user-provided data, which I hopefully don't have to tell you is potentially a Very Bad Thing.
 
@@ -33,7 +33,7 @@ Server-side Sessions
 
 If you want to store large chunks of data or don't want to encrypt session data, you'll want to use server-side sessions. This means we pass the client a cookie with a session identifier and then use that ID to lookup the session data from some kind of data store. This workflow is less complex and looks like this:
 
-![server-side sessions workflow](http://0x74696d.com/slides/images/20130627/server-side-sessions.png)
+![server-side sessions workflow](/images/20130717/server-side-sessions.png)
 
 Server side sessions are easier to get right from a security perspective. As long as you have a hard-to-spoof session token you're in pretty good shape (but see the notes about HTTP-only and SSL below). If you want to go crazy, you can finger-print the client and then use that and your secret key to sign the session token to reduce the risk of session stealing. In practice if you do that you'll end up logging people out and losing sessions more often than you might intend -- browser fingerprints change a lot.
 

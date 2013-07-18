@@ -58,3 +58,5 @@ tl;dr
 ----
 
 There isn't really a don't-make-me-think-version of this post. You should almost certainly be using the HttpOnly flag and putting your whole site under SSL for authenticated users. If you have any question as to whether you will be putting sensitive data in the session or how to encrypt that data safely, you should be using a server-backed session. Redis is a great backing store for server-backed sessions. Client-side sessions have their place, but there are plenty of fairly bad client-side session implementations out there so do your research.
+
+><aside>Thanks to [John Romanski](https://github.com/JohnRomanski) who was kind enough to review this post for technical errors and style advice.</aside>

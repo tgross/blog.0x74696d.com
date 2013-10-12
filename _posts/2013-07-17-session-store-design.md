@@ -41,6 +41,8 @@ The backing datastore for your sessions can be just about anything, but you'll w
 
 The mini-project I discussed in the intro uses Riak as a session store for Flask so that I can compare it against using DynamoDB and play around with its cool operations tools. The problem both of these stores have is lack of consistency; this might not be a problem for a given application but if it isn't one might want to go with client-side sessions anyways. You can tune Riak to be more consistent by manipulating the `r`/`w` variables, but naturally this is going to reduce availability. (I suspect but haven't confirmed that it will increase latency slightly as well.)
 
+><aside>Addendum 2013/10/12: [Hector Castro](https://twitter.com/hectcastro/statuses/357834726419087360) from Basho says tht bumping up R/W consistency does have an effect on latency and that you should check out [this doc](http://basho.com/riaks-config-behaviors-part-2/) for more details.</aside>
+
 Most of the popular Python web frameworks give you the option for server-side sessions too. In Django it's the default session engine. CherryPy gives only this option. For Flask you'll need to write your own or select one already written like [this one](http://flask.pocoo.org/snippets/75/) for Redis-backed sessions that I used as inspiration for the `flask-riak-sessions` project I'm working on. Note that snippet uses `pickle`, which I don't recommend as a serializer for sessions because I'm paranoid. It's too easy to screw up and put unsanitized data into the session store and have it deserialized into arbitrary Python code that will pwn your server.
 
 

@@ -57,8 +57,10 @@ Ok, what are we doing here?  We're making a new X.509 certificate request with t
 We've got our CA now, and if we trust it as a root authority (we'll get to that in a minute), we can create SSL certificates that our browser will accept without complaint.  But Charles expects the signing certificate to be in PKCS12 format.  So we need to use OpenSSL again to convert our keys to a .pfx file.
 
 {% highlight bash %}
-    openssl pkcs12 -export -out ca_cert.pfx -inkey private/ca_key.pem -in ca_cert.pem
+    openssl pkcs12 -export -out ca_cert.pfx -inkey private/ca_key.pem -in certs/ca_cert.pem
 {% endhighlight %}
+
+><aside>Update 2013/10/12: Thanks to [Mark Aufflick](https://twitter.com/markaufflick) who pointed out I was missing the certs directory path from the "-in" argument of this command</aside>
 
 The `ca_cert.pfx` output file for this is what we'll add as a trusted root cert.  On OS X the easiest way to do this is just to hit the directory in Finder and double-click the cert (you can also use the `security` command-line interface).  Keychain Access will come up and ask you if you're really really sure, that you're aware that you are granting this cert the right to make arbitrary Facebook posts about your mother-in-law on your behalf, etc.
 
@@ -69,6 +71,8 @@ You should see the following when you're done.
 ![This certificate is marked as trusted](/images/20130513/2.png)
 
 Now we can fire up Charles and configure it to use our new certificate.  Under Proxy Settings and the SSL tab, check _Use a Custom CA Certificate_.  For some reason on my installation, the Choose button would not find `/usr/local` at all so I had to enter the path by hand.  We'll trust this for all locations.
+
+><aside>Update 2013/10/12: Thanks to [Mark Aufflick](https://twitter.com/markaufflick) who pointed out you can just drag the .pfx file into the dialog.</aside>
 
 ![Proxy settings](/images/20130513/3.png)
 

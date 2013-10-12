@@ -48,7 +48,7 @@ end # task :post
 
 desc "Launch preview environment"
 task :preview do
-  system "jekyll --auto --server"
+  system "jekyll serve --watch"
 end # task :preview
 
 desc "Update icons based on your gravatar (define author email in _config.yml)!"
@@ -88,5 +88,3 @@ task :icons do
   puts "Cleaning up..."
   File.delete origin
 end
-
-

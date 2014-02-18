@@ -17,20 +17,9 @@
 
 ---
 
-# AUFS: Another Unioning File System
+# The core: LXC
 
-<img alt="AUFS" style="margin-left:100px" src="./images/docker-aufs.png">
-
-# Presenter Notes
-
-- AUFS has a limitation in the number of layers you can have
-- managing disk space on small root volumes gets to be a pain in resource-constrained environments like AWS instances
-
----
-
-# LXC
-
-- chroot + filesystem
+- chroot + backing filesystem
 - cgroups
 - network namespace
 - PID namespace
@@ -44,6 +33,18 @@
 - control privileges, constrain resource use
 - containers can have their own hostname
 - namespace ex: init in container is PID1 but not on the host
+
+---
+
+# AUFS: Another Unioning File System
+
+<img alt="AUFS" style="margin-left:100px;margin-top:100px" src="./images/docker-aufs.png">
+
+# Presenter Notes
+
+- AUFS has a limitation in the number of layers you can have (42)
+- managing disk space on small root volumes gets to be a pain in resource-constrained environments like AWS instances
+- No good tooling for understanding relationships of AUFS layer dependencies
 
 ---
 
@@ -111,7 +112,7 @@ What are Docker images on-disk?
 
 # Presenter Notes
 
-- note the insanely long filenames (from this point forward we'll show ... to make them fit on slides)
+- note the long filenames (from this point forward we'll show ... to make them fit on slides)
 
 ---
 
@@ -439,7 +440,7 @@ After `docker run -d -v /var/log/nginx:/var/log example.com/nginx /etc/init/ngin
 LXC templates generate the config file and generate the initial file system
 
     !shell-session
-    root@precise64:~# ls -gGh /usr/lib/lxc/templates/
+    root@lxc:~# ls -gGh /usr/lib/lxc/templates/
     total 88K
     -rwxr-xr-x 1 8.1K Oct 29 22:16 lxc-busybox
     -rwxr-xr-x 1 9.6K Oct 29 22:16 lxc-debian
@@ -478,22 +479,138 @@ Starting a container
 
 # Presenter Notes
 
-- this is just one potential deployment scenario, the point of this is that we can change any of these elements when we roll out own.
+- this is just one potential deployment scenario
+- the point of this is that we can change any of these elements when we roll out own.
+- better yet would be using your favorite config mgmt too (Puppet, Saltstack, Ansible, etc)
 - another approach we could take here is to build our own LXC template script
-- available at http://0x74696d.com/_code/training_wheels/notdocker
+- available at http://0x74696d.com/_code/training_wheels/notdocker, let's take a look
 
 ---
 
-# LXC Over Docker?
+# `notdocker` results
 
-- If Docker doesn't meet your needs (ex. AUFS layering)
-- If you need a specific deployment and not a general one
+After: `notdocker build -n test0 -p 80:80 -f setup.sh`
 
+    !shell-session
+    root@lxc:~# ls -gGh /var/lib/lxc/test0/
+    total 12K
+    -rw-r--r--  1 1.3K Feb 18 20:08 config
+    -rw-r--r--  1  110 Feb 18 20:08 fstab
+    drwxr-xr-x 23 4.0K Feb 18 20:08 rootfs
+
+    root@lxc:~# head /var/lib/lxc/test0/config
+    lxc.network.type=veth
+    lxc.network.link=lxcbr0
+    lxc.network.flags=up
+    lxc.network.hwaddr = 00:16:3e:c4:76:e4
+    lxc.utsname = test0
+
+    lxc.tty = 4
+    lxc.pts = 1024
+    lxc.rootfs = /var/lib/lxc/test0/rootfs
+    lxc.mount  = /var/lib/lxc/test0/fstab
 
 # Presenter Notes
 
-- in theory Docker is going to be more robust than your shell scrip (at Docker 1.0?)
-- Docker is a generalized solution originally designed for PaaS, not for your app
+- in this case our setup just installs Nginx
+- note that the container directory is easy to find
+
+---
+
+# `notdocker` results
+
+The rootfs of the container is easy to browse and we could chroot to this directory to modify it.
+
+    !shell-session
+    root@lxc:~# ls -gGh /var/lib/lxc/test0/rootfs/
+    total 84K
+    drwxr-xr-x  2 4.0K Jan 30 07:06 bin
+    drwxr-xr-x  3 4.0K Jan 30 07:06 boot
+    drwxr-xr-x  4 4.0K Jan 30 07:05 dev
+    drwxr-xr-x 86 4.0K Feb 18 20:08 etc
+    drwxr-xr-x  3 4.0K Jan 30 07:06 home
+    lrwxrwxrwx  1   33 Jan 30 07:05 initrd.img -> /boot/initrd.img-3.2.0-58-virtual
+    drwxr-xr-x 18 4.0K Jan 30 07:05 lib
+    drwxr-xr-x  2 4.0K Jan 30 07:04 lib64
+    drwx------  2 4.0K Jan 30 07:06 lost+found
+    drwxr-xr-x  2 4.0K Jan 30 07:04 media
+    drwxr-xr-x  2 4.0K Apr 19  2012 mnt
+    drwxr-xr-x  2 4.0K Jan 30 07:04 opt
+    drwxr-xr-x  2 4.0K Apr 19  2012 proc
+    drwx------  2 4.0K Jan 30 07:06 root
+    drwxr-xr-x  2 4.0K Jan 30 07:06 run
+    drwxr-xr-x  2 4.0K Jan 30 07:06 sbin
+    drwxr-xr-x  2 4.0K Mar  5  2012 selinux
+    drwxr-xr-x  2 4.0K Jan 30 07:04 srv
+    drwxr-xr-x  2 4.0K Apr 14  2012 sys
+    drwxrwxrwt  2 4.0K Jan 30 07:06 tmp
+    drwxr-xr-x 10 4.0K Jan 30 07:04 usr
+    drwxr-xr-x 12 4.0K Jan 30 07:06 var
+    lrwxrwxrwx  1   29 Jan 30 07:05 vmlinuz -> boot/vmlinuz-3.2.0-58-virtual
+
+
+---
+
+# Inside the LXC container
+
+After: `notdocker run -d -n test0 -- /etc/init/nginx`
+
+We can use lxc-console to examine the container from the inside.
+
+    !shell-session
+    root@test0:~# netstat -antp
+    Active Internet connections (servers and established)
+    Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+    tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      3095/nginx
+    tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      361/sshd
+    tcp        0      0 10.0.3.133:49062        91.189.91.14:80         TIME_WAIT   -
+    tcp6       0      0 :::22                   :::*                    LISTEN      361/sshd
+
+---
+
+# PID isolation
+
+Inside the container:
+
+    !shell-session
+    root@test0:~# ps afx
+      PID TTY      STAT   TIME COMMAND
+        1 ?        Ss     0:00 /sbin/init
+     3077 ?        Ss     0:00  \_ /bin/sh -e /proc/self/fd/9
+     3095 ?        Ss     0:00      \_ nginx: master process /usr/sbin/nginx
+     3096 ?        S      0:00         \_ nginx: worker process
+     3097 ?        S      0:00         \_ nginx: worker process
+
+Outside the container:
+
+    !shell-session
+    root@lxc:~# ps afx
+     PID TTY      STAT   TIME COMMAND
+    3084 ?        Ss     0:00 lxc-start -d -n test0
+    3090 ?        Ss     0:00  \_ /sbin/init
+    3196 ?        Ss     0:00  \_ /bin/sh -e /proc/self/fd/9
+    6214 ?        Ss     0:00      \_ nginx: master process /usr/sbin/nginx
+    6215 ?        S      0:00          \_ nginx: worker process
+    6216 ?        S      0:00          \_ nginx: worker process
+
+# Presenter notes
+
+- aside: our /etc/init/nginx is just an upstart config
+
+---
+
+# When to Use LXC Over Docker?
+
+- If managing AUFS is more painful than it's worth
+- If you want to use btrfs snapshots or LVM for the backing store
+- If your application dependencies are relatively fixed
+- If you want to share read-only volumes between containers
+- If your build process wants to write directly to the rootdir
+
+# Presenter Notes
+
+- in theory Docker is going to be more robust than your shell scrip (at Docker 1.0?
+- remember: Docker is a generalized solution originally designed for PaaS, not for your app
 
 ---
 

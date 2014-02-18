@@ -1354,7 +1354,7 @@ lxc.mount.entry <span class="o">=</span> /var/log/nginx /var/lib/docker/containe
             
             <header><h1>Inside the LXC container</h1></header>
             
-            <section><p>After: <code>notdocker run -d -n test0 -- /etc/init/nginx</code></p>
+            <section><p>After: <code>notdocker run -d -n test0</code></p>
 <p>We can use lxc-console to examine the container from the inside.</p>
 <div class="highlight"><pre><span class="gp">root@test0:~#</span> netstat -antp
 <span class="go">Active Internet connections (servers and established)</span>
@@ -1364,6 +1364,7 @@ lxc.mount.entry <span class="o">=</span> /var/log/nginx /var/lib/docker/containe
 <span class="go">tcp        0      0 10.0.3.133:49062        91.189.91.14:80         TIME_WAIT   -</span>
 <span class="go">tcp6       0      0 :::22                   :::*                    LISTEN      361/sshd</span>
 </pre></div>
+
 </section>
             
             
@@ -1371,6 +1372,13 @@ lxc.mount.entry <span class="o">=</span> /var/log/nginx /var/lib/docker/containe
           <div class="presenter_notes">
             <header><h1>Presenter Notes</h1></header>
             <section>
+            
+              <ul>
+<li>btw, we're running Nginx off of sysvinit, not upstart (which won't work)</li>
+<li>systemd is allegedly more LXC-friendly</li>
+<li>init is a complex topic and I'm not going to cover it here, but suffice to say it's full of ugly init-system-specific hacks.</li>
+<li>ex: we use (with Docker) upstart executing <code>docker run</code> with non-daemonized nginx in the container</li>
+</ul>
             
             </section>
           </div>

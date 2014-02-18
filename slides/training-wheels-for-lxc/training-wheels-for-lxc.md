@@ -561,7 +561,7 @@ The rootfs of the container is easy to browse and we could chroot to this direct
 
 # Inside the LXC container
 
-After: `notdocker run -d -n test0 -- /etc/init/nginx`
+After: `notdocker run -d -n test0`
 
 We can use lxc-console to examine the container from the inside.
 
@@ -573,6 +573,14 @@ We can use lxc-console to examine the container from the inside.
     tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      361/sshd
     tcp        0      0 10.0.3.133:49062        91.189.91.14:80         TIME_WAIT   -
     tcp6       0      0 :::22                   :::*                    LISTEN      361/sshd
+
+
+# Presenter notes
+
+- btw, we're running Nginx off of sysvinit, not upstart (which won't work)
+- systemd is allegedly more LXC-friendly
+- init is a complex topic and I'm not going to cover it here, but suffice to say it's full of ugly init-system-specific hacks.
+- ex: we use (with Docker) upstart executing `docker run` with non-daemonized nginx in the container
 
 ---
 

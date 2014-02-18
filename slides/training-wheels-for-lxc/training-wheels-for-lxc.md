@@ -2,7 +2,7 @@
 
 <div style="position: absolute; bottom: 0">
 <p>tim gross | @0x74696d</p>
-<p>http://0x74696d.com/slides/training-wheels-for-lxc/slides.html</p>
+<p>http://0x74696d.com/posts/training-wheels-for-lxc-part-i/</p>
 </div>
 
 # Presenter Notes
@@ -317,6 +317,14 @@ Docker forks an lxc-start command
 
 ---
 
+# Magic is OK
+
+---
+
+# Our job is to know how the magic trick works
+
+---
+
 # Why roll our own?
 
 - So we can understand and control the abstraction
@@ -618,5 +626,5 @@ Outside the container:
 
 <div style="position: absolute; bottom: 0">
 <p>tim gross | @0x74696d</p>
-<p>http://0x74696d.com/slides/training-wheels-for-lxc/slides.html</p>
+<p>http://0x74696d.com/posts/training-wheels-for-lxc-part-i/</p>
 </div>

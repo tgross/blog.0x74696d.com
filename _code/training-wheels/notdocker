@@ -132,7 +132,7 @@ EOF
     # start a container to run the script, and then stop it.
     # we could instead chroot to the rootfs and run the setup
     # in the host's context if we'd like
-    lxc-start -n $NAME -- $SETUP
+    lxc-start -n $NAME -- /usr/bin/setup
     lxc-stop -n $NAME
 
     # tarball the whole container and send it up to S3.
@@ -171,6 +171,8 @@ function run() {
 
     # set up NAT for the ports we need (assumes TCP)
     # we're checking dnsmasq to get the IP address of the running container
+    # if we had an IP address in the lxc config file we generated
+    # we could use that instead of hitting dnsmasq
     if [ $PORT ];
     then
         iptables -t nat -A PREROUTING -i eth0 -p tcp --dport $PORT \

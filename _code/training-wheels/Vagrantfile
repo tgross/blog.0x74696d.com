@@ -1,0 +1,18 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  # Official Ubuntu 12.04LTS cloud image amd64
+  config.vm.box = "precise64"
+
+  # we'll forward port 8080 on the host to port 80 on the guest so we can
+  # connect to the Nginx test LXC container
+  config.vm.network :forwarded_port, guest: 80, host: 8080
+
+  # provision the box with the bootstrap script
+  config.vm.provision :shell, :path => "bootstrap.sh"
+
+end

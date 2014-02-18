@@ -15,3 +15,4 @@ _assets/bootstrap/tests
 node_modules/
 
 .pyc
+.vagrant/

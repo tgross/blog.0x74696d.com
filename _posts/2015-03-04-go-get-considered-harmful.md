@@ -39,7 +39,7 @@ Bam, we already gave a budding Go developer bad advice. Because he or she is off
 
 # Bad dependency management leads to bad workarounds
 
-This sad story has lead to a bunch of different workarounds, all of which are flawed in pretty serious ways.
+This sad story has led to a bunch of different workarounds, all of which are flawed in pretty serious ways.
 
 ## gopkg.in
 
@@ -124,7 +124,7 @@ build:
 
 ```
 
-Note that there's no re-writing imports here. Your Go code is blissfully unaware of the behind-the-scenes work you're doing here to give it the correctly pinned dependencys.
+Note that there's no re-writing imports here. Your Go code is blissfully unaware of the behind-the-scenes work you're doing here to give it the correctly pinned dependencies.
 
 The advantages to this approach are:
 

@@ -8,7 +8,7 @@ One of my favorite essays on Python packaging is Armin Ronacher's [Python Packag
 
 # Friends don't let friends go get
 
-Let's get the big one of the way. The giant miss that Go made with dependencies was `go get`. Oh, it's cool and all the first time you use it, and then you realize that there's no pinning of versions. Open source projects that use `go get` to draw their dependencies from other libraries have no choice but to track the tip of each and every one of their dependencies (i.e. the HEAD of master on a typical Github project).
+Let's get the big one out of the way. The giant miss that Go made with dependencies was `go get`. Oh, it's cool and all the first time you use it, and then you realize that there's no pinning of versions. Open source projects that use `go get` to draw their dependencies from other libraries have no choice but to track the tip of each and every one of their dependencies (i.e. the HEAD of master on a typical Github project).
 
 # Imports are not URLs
 
@@ -47,7 +47,7 @@ The folks at [gopkg.in](http://labix.org/gopkg.in) have what is admittedly a pre
 
 ## "Vendoring" / Godeps
 
-This is the practice (of which Godeps is a variant) of sticking all your dependencies in your source code repo and committing them. Which means that upstream changes need to be individually downloaded to each source repo. Godeps at least give you a way to list your packages, which is a start.
+This is the practice (of which Godeps is a variant) of sticking all your dependencies in your source code repo and committing them. Which means that upstream changes need to be individually downloaded to each source repo. Godeps at least gives you a way to list your packages, which is a start.
 
 But you don't want every upstream commit in your repo's commit history, so this is typically done by just blowing away the commit history. Or you end up with git submodules, which are brittle as hell.
 
@@ -124,7 +124,7 @@ build:
 
 ```
 
-Note that there's no re-writing imports here. Your Go code is blissfully unaware of the work behind-the-scenes you're doing here to give it the correctly pinned dependencys.
+Note that there's no re-writing imports here. Your Go code is blissfully unaware of the behind-the-scenes work you're doing here to give it the correctly pinned dependencys.
 
 The advantages to this approach are:
 

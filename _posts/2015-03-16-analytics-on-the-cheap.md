@@ -4,9 +4,9 @@ title: "Analytics on the Cheap"
 category: ops, AWS
 ---
 
-In November of 2013 I was at the AWS ReInvent conference, where they previewed their new service Kinesis. The long story short of this is that it's a hosted Kafka. And the long story short of Kafka is that it's a way to ingest a whole lot of data in the short period of time so that you can process it in some kind of near-offline process later. The seemingly canonical example is something like log data. Loggly uses Kafka for this, I hear. The premise is that you have a stream of data from many clients, you want those clients to be able to treat the messages as close to fire-and-forget as possible (within the boundaries of TCP, if you're using that as the transport), you don't want to drop messages, and you want to be able to get the messages into the system you're using for analysis as soon as possible.
+In November of 2013 I was at the AWS ReInvent conference, where they previewed their new service Kinesis. The long story short of this is that it's a hosted Kafka. And the long story short of Kafka is that it's a way to ingest a whole lot of data in the short period of time so that you can process it in some kind of near-offline process later. The seemingly canonical example is something like log data. Loggly uses Kafka for this, I hear? The premise is that you have a stream of data from many clients, you want those clients to be able to treat the messages as close to fire-and-forget as possible (within the boundaries of TCP, if you're using that as the transport), you don't want to drop messages, and you want to be able to get the messages into the system you're using for analysis as soon as possible.
 
-I would argue that in most cases outside of things like Loggly, you don't have actionable data when you're doing analysis real-time, so you can do the processing part as a batch job. Which changes the operational economics of the system quite a bit. There's no point in putting up the capital for near-realtime analytics if you don't need them, and you'd be surprised how close you can get and still keep things inexpensive.
+But I would argue that in most cases outside of things like Loggly, you don't have actionable data when you're doing analysis real-time, so you can do the processing part as a batch job. Which changes the operational economics of the system quite a bit. There's no point in putting up the capital for near-realtime analytics if you don't need them, and you'd be surprised how close you can get and still keep things inexpensive.
 
 The Firehose, Part Deux
 ----
@@ -26,7 +26,7 @@ The technique I'm describing has one important constraint: messages have to be e
 The basic workflow is this:
 
 - Incoming message passes through our CDN to pick up geolocation headers
-- Message has its session authenticated (this happens at our routing layer in Nginx)
+- Message has its session authenticated (this happens at our routing layer in Nginx/OpenResty)
 - Message is routed to an ingest server
 - Ingest server transforms message and headers into a single character-delimited querystring value
 - Ingest server makes a HTTP GET to a 0-byte file on S3 with that querystring
@@ -76,9 +76,9 @@ data=|2014-01-15T19:33:23|xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx|1234567|Registere
 
 (Notice that we start and stop with a pipe -- this will come up again later!)
 
-In practice we use a short code for the various enums involved rather than writing out "InternalCodeForConsumerType" in the querystring. If the message fails to validate or, far less likely, the GET to S3 fails, we can either log this querystring for later reply or send it off to a queue for reprocessing later. (If you don't have a lot of failed messages and latency of messages-to-analysis is less of a problem, just logging it out is probably cheaper.)
+In practice we use a short code for the various enums involved rather than writing out "InternalCodeForConsumerType" in the querystring. If the message fails to validate or, far less likely, the GET to S3 fails, we can either log this querystring for later reply or send it off to a queue for reprocessing later. If you don't have a lot of failed messages and having added latency between message arrival and analysis isn't a problem, just logging it out is probably cheaper. In our service we have few true errors but our validation is pretty strict (so we don't analyze a lot of garbage) and if a client has a buggy release then it'll send a flood of bad messages. So we sample validation errors and send those off to Sentry so the client developers can see them and fix their clients.
 
-If you really care about latency of the initial request a lot, you can reduce S3 latency slightly by using multiple identical-to-your-application S3 keys. S3 suffers from hot-hashes (although I've never noticed it at our scale), so you can hash the requests among *n* keys in the same bucket and it won't matter to the final logging output.
+If you really care about latency of the initial request a lot, you can reduce S3 latency slightly by using multiple identical-to-your-application S3 keys. S3 suffers from hot-hashes -- although I've never noticed it at our scale -- so you can hash the requests among *n* keys in the same bucket and it won't matter to the final logging output.
 
 Why sign the GET? Because we have the S3 bucket locked down so that only our ingest servers can make the GET. This prevents third-parties or incautious developers from messing around with our analytics data. Create an IAM user just for your ingest servers and use that AWS access key and secret key in your application to sign the request. Here's the IAM configuration you'll want for that user:
 
@@ -92,7 +92,7 @@ Why sign the GET? Because we have the S3 bucket locked down so that only our ing
         "s3:GetObject",
       ],
       "Resource": [
-        "arn:aws:s3:::example.bucket/*"
+        "arn:aws:s3:::example.bucket/tick"
       ]
     },
    {
@@ -107,7 +107,7 @@ How Cheap Is It?
 
 So at this point you've got only 2 moving parts: the ingest web server and the S3 logging. The web server only has to be as beefy as the validation you do. In our case we're not hitting a database or doing any complicated operations; everything we're doing is just to make sure we don't write garbage data and to take note of problems (99% of the time this is from a new version of a client that's failing to meet spec).
 
-How many instances you'll need is going to directly depend on the load you need to serve and your server's ability to handle concurrent connections. Python, even with gevent, is probably not ideal for this but it's very quick to put together. Let's assume our inbound request and our processed S3 message ae both ~200B. Assuming we're using EC2 medium I/O instances like the new c4.large, we can put 10k messages/second in the pipe without even saturating the network connection. If you're running Flask, chances are your ingest server application will crap out first, so don't use that if you have 10k+ req/second. Use Go or Erlang or Java (yuck) or something. But our current Go application barely gets out of the bed in the morning for this kind of traffic. Once we did some very basic TCP and ulimits tweaking, we're only running as many instances as we do to support our internal standards for redundancy.
+How many instances you'll need is going to directly depend on the load you need to serve and your server's ability to handle concurrent connections. Python, even with gevent, is probably not ideal for this at large volumes but it's very quick to put together if you're just starting out. Let's assume our inbound request and our processed S3 message ae both ~200B. Assuming we're using EC2 medium I/O instances like the new c4.large, we can put 10k messages/second in the pipe without even saturating the network connection. If you're running Flask, chances are your ingest server application will crap out first, so don't use that if you have 10k+ req/second. Use Go or Erlang or Java (yuck) or something. But our current Go application barely notices this kind of traffic. Once we did some very basic TCP and ulimits tweaking, we're only running as many instances as we do to support our internal standards for redundancy.
 
 Our S3 bucket with the 0 byte file `tick` costs us only the cost of the S3 GETS. As of this writing that's $0.004 per 10k requests. This is all within-AWS, so there's no additional charge for data transfered (which would be very small anyways).
 
@@ -125,7 +125,7 @@ Before I get to the analysis part, there's one more nice bit about this setup wh
 Slurping Up the Data
 ----
 
-Doing any kind of analysis at this point probably means we need to ingest the data into a different format. I dunno about you, but sort, uniq, grep, awk get a little tiresome once we start working with hundreds of files with billions of rows each. At our scale we could probably get away with a beefy MySQL instance (we've standardized on MySQL), but we decided to use AWS Redshift instead and have been pretty happy with it. One of the nice features it has is for this kind of ingest is that you can copy directly from s3.
+Doing any kind of analysis at this point probably means we need to ingest the data into a different format. I dunno about you, but sort, uniq, grep, awk get a little tiresome once we start working with hundreds of files with billions of rows each. At our scale we could probably just barely get away with a beefy MySQL instance (we've standardized on MySQL), but we decided to use AWS Redshift instead and have been pretty happy with it. One of the nice features it has is for this kind of ingest is that you can copy directly from s3.
 
 The S3 log files are named for the hour in which they were created. Our quick-and-dirty way to deal with this for a daily roll-up is to create a new table for each day's raw rows (we do lots of post-processing in another step to figure out unique sessions, separate ads from video plays, etc.). We keep the raw tables for a while so we create one for each day, but if you don't want to do that you can just throw out the daily raw tables once you've post-processed them. As long as you keep the original logs in S3/Glacier (12 9's durability) you can always go back and re-process if there's a new kind of analysis you want to do. If we continue the example from above our raw table might look something like this:
 
@@ -148,7 +148,7 @@ CREATE TABLE raw_s3_rows (
 );
 ```
 
-Note the two weird bits. The `left_margin` field lets us cut off everything we see left of the first delimiter in the log line, and the `right_margin` does the same at the end. That's why we started our querystring parameter with a pipe earlier. We don't have a lot of control over the logging format that S3 uses, so this should give us a guarantee that we know where the start and end of our data are. Obviously this will break big-time if you allow unvalidated GETs to the S3 key you're using for logging.
+Note the two weird bits. The `left_margin` field lets us cut off everything we see left of the first delimiter in the log line, and the `right_margin` does the same at the end. That's why we started our querystring parameter with a pipe earlier. We don't have a lot of control over the logging format that S3 uses, so this should give us a guarantee that we know where the start and end of our data are. Obviously this will break big-time if you allow unvalidated GETs to the S3 key you're using for logging because any asshole on the web can come along and stuff evil in there.
 
 Now we can load in the raw S3 logs:
 

@@ -116,12 +116,6 @@ Our ~200B logging message takes us space in S3, so we'll be spending about $0.00
 At the end of the day, the design we have here now has a unit cost (per event captured) less than 1% of the original design of the application.
 
 
-Modularity
-----
-
-Before I get to the analysis part, there's one more nice bit about this setup which is that it's modular and reusable across applications. We can imagine a poor-mans version of this for a static web site. Instead of signing the GET, a piece of Javascript on the page makes the GET (or a resource is loaded remotely like the classic 1x1 transparent tracking pixel). You can't validate the input or sign the request if you do this, which is probably dangerous, so don't go 'round telling your clients I said you should do this. But it's "infinitely" scalable -- if reddit decides to hit your blog your web server won't fall over serving analytics tracking.
-
-
 Slurping Up the Data
 ----
 
@@ -167,3 +161,10 @@ COPY raw_s3_rows
 Of course you'll want to automate this in some way to remove the `$DATESTAMP` bit and have that be the hourly log names. We bail out if we get a lot of errors in the loading process, but because of the kind of data we're dealing with we're okay if there are a few bad messages (in practice we catch this at the validation stage so if we're seeing errors it's because we did something dumb like added a field without also updating the `CREATE TABLE` script).
 
 The important thing to notice here is that although we're doing a daily roll-up of the S3 logs, your ability to get the data faster is limited only by two things: how fast redshift can hoover-up the data from S3, and how good AWS's "best effort SLA" is on getting the logs into the S3 bucket (it's not bad... you could probably get away with getting logs within 2-3 hours without being worried about missing data).
+
+Events as Audit Trail
+----
+
+Even not counting the analysis part, there's one more nice bit about this setup which is that it's modular and reusable across applications. We can imagine a poor-mans version of this for a static web site. Instead of signing the GET, a piece of Javascript on the page makes the GET (or a resource is loaded remotely like the classic 1x1 transparent tracking pixel). You can't validate the input or sign the request if you do this, which is probably dangerous, so don't go 'round telling your clients I said you should do this. But it's "infinitely" scalable -- if reddit decides to hit your blog your web server won't fall over serving analytics tracking.
+
+But the really nice thing here is that these log events are just a bunch of files when you're done. The lines of the log can serve as an immutable event source -- so long as you only ever read from them. You can back them up to cold storage, use them in different data stores, treat them as your audit log, whatever you need.

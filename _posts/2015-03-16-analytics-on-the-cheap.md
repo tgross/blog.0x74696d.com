@@ -33,7 +33,7 @@ The basic workflow is this:
 - The bucket on S3 has S3 logging turned on.
 - We ingest the S3 logs directly into Redshift on a daily basis.
 
-The first two layers aren't particularly interesting except that by the time we get to the analyitcs server we have a request that looks something like this:
+The first two layers aren't particularly interesting except that by the time we get to the analytics server we have a request that looks something like this:
 
 **Example request: user watched a segment of video**
 
@@ -60,7 +60,7 @@ In practice we have a dozen extra fields on there and some of the names are diff
 
 Ok, so at this point we've got a request and we need to ingest this pretty quickly. The original design had a whole bunch of Flask processes running under gevent. You need multiple processes per box because the GIL starts to get in the way even if you're mostly I/O bound. Last summer we moved this to Go and I'm deploying less than 10% of the number of EC2 instances now.
 
-The only thing our ingest server needs to do it to validate the message and then transform it into a querystring. For example, we make sure that the `content_id`, `start_timecode`, and `end_timecode` are all integers, that the `event_type` falls within a range of a few types, etc. Once we're done with that we transform the values of the fields into a single querystring parameter. Here's the catch: the order of the fields is immutable for all time. You can add fields by appending them and can remove fields by leaving the value out (but keeping the delimeters that mark it). But changing the order will break your old records.
+The only thing our ingest server needs to do it to validate the message and then transform it into a querystring. For example, we make sure that the `content_id`, `start_timecode`, and `end_timecode` are all integers, that the `event_type` falls within a range of a few types, etc. Once we're done with that we transform the values of the fields into a single querystring parameter. Here's the catch: the order of the fields is immutable for all time. You can add fields by appending them and can remove fields by leaving the value out (but keeping the delimiters that mark it). But changing the order will break your old records.
 
 So for our example we're going to have the fields in this order: event timestamp, event GUID, user id, user type, consumer, country, event type, video type, content ID, start, end. We make a signed GET to S3:
 
@@ -107,9 +107,9 @@ How Cheap Is It?
 
 So at this point you've got only 2 moving parts: the ingest web server and the S3 logging. The web server only has to be as beefy as the validation you do. In our case we're not hitting a database or doing any complicated operations; everything we're doing is just to make sure we don't write garbage data and to take note of problems (99% of the time this is from a new version of a client that's failing to meet spec).
 
-How many instances you'll need is going to directly depend on the load you need to serve and your server's ability to handle concurrent connections. Python, even with gevent, is probably not ideal for this at large volumes but it's very quick to put together if you're just starting out. Let's assume our inbound request and our processed S3 message ae both ~200B. Assuming we're using EC2 medium I/O instances like the new c4.large, we can put 10k messages/second in the pipe without even saturating the network connection. If you're running Flask, chances are your ingest server application will crap out first, so don't use that if you have 10k+ req/second. Use Go or Erlang or Java (yuck) or something. But our current Go application barely notices this kind of traffic. Once we did some very basic TCP and ulimits tweaking, we're only running as many instances as we do to support our internal standards for redundancy.
+How many instances you'll need is going to directly depend on the load you need to serve and your server's ability to handle concurrent connections. Python, even with gevent, is probably not ideal for this at large volumes but it's very quick to put together if you're just starting out. Let's assume our inbound request and our processed S3 message are both ~200B. Assuming we're using EC2 medium I/O instances like the new c4.large, we can put 10k messages/second in the pipe without even saturating the network connection. If you're running Flask, chances are your ingest server application will crap out first, so don't use that if you have 10k+ req/second. Use Go or Erlang or Java (yuck) or something. But our current Go application barely notices this kind of traffic. Once we did some very basic TCP and ulimits tweaking, we're only running as many instances as we do to support our internal standards for redundancy.
 
-Our S3 bucket with the 0 byte file `tick` costs us only the cost of the S3 GETS. As of this writing that's $0.004 per 10k requests. This is all within-AWS, so there's no additional charge for data transfered (which would be very small anyways).
+Our S3 bucket with the 0 byte file `tick` costs us only the cost of the S3 GETS. As of this writing that's $0.004 per 10k requests. This is all within-AWS, so there's no additional charge for data transferred (which would be very small anyways).
 
 Our ~200B logging message takes us space in S3, so we'll be spending about $0.0006 in storage per 10k messages (up to the first 10 billion or so, when they get slightly cheaper). If we want, we can rotate the logs off to AWS Glacier after a few months and save a couple bucks that way.
 
@@ -148,7 +148,7 @@ CREATE TABLE raw_s3_rows (
 );
 ```
 
-Note the two weird bits. The `left_margin` field lets us cut off everything we see left of the first delimiter in the log line, and the `right_margin` does the same at the end. That's why we started our querystring parameter with a pipe earlier. We don't have a lot of control over the logging format that S3 uses, so this should give us a guarantee that we know where the start and end of our data are. Obviously this will break big-time if you allow unvalidated GETs to the S3 key you're using for logging because any asshole on the web can come along and stuff evil in there.
+Note the two weird bits. The `left_margin` field lets us cut off everything we see left of the first delimiter in the log line, and the `right_margin` does the same at the end. That's why we started our querystring parameter with a pipe earlier. We don't have a lot of control over the logging format that S3 uses, so this should give us a guarantee that we know where the start and end of our data are. Obviously this will break big-time if you allow unauthenticated GETs to the S3 key you're using for logging because any asshole on the web can come along and stuff evil in there.
 
 Now we can load in the raw S3 logs:
 
@@ -166,4 +166,4 @@ COPY raw_s3_rows
 
 Of course you'll want to automate this in some way to remove the `$DATESTAMP` bit and have that be the hourly log names. We bail out if we get a lot of errors in the loading process, but because of the kind of data we're dealing with we're okay if there are a few bad messages (in practice we catch this at the validation stage so if we're seeing errors it's because we did something dumb like added a field without also updating the `CREATE TABLE` script).
 
-The important thing to notice here is that although we're doing a daily rollup of the S3 logs, your ability to get the data faster is limited only by two things: how fast redshift can hoover-up the data from S3, and how good AWS's "best effort SLA" is on getting the logs into the S3 bucket (it's not bad... you could probably get away with getting logs within 2-3 hours without being worried about missing data).
+The important thing to notice here is that although we're doing a daily roll-up of the S3 logs, your ability to get the data faster is limited only by two things: how fast redshift can hoover-up the data from S3, and how good AWS's "best effort SLA" is on getting the logs into the S3 bucket (it's not bad... you could probably get away with getting logs within 2-3 hours without being worried about missing data).

@@ -11,7 +11,12 @@ But I would argue that in most cases outside of things like Loggly, you don't ha
 The Firehose, Part Deux
 ----
 
-In an earlier article I mentioned in passing that [we](http://www.dramafever.com/company/careers.html) at one point replaced a fairly complicated system using DynamoDB to ingest our analytics firehose. The solution we came to for that is what I want to talk about here. We're working under the following requirements:
+In an earlier article I mentioned in passing that [we](http://www.dramafever.com/company/careers.html) at one point replaced a fairly complicated system using DynamoDB to ingest our analytics firehose. The solution we came to for that is what I want to talk about here.
+
+<aside>I should point out here that although I did a lot of the implementation work of the ingest side of this system, the initial inspiration was from my colleague Ry4an's [S3 as Append-Only Datastore](http://ry4an.org/unblog/post/amazon-s3-as-append-only-datastore/).
+</aside>
+
+We're working under the following requirements:
 
 - Large swing in load throughout the day (which implies efficiencies to be had in stateless auto-scaling instances).
 - Response time to the client should be low-latency.

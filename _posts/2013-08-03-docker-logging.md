@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Logging with Docker"
-category: ops
+category: Docker
 ---
 
 I spent a couple of days this week working on a new deployment design using [Docker](http://docker.io). Obviously Docker is a new project, so the documentation is a bit of a mess and not quite keeping up with progress on the code. You come to expect that on fast-moving open source projects, so we figured no biggie. But the one almost-deal-breaker for us was trying to figure out logging, so I thought I'd do a short write-up on that here.

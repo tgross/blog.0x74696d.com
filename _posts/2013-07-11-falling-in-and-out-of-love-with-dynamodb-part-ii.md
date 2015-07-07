@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Falling In And Out Of Love with DynamoDB, Part II"
-category: AWS
+category: AWS, DynamoDB
 ---
 
 Amazon's DynamoDB provides high concurrent throughput, availability across multiple AWS data centers, and the convenience of pay-as-you go pricing. All this is great, but key design for DynamoDB results in some unexpected challenges. [We](http://www.dramafever.com) have built a number of production systems at this point using DynamoDB and as such have a bit of a love/hate relationship with the product.

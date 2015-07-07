@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Docker: Training Wheels For LXC, Part I"
-category: talks
+category: talks, Docker
 ---
 
 ><aside>Welcome [sysadvent readers!](http://sysadvent.blogspot.com/2014/12/day-1-docker-in-production-reality-not.html) You'll almost certainly note that I never got around to writing a Part II of this post or expanding on other Docker-related topics on this blog. I've been busy working away pretty solidly with not a ton of time for blogging or tweeting. But if you're interested in more DevOps goodness be sure to follow @bridgetkromhout and stay tuned here for new material over the next few months. Thanks for reading!</aside>

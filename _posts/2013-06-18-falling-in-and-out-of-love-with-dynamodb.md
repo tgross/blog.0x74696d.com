@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Falling In And Out Of Love with DynamoDB"
+title: "Falling In And Out Of Love with DynamoDB [talk]"
 category: talks, AWS
 ---
 

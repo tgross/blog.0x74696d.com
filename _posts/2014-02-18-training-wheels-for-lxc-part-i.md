@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Docker: Training Wheels For LXC, Part I"
+title: "Docker: Training Wheels For LXC, Part I [talk]"
 category: talks, Docker
 ---
 

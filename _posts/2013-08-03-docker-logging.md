@@ -4,6 +4,8 @@ title: "Logging with Docker"
 category: Docker
 ---
 
+><aside>Hello from the future (November 2015)! Apparently this article has some good Google juice and so people still land here looking for guidance on logging in Docker more than 2 years later. Today Docker provides [log drivers](https://docs.docker.com/reference/logging/overview/) now that will let you send your logs off the host via syslog or other log shipping mechanisms. So please don't follow the advice in this article!</aside>
+
 I spent a couple of days this week working on a new deployment design using [Docker](http://docker.io). Obviously Docker is a new project, so the documentation is a bit of a mess and not quite keeping up with progress on the code. You come to expect that on fast-moving open source projects, so we figured no biggie. But the one almost-deal-breaker for us was trying to figure out logging, so I thought I'd do a short write-up on that here.
 
 # docker logs

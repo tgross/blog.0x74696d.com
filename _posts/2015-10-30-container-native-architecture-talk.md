@@ -6,7 +6,7 @@ category: Joyent, Docker
 
 On October 29th I gave a talk on container-native architecture at [ContainerDays NYC](http://dynamicinfradays.org/events/2015-nyc/).
 
-(From the programme:)[http://dynamicinfradays.org/events/2015-nyc/programme.html#architecture]
+[From the programme:](http://dynamicinfradays.org/events/2015-nyc/programme.html#architecture)
 
 >Moving your application into a container and deploying it to production is a great first step towards taking advantage of containerization. This gets you past "works on my machine", and Docker makes this easy. But the real value of containers -- fast immutable deployments, maximizing resource utilization, and bare-metal performance -- comes from an architecture optimized for containers. This is container-native architecture.
 

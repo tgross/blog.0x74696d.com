@@ -1,6 +1,6 @@
 ---
 layout: post
-title: microservices-stack-in-seconds
+title: Deploy a microservices stack in seconds
 category: Joyent, Docker
 ---
 

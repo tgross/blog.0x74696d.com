@@ -15,4 +15,4 @@ On October 29th I gave a talk on container-native architecture at [ContainerDays
 
 You can find my slides [here](http://0x74696d.com/talk-containerdays-nyc-2015/#/). I experimented with `reveal.js` for these, so use `<space`> to advance and `s` to get the speaker's notes.
 
-A recording of the talk can be found [here](https://www.youtube.com/watch?v=EWJtbhKyLQY). I've been told by the organizers that they're going to clean up this up and when that happens I'll update this link.
+You can watch the talk on [YouTube](https://www.youtube.com/watch?v=08BuE6xyRnc).

@@ -1,15 +1,9 @@
 MAKEFLAGS += --warn-undefined-variables
-SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := serve
+
+PWD := $(shell pwd)
 
 PHONY:	*
-
-all:	serve
-
-# build the Docker container
-build-container:
-	docker build -t="tgross.github.io" .
 
 # create a new post w/ today's date
 # make post TITLE="Some Post" --> _posts/2015-02-09-some-post.md
@@ -22,14 +16,7 @@ post:
 	echo "title: ${TITLE}" >> ${FILE}
 	echo --- >> ${FILE}
 
-build:
-	docker run --rm -it -w /src \
-		-v ~/src/tgross/tgross.github.io:/src \
-		tgross.github.io \
-		bundle exec jekyll build
-
 serve:
-	docker run --rm -it -p 4000:4000 -w /src \
-		-v ~/src/tgross/tgross.github.io:/src \
-		tgross.github.io \
-		bundle exec jekyll serve --watch --trace
+	docker run --rm -it -p 4000:4000 \
+		-v $(PWD):/srv/jekyll \
+		jekyll/jekyll:pages

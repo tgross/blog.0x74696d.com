@@ -1,70 +1,11 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+{% include declarations.html %}
 <head>
-  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-  <title>0x74696d{% if page.title %} | {{ page.title }}{% endif %}</title>
-  <meta name="author" content="{{ site.author.name }}" />
-  <meta name="description" content="{{ site.description }}" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
-  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
-  <link href='http://fonts.googleapis.com/css?family=Lato:100,300,300italic,400,700,700italic'
-  rel='stylesheet' type='text/css'>
-
-  <link rel="stylesheet" href="/css/base.css" type="text/css" media="screen, projection" />
-  <link media="only screen and (max-device-width: 480px)" href="/css/mobile.css" type="text/css" rel="stylesheet" />
-  <link rel="stylesheet" href="/webfonts/ss-social.css" type="text/css" />
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
-
-  <!-- if for some crazy reason you want my ugly mug on your iOS home screen -->
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+{% include head.html %}
 </head>
 
 <body>
-  <div class="header">
-    <div class="container">
-      <section class="name">
-        <a href="/"><b>{{ site.title }}</b></a>
-      </section>
-
-      <ul class="menu">
-        <li><a href="/">Posts</a></li>
-        <li><a href="https://github.com/{{ site.author.github }}?tab=repositories">Projects</a></li>
-        <li><a href="/community.html">Community</a></li>
-        <li><a href="/me.html">Me</a></li>
-      </ul>
-
-    </div>
-  </div>
-
-
+{% include menu.html %}
 {{ content }}
-
-<section class="meta">
-  <a class="block" href="https://twitter.com/{{ site.author.twitter }}">
-    <span class="ss-social-circle ss-twitter" />
-    <div>Follow.</div>
-  </a>
-
-  <a class="block" href="https://github.com/{{ site.author.github }}">
-    <span class="ss-social-circle ss-octocat" />
-    <div>Collaborate.</div>
-  </a>
-
-  <a class="block" href="/me.html#contact">
-    <span class="ss-social-circle ss-mail" />
-    <div>Communicate.</div>
-  </a>
-
-  <a class="block" href="/rss.xml">
-    <span class="ss-social-circle ss-rss" />
-    <div>RSS.</div>
-  </a>
-
-  <div style="clear: both"></div>
-</section>
-
+{% include footer.html %}
 </body>
 </html>

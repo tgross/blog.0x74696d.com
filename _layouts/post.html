@@ -1,18 +1,19 @@
----
-layout: base
----
+{% include declarations.html %}
+<head>
+{% include head.html %}
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
 
+<body>
+{% include menu.html %}
 <section class="container content">
-  <h1>
-    <a href="{{ page.url }}">{{ page.title }}</a>
-  </h1>
-
+  <h1>{{ page.title }}</h1>
   <section class="byline">
     {{ page.date | date: "%B %e, %Y" }}
   </section>
-
   {{ content }}
-  <hr/>
-  <div class="pull"></div>
   {% include twitter.html %}
 </section>
+{% include footer.html %}
+</body>
+</html>

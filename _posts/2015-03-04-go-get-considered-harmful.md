@@ -89,7 +89,7 @@ This results in a directory that looks like this:
 
 And a makefile that might look like this:
 
-```
+{% highlight make %}
 MAKEFLAGS += --warn-undefined-variables
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail
@@ -121,8 +121,7 @@ test:
 
 build:
 	docker build -t="my-container-image" .
-
-```
+{% endhighlight %}
 
 Note that there's no re-writing imports here. Your Go code is blissfully unaware of the behind-the-scenes work you're doing here to give it the correctly pinned dependencies.
 

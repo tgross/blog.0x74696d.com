@@ -13,52 +13,55 @@ What you _should_ do (and what the [author](http://blog.xk72.com/) of Charles sh
 We're going to build our new CA in `/usr/local`, and OpenSSL on my machine was built so that its configuration file was stored in `/opt/local/etc/openssl/openssl.cnf`.  Yeah, yeah, we can get religious about the Unix FHS some other time.  Let's get our environment prepped:
 
 {% highlight bash %}
-    mkdir -p /usr/local/CharlesCA
-    cd /usr/local/CharlesCA
-    mkdir certs private newcerts
-    echo 01 > serial
-    touch index.txt
+mkdir -p /usr/local/CharlesCA
+cd /usr/local/CharlesCA
+mkdir certs private newcerts
+echo 01 > serial
+touch index.txt
 {% endhighlight %}
 
 On the last two items: `serial` contains the next serial number that will be assigned to a cert, in hex.  The `index.txt` file is the text database of issued certificates.  Next we create the certificate and key used for our new CA.
 
+
 {% highlight bash %}
-    openssl req -new -x509 -days 3650 -extensions v3_ca \
-    -keyout private/ca_key.pem -out certs/ca_cert.pem \
-    -config /opt/local/etc/openssl/openssl.cnf
+openssl req -new -x509 -days 3650 -extensions v3_ca \
+            -keyout private/ca_key.pem -out certs/ca_cert.pem \
+            -config /opt/local/etc/openssl/openssl.cnf
 {% endhighlight %}
 
 Ok, what are we doing here?  We're making a new X.509 certificate request with the appropriate extension to use the certificate for signing other certificates (or in other words, use it as a CA).  We're going to give it a very long expiration period because we're lazy and want to guarantee we won't have to do this again on this machine.  And we're outputting both a private keyfile (`ca_key.pem`) and the public certificate file (`ca_cert.pem`). If you're following along, you'll get something like the below.  Fill in your information.
 
-{% highlight bash %}
-    Generating a 1024 bit RSA private key
-    ...++++++
-    ........................................++++++
-    writing new private key to private/ca_key.pem
-    Enter PEM pass phrase:
-    Verifying - Enter PEM pass phrase:
-    -----
-    You are about to be asked to enter information that will be
-    incorporated into your certificate request.
-    What you are about to enter is what is called a Distinguished Name
-    or a DN. There are quite a few fields but you can leave some blank
-    For some fields there will be a default value,
-    If you enter ., the field will be left blank.
-    -----
-    Country Name (2 letter code) [AU]:US
-    State or Province Name (full name) [Some-State]:Pennsylvania
-    Locality Name (eg, city) []:Philadelphia
-    Organization Name (eg, company) [Internet Widgets Pty Ltd]:
-    Organizational Unit Name (eg, section) []:
-    Common Name (e.g. server FQDN or YOUR name) []:0x74696d.com
-    Email Address []:tim@0x74696d.com
-{% endhighlight %}
+```
+Generating a 1024 bit RSA private key
+...++++++
+........................................++++++
+writing new private key to private/ca_key.pem
+Enter PEM pass phrase:
+Verifying - Enter PEM pass phrase:
+-----
+You are about to be asked to enter information that will be
+incorporated into your certificate request.
+What you are about to enter is what is called a Distinguished Name
+or a DN. There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter ., the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:US
+State or Province Name (full name) [Some-State]:Pennsylvania
+Locality Name (eg, city) []:Philadelphia
+Organization Name (eg, company) [Internet Widgets Pty Ltd]:
+Organizational Unit Name (eg, section) []:
+Common Name (e.g. server FQDN or YOUR name) []:0x74696d.com
+Email Address []:tim@0x74696d.com
+```
 
 We've got our CA now, and if we trust it as a root authority (we'll get to that in a minute), we can create SSL certificates that our browser will accept without complaint.  But Charles expects the signing certificate to be in PKCS12 format.  So we need to use OpenSSL again to convert our keys to a .pfx file.
 
 {% highlight bash %}
-    openssl pkcs12 -export -out ca_cert.pfx -inkey private/ca_key.pem -in certs/ca_cert.pem
+openssl pkcs12 -export -out ca_cert.pfx -inkey private/ca_key.pem \
+               -in certs/ca_cert.pem
 {% endhighlight %}
+
 
 ><aside>Update 2013/10/12: Thanks to [Mark Aufflick](https://twitter.com/markaufflick) who pointed out I was missing the certs directory path from the "-in" argument of this command</aside>
 

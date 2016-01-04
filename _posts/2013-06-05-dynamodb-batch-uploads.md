@@ -23,7 +23,7 @@ Timestamp in this case is position within the video. And DynamoDB only takes str
 
 Next I needed to be able to generate a lot of simultaneous parallel requests in order to hit the throughput I wanted. I have a production system using `gevent` that can process 1000+ writes/sec to DynamoDB per core before it has its coffee in the morning, but it's specialized for its task and again, I was in a hurry. And even with that system I'd previously ran into throughput problems due to GIL contention, so multiprocessing was the way to go.
 
-{% highlight python linenos=4 %}
+{% highlight python %}
 import csv
 import boto
 from multiprocessing import Pool
@@ -54,7 +54,7 @@ def write_data(filename):
 
 Now, you could stop here and just `batch_write` things up to DynamoDB and that will work if you're writing a couple thousand rows. But it should be obvious we're going to blow up memory on our laptop if we try that.
 
-{% highlight python linenos=4 linenostart=26 %}
+{% highlight python %}
       if len(items) == 25:
          batch_list = conn.new_batch_write_list()
          batch_list.add_batch(table, items)
@@ -64,7 +64,7 @@ Now, you could stop here and just `batch_write` things up to DynamoDB and that w
 
 Okay, so we'll treat our list as a queue, and when it gets to the maximum size we can push in a single batch write, we'll push that up. But I buried the problem with this when I elided the error handling -- if the write is throttled by DynamoDB, you'll be silently dropping writes because `boto` doesn't raise an exception. So let's try that part again.
 
-{% highlight python linenos=4 linenostart=26 %}
+{% highlight python %}
       if len(items) > 25:
          batch_items = items[:25]
          batch_list = conn.new_batch_write_list()
@@ -85,7 +85,7 @@ Okay, so we'll treat our list as a queue, and when it gets to the maximum size w
 
 On every `batch_write` request we take out what we've successfully written and retry everything else in the next pass. Yes, we're doing a *lot* of allocation with the list, but there's a reason for it. We're almost certain to get throttled by DynamoDB in a batch upload unless we massively over-provision.  This function minimizes the number of requests we make while constraining the length of the list. I modeled this and throttling would have to reach consistent double-digit percentages of unprocessed writes before we'd see significant loss of throughput or runaway memory usage.
 
-{% highlight python linenos=4 linenostart=42 %}
+{% highlight python %}
 if __name__ == '__main__':
     files = ['xaao','xabf','xabw',... ]
     pool = Pool(processes=len(files))

@@ -17,7 +17,7 @@ The first part is to use AWS tags to uniquely name each EC2 instance. Instances 
 
 First we'll use the Python `boto` library to get all the instances we're interested in. Put this in your Fabfile. Later we'll call this function from a task that puts this all together.
 
-{% highlight python linenos %}
+{% highlight python %}
 AUTOSCALE_TAG = 'aws:autoscaling:groupName'
 
 def get_instances(role=None, zone=None, stage='prod'):
@@ -44,7 +44,7 @@ This is a de-factored version of what I actually run; normally much of this is f
 
 This function gets called by a task that does the actual tagging:
 
-{% highlight python linenos %}
+{% highlight python %}
 
 def tag_instances(role='web', stage='prod'):
     """
@@ -87,7 +87,7 @@ This algorithm isn't particularly efficient. But the `boto` API doesn't guarante
 
 We can then take this function and wrap it in a Fabric task for all our known roles.
 
-{% highlight python linenos %}
+{% highlight python %}
 def tag_all_the_things():
     tag_instances()
     tag_instances('worker')
@@ -116,7 +116,7 @@ I can do:
 
 `fab web001 dostuff`
 
-{% highlight python linenos %}
+{% highlight python %}
 # get a reference to the fabfile module
 this = __import__(__name__)
 all_hosts = {}
@@ -166,7 +166,7 @@ update-ssh
 
 Where `$FABFILEPATH` is the directory where my Fabfile lives. This means that every time I fire up a shell or use the command alias `update-ssh`, I'm replacing my `~/.ssh/config` file with the combination of my personal configuration and some file that lives in the `$FABFILEPATH`. So where does this file come from? We can create it from our Fabfile by modifying the code we saw above like so:
 
-{% highlight python linenos %}
+{% highlight python %}
 # get a reference to the fabfile module
 this = __import__(__name__)
 all_hosts = {}
@@ -194,7 +194,7 @@ for host in get_instances():
 f.close()
 {% endhighlight %}
 
-We've added code at lines 13, 23, and 25 to write out host aliases and hostnames to the `ssh_host.config` file that we'll concatenate into our `~/.ssh/config` file. This lets me access any instance just by going `ssh web001`.
+We've added code to write out host aliases and hostnames to the `ssh_host.config` file that we'll concatenate into our `~/.ssh/config` file. This lets me access any instance just by going `ssh web001`.
 
 Another nice advantage of this is that it avoids name collisions in `~/.ssh/known_hosts`. So if I scale up to 10 "web" instances in an availability zone and have a "web010", and if that instance is terminated by scaling down later, the next time I see a "web010" I won't have to worry about editing my `~/.ssh/known_hosts` file to remove the old entry. You will accumulate a lot of cruft there, though, so you should probably have a job run through and clean yours out from time-to-time. I just do a quickie `C-SPC M-> C-w` now and then, but if you have a much larger installed base that might not do the job.
 

@@ -33,16 +33,16 @@ For this, we use the following key schema:
 
 For each relationship we make two writes; one in each direction of the graph. Note that the range keys are all strings, which means having a delimiter and type coercion of integer IDs. Using the API to query this is stupid-easy. Say I want to know which actors a given user is a fan of. Using the `boto` library it's something like this:
 
-{% highlight python linenos %}
-    results = table.query(hash_key=user_id,
-                          range_key=BEGINS_WITH('FAN_OF.Actor.'))
+{% highlight python %}
+results = table.query(hash_key=user_id,
+                      range_key=BEGINS_WITH('FAN_OF.Actor.'))
 {% endhighlight %}
 
 Or I can run it backwards, and find out which users have fanned a given actor:
 
-{% highlight python linenos %}
-    results = table.query(hash_key=actor_id,
-                          range_key=BEGINS_WITH('FANNED_BY.User.')
+{% highlight python %}
+results = table.query(hash_key=actor_id,
+                      range_key=BEGINS_WITH('FANNED_BY.User.')
 {% endhighlight %}
 
 For this sort of thing DynamoDB is awesome. The use case matches the structural quirks perfectly, and the pay-as-you-go pricing is great for what was at the time an unproven feature.
@@ -135,40 +135,49 @@ Amazon doesn't provide an autoscaling API for DynamoDB. The API for provisioning
 
 We have a large daily swing in load because "prime time TV" still exists on the web if you have a predominantly North American audience. Because this is a predictable swing in load, we have a cron job that fires off increases and decreases in provisioning. The job fires every 15 minutes. Starting in the early AM it checks if the current throughput is within 80% of provisioned throughput and if so steps up in 20% increments over the course of the day. Using `boto` it's something like the code below.
 
-{% highlight python linenos %}
-    # fill in your connection details here. Gotta love that consistent
-    # connection API, boto
-    dyconn = boto.connect_dynamodb()
-    cw = boto.ec2.cloudwatch.CloudWatchConnection()
+{% highlight python %}
+ANALYTICS = 'analytics_table'
+PROVISIONED = 'ProvisionedThroughput
+READ_CAP = 'ReadCapacityUnits'
+WRITE_CAP = 'WriteCapacityUnits'
 
-    metric_c = cw.list_metrics('', {'TableName': ANALYTICS_TABLE},
-                               'ConsumedWriteCapacity',
-                               'AWS/DynamoDB')
-    consumed = metric.query(start, end, 'Sum', unit='Count',
-                            period=300)[0]['Sum']
+# fill in your connection details here.
+# Gotta love that consistent connection API, boto
+ddb = boto.connect_dynamodb()
+cw = boto.ec2.cloudwatch.CloudWatchConnection()
 
-    if datetime.datetime.now().hour > 6:
-        metric_p = cw.list_metrics('', {'TableName': ANALYTICS_TABLE},
-                                   'ProvisionedWriteCapacity',
-                                   'AWS/DynamoDB')[0]
-        provisioned = metric_p.query(start, end, 'Sum', unit='Count',
-                                     period=300)[0]['Sum']
+metric_c = cw.list_metrics('',
+                           {'TableName': ANALYTICS},
+                           'ConsumedWriteCapacity',
+                           'AWS/DynamoDB')
+consumed = metric.query(start, end, 'Sum', unit='Count',
+                        period=300)[0]['Sum']
 
-        ratio = consumed / provisioned
-        if ratio > .80:
-            provset = {}
-            provset[READ_CAP] = conn.describe_table(ANALYTICS_TABLE)\
-                                ['Table'][PROVISIONED][READ_CAP]
-            provset[WRITE_CAP] = conn.describe_table(ANALYTICS_TABLE)\
-                                 ['Table'][PROVISIONED][WRITE_CAP]
-            provset[pMetric]=threshold*1.2
-            table = dyconn.get_table(ANALYTICS_TABLE)
-            dyconn.update_throughput(table,
-                                   provset[P_READ_CAP],
-                                   provset[P_WRITE_CAP])
+if datetime.datetime.now().hour > 6:
+    metric_p = cw.list_metrics('',
+                               {'TableName': ANALYTICS},
+                               'ProvisionedWriteCapacity',
+                               'AWS/DynamoDB')[0]
+    provisioned = metric_p.query(start, end, 'Sum', unit='Count',
+                                 period=300)[0]['Sum']
+
+    ratio = consumed / provisioned
+    if ratio > .80:
+        provset = {}
+        provset[READ_CAP] = ddb.describe_table(ANALYTICS) \
+                                              ['Table'] \
+                                              [PROVISIONED][READ_CAP]
+        provset[WRITE_CAP] = ddb.describe_table(ANALYTICS) \
+                                              ['Table'] \
+                                              [PROVISIONED][WRITE_CAP]
+        provset[pMetric]=threshold*1.2
+        table = ddb.get_table(ANALYTICS)
+        ddb.update_throughput(table,
+                              provset[READ_CAP],
+                              provset[WRITE_CAP])
 {% endhighlight %}
 
-I'm eliding a bunch of setup code and swapping in some constants for legibility -- check the `boto` docs. We have a similar branch of code that is hit when `now` is in the wee hours of the morning. This branch checks whether the currently used throughput is below a threshold value and steps down our provisioning. Rather than keeping track of state (so we don't use up our 2 decreases), this branch checks the value of the provisioning against a hard-coded value before making the API call.
+I'm eliding a bunch of setup and error-handling code -- check the `boto` docs. We have a similar branch of code that is hit when `now` is in the wee hours of the morning. This branch checks whether the currently used throughput is below a threshold value and steps down our provisioning. Rather than keeping track of state (so we don't use up our 2 decreases), this branch checks the value of the provisioning against a hard-coded value before making the API call.
 
 The very minor risk here is that if we were to somehow have a sudden rush of traffic at 4AM we would get throttled quite a bit, but the SQS queue protects us from this being a serious problem. This solution works for our predictable and relatively smoothly-changing load, but your mileage may vary.
 

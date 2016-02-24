@@ -12,13 +12,13 @@ What you _should_ do (and what the [author](http://blog.xk72.com/) of Charles sh
 
 We're going to build our new CA in `/usr/local`, and OpenSSL on my machine was built so that its configuration file was stored in `/opt/local/etc/openssl/openssl.cnf`.  Yeah, yeah, we can get religious about the Unix FHS some other time.  Let's get our environment prepped:
 
-{% highlight bash %}
+```bash
 mkdir -p /usr/local/CharlesCA
 cd /usr/local/CharlesCA
 mkdir certs private newcerts
 echo 01 > serial
 touch index.txt
-{% endhighlight %}
+```
 
 On the last two items: `serial` contains the next serial number that will be assigned to a cert, in hex.  The `index.txt` file is the text database of issued certificates.  Next we create the certificate and key used for our new CA.
 

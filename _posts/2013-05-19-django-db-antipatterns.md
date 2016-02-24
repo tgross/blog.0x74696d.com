@@ -17,7 +17,7 @@ One of the nastiest gotchas in Django is how easy it is to get a `1+n SELECTs` s
 
 We're using the models from the `books` app from the [Djangobook](https://github.com/jacobian/djangobook.com/blob/master/chapter10.rst).  I've pre-populated my database with with some initial data and I'm running the DB locally with `sqlite3`.  Follow along with [this example code](https://github.com/tgross/tgross.github.io/tree/master/_code/django-db-antipatterns) if you'd like. Here's our minimum `views.py`:
 
-{% highlight python %}
+~~~ python
 def get_books_by_date(request, start, end):
 
     start = dateutil.parser.parse(start)
@@ -28,11 +28,11 @@ def get_books_by_date(request, start, end):
     return render(request,
                   'template.html',
                   {'books': books, 'start': start, 'end': end})
-{% endhighlight %}
+~~~
 
 And a minimum template to go with it:
 
-{% highlight django %}
+~~~ django
 <html><body>
 <h1>Books</h1>
 Published between {{"{{start|date:'Y M d'"}}}} and {{"{{end|date:'Y M d'"}}}}
@@ -44,11 +44,11 @@ Published between {{"{{start|date:'Y M d'"}}}} and {{"{{end|date:'Y M d'"}}}}
 </table>
 
 </body></html>
-{% endhighlight %}
+~~~
 
 If we hit this in a test and check the number of queries, there's no surprises.
 
-{% highlight python %}
+~~~ python
 def test_get_books_by_date(self):
     """
     Given a range of dates strings, return books published between
@@ -59,11 +59,11 @@ def test_get_books_by_date(self):
         response = get_books_by_date(request, '2013-05-16', '2013-05-31')
         print len(connection.queries)
         print connection.queries
-{% endhighlight %}
+~~~
 
 We get:
 
-```
+~~~
 1
 [{'time': '0.000',
 'sql': u'SELECT "books_book"."id", "books_book"."title",
@@ -71,11 +71,11 @@ We get:
 "books_book" WHERE ("books_book"."pub_date" >= 2013-05-16
 AND "books_book"."pub_date" <= 2013-05-31 ) ORDER BY
 "books_book"."pub_date" ASC'}]
-```
+~~~
 
 One predictable `SELECT` statement made. Now let's do the same thing but with this template:
 
-{% highlight django %}
+~~~ django
 <html><body>
 <h1>Books</h1>
 Published between {{"{{start|date:'Y M d'"}}}} and {{"{{end|date:'Y M d'"}}}}
@@ -87,11 +87,11 @@ Published between {{"{{start|date:'Y M d'"}}}} and {{"{{end|date:'Y M d'"}}}}
 </table>
 
 </body></html>
-{% endhighlight %}
+~~~
 
 Now we get:
 
-```
+~~~
 14
 [{'time': '0.000', 'sql': u'SELECT "books_book"."id",
 "books_book"."title", "books_book"."publisher_id",
@@ -106,11 +106,11 @@ Now we get:
 FROM "books_publisher" WHERE "books_publisher"."id" = 1 '},
 ...
 
-```
+~~~
 
 And on and on, for a total of 13 `SELECT`s on Publisher, one for each of the 13 rows we pulled for Book (and then joined in Python).  Do the math on how much of your response time budget this takes up in your environment, but it's nearly 30% of mine and we haven't done anything except fetch a small set of rows yet. Of course the excellent Django documents point out this problem and that the solution is to use `select_related` so that our view looks like:
 
-{% highlight python %}
+~~~ python
 def get_books_by_date(request, start, end):
     start = dateutil.parser.parse(start)
     end = dateutil.parser.parse(end)
@@ -119,11 +119,11 @@ def get_books_by_date(request, start, end):
                         .order_by('pub_date')
     return render(request, 'template.html',
                   {'books': books, 'start': start, 'end': end})
-{% endhighlight %}
+~~~
 
 And this gives us:
 
-```
+~~~
 1
 [{'time': '0.000', 'sql': u'SELECT "books_book"."id",
 "books_book"."title", "books_book"."publisher_id",
@@ -136,7 +136,7 @@ FROM "books_book" INNER JOIN "books_publisher" ON
 WHERE ("books_book"."pub_date" >= 2013-05-16  AND
 "books_book"."pub_date" <= 2013-05-31 ) ORDER BY
 "books_book"."pub_date" ASC'}]
-```
+~~~
 
 We have a `JOIN`, of course, but not a nasty `1+n` query.
 
@@ -171,7 +171,7 @@ Many-to-Many Relationships
 
 When you have a ManyToMany field, you'll find yourself needing to use `prefetch_related` for most of the same reasons as above.  I've seen this sort of thing lots.
 
-{% highlight django %}
+~~~ django
 <html><body>
 <h1>Books</h1>
 Published between {{"{{start|date:'Y M d'"}}}} and {{"{{end|date:'Y M d'"}}}}
@@ -188,11 +188,11 @@ Published between {{"{{start|date:'Y M d'"}}}} and {{"{{end|date:'Y M d'"}}}}
 </table>
 
 </body> </html>
-{% endhighlight %}
+~~~
 
 I'll spare you more SQL output, but using this template with the `select_related` on Publisher but not a `prefetch_related` on Author results in 14 `SELECT`s with lots of `JOIN`s.  So we have to change our view again.
 
-{% highlight python linenos %}
+~~~ python
 def get_books_by_date(request, start, end):
     start = dateutil.parser.parse(start)
     end = dateutil.parser.parse(end)
@@ -202,7 +202,7 @@ def get_books_by_date(request, start, end):
                         .order_by('pub_date')
     return render(request, 'template.html',
                  {'books': books, 'start': start, 'end': end})
-{% endhighlight %}
+~~~
 
 This will knock us down to 2 `SELECTS`, one of which uses an `IN` parameter.  The performance on that may not be great either, but it probably beats separate `SELECT`s for each row.  Keep in mind when you do this that you're performing a `JOIN`-equivalent in Python, so you'll want to be aware of how what kind of memory hit you're taking for this operation.
 
@@ -211,7 +211,7 @@ Caching
 
 QuerySets are evaluated lazily, and this has a couple of implications for caching.  First, the database isn't hit until you evaluate the queryset in some way -- iterating, slicing with a step, calling `len` or `list` on it, pickling it, etc.  Then it grabs the first 100 rows and will instantiate them as models as they are accessed.  If you are using `memcached` to cache whole querysets, you can easily hit the 1MB slab limit if you are caching a large queryset.  If you go over the limit of your slab size, you'll always get a cache miss, have to fetch the whole queryset, and then get an invalid cache set; you've just made your application perform worse by caching! This means that this sort of thing can be fine when you're working with small datasets but can get out of hand quickly:
 
-{% highlight python %}
+~~~ python
 def get_books_by_date(request, start, end):
     cache_key('booksbydate.{}.{}'.format(start, end))
     books = cache.get(cache_key)
@@ -225,7 +225,7 @@ def get_books_by_date(request, start, end):
         cache.set(cache_key, books, 60*60)
     return render(request, 'template.html',
                  {'books': books, 'start': start, 'end': end})
-{% endhighlight %}
+~~~
 
 Although if you're not using Paginator on that large queryset, you should probably do that first; your users might rarely go past the first few pages of results anyways and therefore caching the long tail might be worthless.
 
@@ -245,4 +245,4 @@ The title of this post is probably a slight misnomer.  All the above covers are 
 
 It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns -- a rich source for defects unless you know what to look for.
 
-><aside>I'm giving a [lightning talk](http://0x74696d.com/slides/django-db-antipatterns.html) based on this post at PhillyPUG's meetup on May 21, 2013.</aside>
+><aside>I'm giving a lightning talk based on this post at PhillyPUG's meetup on May 21, 2013. My slides can be found at http://0x74696d.com/slides/django-db-antipatterns.html</aside>

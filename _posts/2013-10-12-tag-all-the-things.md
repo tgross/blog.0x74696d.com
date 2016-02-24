@@ -17,7 +17,7 @@ The first part is to use AWS tags to uniquely name each EC2 instance. Instances 
 
 First we'll use the Python `boto` library to get all the instances we're interested in. Put this in your Fabfile. Later we'll call this function from a task that puts this all together.
 
-{% highlight python %}
+~~~ python
 AUTOSCALE_TAG = 'aws:autoscaling:groupName'
 
 def get_instances(role=None, zone=None, stage='prod'):
@@ -38,13 +38,13 @@ def get_instances(role=None, zone=None, stage='prod'):
                       stage=inst_stage):
                     instances.append(instance)
     return instances
-{% endhighlight %}
+~~~
 
 This is a de-factored version of what I actually run; normally much of this is factored away into a common library of code we use for AWS management. This version also leaves off handling of user input errors for clarity and brevity (as usual). It should be clear what we're doing for naming conventions. We have instances grouped into "roles" like "web", "worker", or code names for internal-facing services, etc. We split them across AWS availability zones, and we can handle multiple stages with the same function (i.e. "prod", "staging", "test", etc.), although we normally run all non-production instances under a different AWS account.
 
 This function gets called by a task that does the actual tagging:
 
-{% highlight python %}
+~~~ python
 
 def tag_instances(role='web', stage='prod'):
     """
@@ -81,19 +81,19 @@ def tag_instances(role='web', stage='prod'):
                     break
                 else:
                     i += 1
-{% endhighlight %}
+~~~
 
 This algorithm isn't particularly efficient. But the `boto` API doesn't guarantee any sort of ordering, and we don't know if the array of names is sparse at runtime (for example, what if we had to terminate an instance that went belly-up?). Our total number of instances isn't particularly large, so this is acceptably bad.
 
 We can then take this function and wrap it in a Fabric task for all our known roles.
 
-{% highlight python %}
+~~~ python
 def tag_all_the_things():
     tag_instances()
     tag_instances('worker')
     tag_instances('admin')
     # etc., add as many as you need here
-{% endhighlight %}
+~~~
 
 So before we start a session of work we can go `fab tag_all_the_things` and know that all our currently-running and available EC2 instances will be name-tagged like we can see in the console below:
 
@@ -116,7 +116,7 @@ I can do:
 
 `fab web001 dostuff`
 
-{% highlight python %}
+~~~ python
 # get a reference to the fabfile module
 this = __import__(__name__)
 all_hosts = {}
@@ -137,7 +137,7 @@ for host in get_instances():
         all_hosts[tag] = host_name
         # bind our function to a name at the module level
         setattr(this, tag, _set_host_factory(tag))
-{% endhighlight %}
+~~~
 
 In this same section we could add code that adds the hosts to the Fabric roledefs as well. And if we'd prefer, we could have the `_set_host` function append to the Fabric `env.hosts` instead of replacing it. That would let us run more than one hostname in the fab command (ex. `fab web001 web002 dostuff`). But if I'm pushing tasks up to multiple hosts I usually like to do it by roledef or looping over the hosts so that I can more easily follow the progress of the task. Your mileage may vary.
 
@@ -146,27 +146,29 @@ Stupid Pet Tricks with SSH Config Files
 
 The last part to add here is that sometimes we like to be able to `ssh` into a given EC2 instance if it's behaving abnormally. To this end I (ab)use my ssh config file. My `~/.ssh` directory looks like this:
 
-    tgross@Durandal:~$ ll ~/.ssh
-    total 136
-    -rw-r--r--  1 tgross  staff   3.9K Oct 11 21:37 config
-    -rw-r--r--  1 tgross  staff    45K Oct 10 13:02 known_hosts
-    drwxr-xr-x  2 tgross  staff    68B Oct 12 11:36 multi
-    -rw-r--r--  1 tgross  staff   531B Jul  7 12:37 my_config
-    -rwxr-xr-x  1 tgross  staff   126B Jul  6 12:25 ssh_alias.bash
-    -rw-------  1 tgross  staff   1.6K Jul  6 18:12 tgross
-    -rw-r--r--  1 tgross  staff   400B Jul  6 18:12 tgross.pub
+~~~
+tgross@Durandal:~$ ll ~/.ssh
+total 136
+-rw-r--r--  1 tgross  staff   3.9K Oct 11 21:37 config
+-rw-r--r--  1 tgross  staff    45K Oct 10 13:02 known_hosts
+drwxr-xr-x  2 tgross  staff    68B Oct 12 11:36 multi
+-rw-r--r--  1 tgross  staff   531B Jul  7 12:37 my_config
+-rwxr-xr-x  1 tgross  staff   126B Jul  6 12:25 ssh_alias.bash
+-rw-------  1 tgross  staff   1.6K Jul  6 18:12 tgross
+-rw-r--r--  1 tgross  staff   400B Jul  6 18:12 tgross.pub
+~~~
 
 I've got a `my_config` file that contains everything you'd usually find in a ssh config file. Then in my `~/.bash_profile` I've got the following:
 
-{% highlight bash %}
+~~~ bash
 # gets hostnames provided by the fab script
 alias update-ssh='cat ~/.ssh/my_config $FABFILEPATH/ssh_host.config > ~/.ssh/config'
 update-ssh
-{% endhighlight %}
+~~~
 
 Where `$FABFILEPATH` is the directory where my Fabfile lives. This means that every time I fire up a shell or use the command alias `update-ssh`, I'm replacing my `~/.ssh/config` file with the combination of my personal configuration and some file that lives in the `$FABFILEPATH`. So where does this file come from? We can create it from our Fabfile by modifying the code we saw above like so:
 
-{% highlight python %}
+~~~ python
 # get a reference to the fabfile module
 this = __import__(__name__)
 all_hosts = {}
@@ -192,7 +194,7 @@ for host in get_instances():
         f.write('Host {}\nHostname {}\nUser ubuntu\n\n'.format(tag, host_name))
 
 f.close()
-{% endhighlight %}
+~~~
 
 We've added code to write out host aliases and hostnames to the `ssh_host.config` file that we'll concatenate into our `~/.ssh/config` file. This lets me access any instance just by going `ssh web001`.
 

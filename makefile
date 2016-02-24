@@ -18,5 +18,6 @@ post:
 
 serve:
 	docker run --rm -it -p 4000:4000 \
+		-e POLLING=true \
 		-v $(PWD):/srv/jekyll \
 		jekyll/jekyll:pages

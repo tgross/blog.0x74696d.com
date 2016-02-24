@@ -33,10 +33,10 @@ Picture this -- you're a brand new Go developer. Let's get started and check out
 
 > To get started, create a workspace directory and set GOPATH accordingly. Your workspace can be located wherever you like, but we'll use $HOME/go in this document. Note that this must not be the same path as your Go installation.
 
-```
+~~~
 $ mkdir $HOME/go
 $ export GOPATH=$HOME/go
-```
+~~~
 
 Bam, we already gave a budding Go developer bad advice. Because he or she is off to the races with `go get` and is now polluting a shared namespace with dependency code that can't be version-pinned. You can't get away with having a shared `GOPATH`; this is probably obvious to some people but it's definitely not obvious to many of the developers I've encountered.
 
@@ -70,7 +70,7 @@ The solution is this:
 
 This results in a directory that looks like this:
 
-```
+~~~
     tgross@durandal:~/src/tgross/mygoproject$ tree -a
     |_ .git/
     |_ .gitignore
@@ -88,11 +88,11 @@ This results in a directory that looks like this:
     |_ src/
        |_ mylibrary/
 
-```
+~~~
 
 And a makefile that might look like this:
 
-{% highlight make %}
+~~~ make
 MAKEFLAGS += --warn-undefined-variables
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail
@@ -124,7 +124,7 @@ test:
 
 build:
 	docker build -t="my-container-image" .
-{% endhighlight %}
+~~~
 
 Note that there's no re-writing imports here. Your Go code is blissfully unaware of the behind-the-scenes work you're doing here to give it the correctly pinned dependencies.
 

@@ -1,0 +1,81 @@
+- title: Containerbuddy
+  link: http://www.meetup.com/GoLangPhilly/events/228110580/
+  where: GoLang Philly
+  when: 2016 Mar
+
+- title: Containerbuddy
+  link: http://www.meetup.com/Golang-DC/events/228413343/
+  where: GoLang DC
+  when: 2016 Feb
+
+- title: Applications on Autopilot
+  link: http://containersummit.io/events/nyc-2016/videos/applications-on-autopilot
+  where: Container Summit NY
+  when: 2016 Feb
+
+- title: The New Stack @Scale (after FutureStack.io) [Podcast]
+  link: https://soundcloud.com/thenewstackatscale/show-3-monitoring-and-containers
+  where: The New Stack
+  when: 2015 Nov
+
+- title: Container in Production - Crazy? Awesome?
+  link: https://blog.newrelic.com/2016/01/07/containers-futurestack-fs15-video
+  where: FutureStack.io
+  when: 2015 Nov
+
+- title: Framework-Agnostic Discovery
+  link: http://0x74696d.com/talk-kubecon-2015/
+  where: KubeCon
+  where-link: http://kubecon2015.sched.org/event/de8c17e8a0bfad2f82127c494b2c0d62#.VkKHKa6rRE4
+  when: 2015 Nov
+
+- title: Container-Native Architecture
+  link: http://0x74696d.com/posts/container-native-architecture-talk/
+  where: ContainerDaysNYC
+  when: 2015 Oct
+
+- title: New Stack Analysts (after Dockercon 2015) [Podcast]
+  link: http://thenewstack.io/tns-analysts-show-50-docker-for-today-and-tomorrow-from-dockercon/
+  where: The New Stack
+  when: 2015 Jun
+
+- title: Autoscaling Groups and More [Online roundtable]
+  link: https://www.youtube.com/watch?v=g12-fq1Szhc
+  where: HangOps
+  when: 2015 Feb
+
+- title: Introduction to Python for Women and Their Friends [Workshop]
+  where: PhillyPUG
+  when: 2014 Apr
+
+- title: Docker - Training Wheels for LXC
+  where: Philly DevOps
+  when: 2014 Feb
+
+- title: Falling In and Out of Love with DynamoDB
+  where: PhillyDB
+  when: 2013 Jun
+
+- title: Django Data-Access Antipatterns
+  where: Philly PUG
+  when: 2013 May
+
+- title: Introduction to Python for Women and Their Friends [Workshop]
+  where: PhillyPUG
+  when: 2013 Mar
+
+- title: Architecting Availability on AWS
+  where: AWS NYC Meetup
+  when: 2013 Feb
+
+- title: Introduction to pip and virtualenv
+  where: PhillyPUG/PyStar
+  when: 2013 Feb
+
+- title: Protocol Fuzzing with Sulley and Python
+  where: PhillyPUG
+  when: 2012 Apr
+
+- title: Win32 Debugging with Python
+  where: PhillyPUG
+  when: 2011 Jun

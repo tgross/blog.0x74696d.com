@@ -1,0 +1,35 @@
+- title: Triton blueprints
+  link: https://github.com/search?q=user%3Atgross+triton
+  what: application examples on Joyent\'s Triton platform
+
+- title: Containerbuddy
+  link: https://github.com/joyent/containerbuddy
+  what: shim for containerizing legacy applications
+
+- title: boto
+  link: https://github.com/boto/boto
+  what: documentation fixes for RDS API
+
+- title: goamz
+  link: https://github.com/dramafever/goamz
+  what: expanded map support for DynamoDB
+
+- title: django-cache-machine
+  link: https://github.com/dramafever/django-cache-machine
+  what: multiple-DB support
+
+- title: cloudplaya
+  link: https://github.com/tgross/cloudplaya
+  what: authentication patches
+
+- title: AIVScan
+  link: https://github.com/tgross/aivscan
+  what: web interface for nmap (primary back-end developer)
+
+- title: Miro Community
+  link: https://github.com/tgross/mirocommunity
+  what: comment display in profiles
+
+- title: GilaMon
+  link: https://github.com/tgross/gilamon
+  what: distributed file system replication monitor

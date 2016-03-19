@@ -200,4 +200,4 @@ We've added code to write out host aliases and hostnames to the `ssh_host.config
 
 Another nice advantage of this is that it avoids name collisions in `~/.ssh/known_hosts`. So if I scale up to 10 "web" instances in an availability zone and have a "web010", and if that instance is terminated by scaling down later, the next time I see a "web010" I won't have to worry about editing my `~/.ssh/known_hosts` file to remove the old entry. You will accumulate a lot of cruft there, though, so you should probably have a job run through and clean yours out from time-to-time. I just do a quickie `C-SPC M-> C-w` now and then, but if you have a much larger installed base that might not do the job.
 
-><aside>Download the code from this post [here](https://github.com/tgross/tgross.github.io/tree/master/_code/tag-all-the-things.py)</aside>
+><aside>Download the code from this post <a href="https://github.com/tgross/tgross.github.io/tree/master/_code/tag-all-the-things.py">here</a></aside>

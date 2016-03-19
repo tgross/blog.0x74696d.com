@@ -94,4 +94,4 @@ if __name__ == '__main__':
 
 Last we use our multiprocessing pool to split the job over a large number of processes. I used `split -a 3 -l 300000` to split my big CSVs into a couple hundred files. With no shared memory between the processes, I can use the non-thread-safe code above without worry. This let me crank through all the input files within a few hours and I was ready for beer o'clock.
 
-><aside>Download this example code [here](https://github.com/tgross/tgross.github.io/tree/master/_code/dynamodb-batch-uploads)</aside>
+><aside>Download this example code <a href="https://github.com/tgross/tgross.github.io/tree/master/_code/dynamodb-batch-uploads">here</a></aside>

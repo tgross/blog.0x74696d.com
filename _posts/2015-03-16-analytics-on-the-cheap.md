@@ -13,8 +13,7 @@ The Firehose, Part Deux
 
 In an earlier article I mentioned in passing that [we](http://www.dramafever.com/company/careers.html) at one point replaced a fairly complicated system using DynamoDB to ingest our analytics firehose. The solution we came to for that is what I want to talk about here.
 
-<aside>I should point out here that although I did a lot of the implementation work of the ingest side of this system, the initial inspiration was from my colleague Ry4an's [S3 as Append-Only Datastore](http://ry4an.org/unblog/post/amazon-s3-as-append-only-datastore/).
-</aside>
+<aside>I should point out here that although I did a lot of the implementation work of the ingest side of this system, the initial inspiration was from my colleague Ry4an's <a href="http://ry4an.org/unblog/post/amazon-s3-as-append-only-datastore/">S3 as Append-Only Datastore</a>.</aside>
 
 We're working under the following requirements:
 

@@ -41,7 +41,7 @@ The backing datastore for your sessions can be just about anything, but you'll w
 
 The mini-project I discussed in the intro uses Riak as a session store for Flask so that I can compare it against using DynamoDB and play around with its cool operations tools. The problem both of these stores have is lack of consistency; this might not be a problem for a given application but if it isn't one might want to go with client-side sessions anyways. You can tune Riak to be more consistent by manipulating the `r`/`w` variables, but naturally this is going to reduce availability. (I suspect but haven't confirmed that it will increase latency slightly as well.)
 
-><aside>Addendum 2013/10/12: [Hector Castro](https://twitter.com/hectcastro/statuses/357834726419087360) from Basho says tht bumping up R/W consistency does have an effect on latency and that you should check out [this doc](http://basho.com/riaks-config-behaviors-part-2/) for more details.</aside>
+><aside>Addendum 2013/10/12: <a href ="https://twitter.com/hectcastro/statuses/357834726419087360">Hector Castro</a> from Basho says tht bumping up R/W consistency does have an effect on latency and that you should check out <a href="http://basho.com/riaks-config-behaviors-part-2/">this doc</a> for more details.</aside>
 
 Most of the popular Python web frameworks give you the option for server-side sessions too. In Django it's the default session engine. CherryPy gives only this option. For Flask you'll need to write your own or select one already written like [this one](http://flask.pocoo.org/snippets/75/) for Redis-backed sessions that I used as inspiration for the `flask-riak-sessions` project I'm working on. Note that snippet uses `pickle`, which I don't recommend as a serializer for sessions because I'm paranoid. It's too easy to screw up and put unsanitized data into the session store and have it deserialized into arbitrary Python code that will pwn your server.
 
@@ -61,4 +61,4 @@ tl;dr
 
 There isn't really a don't-make-me-think-version of this post. You should almost certainly be using the HttpOnly flag and putting your whole site under SSL for authenticated users. If you have any question as to whether you will be putting sensitive data in the session or how to encrypt that data safely, you should be using a server-backed session. Redis is a great backing store for server-backed sessions. Client-side sessions have their place, but there are plenty of fairly bad client-side session implementations out there so do your research.
 
-><aside>Thanks to [John Romanski](https://github.com/JohnRomanski) who was kind enough to review this post for technical errors and style advice.</aside>
+><aside>Thanks to <a href="https://github.com/JohnRomanski">John Romanski</a> who was kind enough to review this post for technical errors and style advice.</aside>

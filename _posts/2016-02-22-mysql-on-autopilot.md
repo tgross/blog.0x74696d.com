@@ -3,6 +3,7 @@ layout: post
 title: MySQL on Autopilot
 category: Joyent, Docker
 canonical: https://www.joyent.com/blog/dbaas-simplicity-no-lock-in
+tweet: Running MySql on autopilot
 
 ---
 

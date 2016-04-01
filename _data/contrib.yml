@@ -1,6 +1,6 @@
-- title: Triton blueprints
-  link: https://github.com/search?q=user%3Atgross+triton
-  what: application examples on Joyent's Triton platform
+- title: Autopilot patterns
+  link: https://github.com/autopilotpattern
+  what: design patterns for self-operating containerized applications
 
 - title: Containerbuddy
   link: https://github.com/joyent/containerbuddy

@@ -1,3 +1,23 @@
+- title: Stateful Applications on Autopilot
+  link: http://conferences.oreilly.com/velocity/devops-web-performance-ca/public/schedule/detail/50513
+  where: Velocity Santa Clara
+  when: 2016 Jun
+
+- title: Autopilot - Real-world Applications in Containers
+  link: http://dynamicinfradays.org/events/2016-boston/programme.html#autopilot
+  where: ContainerDays Boston
+  when: 2016 May
+
+- title: Docker Production Training
+  link: http://containersummit.io/events/vegas-2016/training
+  where: Container Summit LV
+  when: 2016 May
+
+- title: Applications on Autopilot
+  link: https://container.camp/usa/2016/schedule
+  where: Container.Camp SF
+  when: 2016 Apr
+
 - title: Containerbuddy
   link: http://www.meetup.com/GoLangPhilly/events/228110580/
   where: GoLang Philly

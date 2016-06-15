@@ -2,9 +2,9 @@
   link: https://github.com/autopilotpattern
   what: design patterns for self-operating containerized applications
 
-- title: Containerbuddy
-  link: https://github.com/joyent/containerbuddy
-  what: shim for containerizing legacy applications
+- title: ContainerPilot
+  link: https://github.com/joyent/containerpilot
+  what: app-centric supervisor for self-operating containerized applications
 
 - title: boto
   link: https://github.com/boto/boto

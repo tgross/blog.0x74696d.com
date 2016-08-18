@@ -1,3 +1,39 @@
+- title: Ops in the time of serverless containerized webscale
+  link: http://conferences.oreilly.com/velocity/devops-web-performance-ny/public/schedule/detail/53601
+  where: Velocity Conf NY
+  when: 2016 Sep
+
+- title: Full Stack Metrics w/ Native Prometheus Support
+  link: http://promcon.io/talks/full_stack_metrics_with_tritons_native_prometheus_support/
+  where: PromCon Berlin
+  when: 2016 Aug
+
+- title: Applications on Autopilot
+  link: http://www.meetup.com/PhillyDevOps/events/232054327/
+  where: Philly DevOps
+  when: 2016 Aug
+
+- title: Application Configuration [podcast]
+  link: https://www.arresteddevops.com/application-configuration/
+  where: Arrested DevOps
+  when: 2016 Jul
+
+- title: Containers. Microservices. Node.js
+  link: http://nodesummit.com/agenda/
+  where: Node Summit SF
+  when: 2016 Jul
+
+- title: Microservices in Seconds
+  link: http://nodesummit.com/agenda/
+  where: Node Summit SF
+  when: 2016 Jul
+
+- title: Applications on Autopilot
+  link: http://containersummit.io/city-series/2016/austin/videos/containerpilot-and-the-autopilot-pattern
+  where: Container Summit Austin
+  where-link: http://containersummit.io/city-series/2016/austin
+  when: 2016 Jul
+
 - title: Stateful Applications on Autopilot
   link: http://conferences.oreilly.com/velocity/devops-web-performance-ca/public/schedule/detail/50513
   where: Velocity Santa Clara
@@ -38,7 +74,7 @@
   where: The New Stack
   when: 2015 Nov
 
-- title: Container in Production - Crazy? Awesome?
+- title: Containers in Production - Crazy? Awesome?
   link: https://blog.newrelic.com/2016/01/07/containers-futurestack-fs15-video
   where: FutureStack.io
   when: 2015 Nov

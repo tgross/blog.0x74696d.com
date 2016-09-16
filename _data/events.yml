@@ -111,24 +111,29 @@
   when: 2015 Feb
 
 - title: Introduction to Python for Women and Their Friends [Workshop]
+  link: http://www.meetup.com/phillypug/events/193735402/
   where: PhillyPUG
   when: 2014 Apr
 
 - title: Docker - Training Wheels for LXC
+  link: http://www.meetup.com/PhillyDevOps/events/165354902/
   where: Philly DevOps
   when: 2014 Feb
 
 - title: Falling In and Out of Love with DynamoDB
   where: PhillyDB
+  link: http://www.meetup.com/PhillyDB/events/123618362/
   when: 2013 Jun
 
 - title: Django Data-Access Antipatterns
+  link: http://www.meetup.com/phillypug/events/116076692/
   where: Philly PUG
   when: 2013 May
 
 - title: Introduction to Python for Women and Their Friends [Workshop]
   where: PhillyPUG
-  when: 2013 Mar
+  link: http://www.meetup.com/phillypug/events/108553202/
+  when: 2013 Apr
 
 - title: Architecting Availability on AWS
   where: AWS NYC Meetup
@@ -136,12 +141,15 @@
 
 - title: Introduction to pip and virtualenv
   where: PhillyPUG/PyStar
-  when: 2013 Feb
+  link: http://www.meetup.com/phillypug/events/98705182/
+  when: 2013 Jan
 
 - title: Protocol Fuzzing with Sulley and Python
   where: PhillyPUG
+  link: http://www.meetup.com/phillypug/events/54174712/
   when: 2012 Apr
 
 - title: Win32 Debugging with Python
   where: PhillyPUG
+  link: http://www.meetup.com/phillypug/events/20258941/
   when: 2011 Jun

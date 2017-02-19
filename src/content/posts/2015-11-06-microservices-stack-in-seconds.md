@@ -1,9 +1,10 @@
 ---
-layout: post
-title: Deploy a microservices stack in seconds
-category: Joyent, Docker
 canonical: https://www.joyent.com/blog/how-to-dockerize-a-complete-application
-
+categories:
+- Joyent, Docker
+date: 2015-11-06T00:00:00Z
+title: Deploy a microservices stack in seconds
+slug: microservices-stack-in-seconds
 ---
 
 Over the last couple weeks I've been working on a project at Joyent to demonstrate the components of a container-native microservices architecture. Today I've put the pieces together. I'm using [Containerbuddy](https://github.com/joyent/containerbuddy) in a stack that includes Nginx, Couchbase, a Node.js application, Cloudflare DNS, and our Triton platform. All the components can be swapped out for your favorite ones just by changing a `docker-compose.yml` description.

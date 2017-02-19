@@ -1,7 +1,9 @@
 ---
-layout: post
-title: "Tag All The Things!"
-category: AWS
+categories:
+- AWS
+date: 2013-10-12T00:00:00Z
+title: Tag All The Things!
+slug: tag-all-the-things
 ---
 
 If you're using push-based orchestration like Fabric, you need hostnames to send commands over `ssh` to your instances. But if the instances are in an AWS autoscaling group, you don't know most of the hostnames of the boxes at any given time. Typing out EC2 hostnames like `ec2-11-222-33-44.compute-1.amazonaws.com` sucks once you have a couple dozen instances in play. You could have each box register itself in Route53 with some kind of friendly name, but then you'll need to wait for DNS propagation and your local `~/.ssh/known_hosts` file is going to be out-of-date if you reuse names.

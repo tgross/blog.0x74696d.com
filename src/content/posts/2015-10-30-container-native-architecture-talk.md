@@ -1,7 +1,9 @@
 ---
-layout: post
+categories:
+- Joyent, Docker
+date: 2015-10-30T00:00:00Z
 title: Container-Native Architecture [talk]
-category: Joyent, Docker
+slug: container-native-architecture-talk
 ---
 
 On October 29th I gave a talk on container-native architecture at [ContainerDays NYC](http://dynamicinfradays.org/events/2015-nyc/).

@@ -1,7 +1,9 @@
 ---
-layout: post
-title: "Falling In And Out Of Love with DynamoDB [talk]"
-category: talks, AWS
+categories:
+- talks, AWS
+date: 2013-06-18T00:00:00Z
+title: Falling In And Out Of Love with DynamoDB [talk]
+slug: falling-in-and-out-of-love-with-dynamodb
 ---
 
 On Tuesday night I gave a talk on my experiences using Amazon's DynamoDB.  [Here](http://0x74696d.com/slides/falling-in-and-out-of-love-with-dynamodb.html) are the slides for my talk.

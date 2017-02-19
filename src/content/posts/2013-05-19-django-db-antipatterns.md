@@ -1,7 +1,9 @@
 ---
-layout: post
-title: "Django Database Anti-Patterns"
-category: Django, performance
+categories:
+- Django, performance
+date: 2013-05-19T00:00:00Z
+title: Django Database Anti-Patterns
+slug: django-db-antipatterns
 ---
 
 At work our core application is a big Django project that's been developed over the course of a couple of years.  At the scale at which we're operating, we're finding lots of areas where we've had to tweak or replace out-of-the-box components with more performant alternatives.  One of the areas that's a constant source of pain for me is the Django ORM.

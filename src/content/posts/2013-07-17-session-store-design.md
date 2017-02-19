@@ -1,7 +1,9 @@
 ---
-layout: post
-title: "Session Store Design"
-category: security
+categories:
+- security
+date: 2013-07-17T00:00:00Z
+title: Session Store Design
+slug: session-store-design
 ---
 
 After my talk on DynamoDB a few weeks ago, one of the guys from Basho sent me an email and told me I should check out Riak. So in order to have a project to mess around with it, I decided to work up a session store for Flask. Session stores are one of the use cases called out on Basho's site, so I figured that'd be a good experiment. I'll talk about that project in a later post. Today I want to talk about the session design and about data stores for sessions.

@@ -1,5 +1,5 @@
 ---
-layout: page
+type: page
 title: "Tim Gross"
 ---
 
@@ -25,7 +25,7 @@ All opinions expressed are solely my own and not those of my employer. This blog
 
 Public conversations in Twitter or Github are great, but feel free to send me an email if you need to reach me privately.
 
-[{{ site.author.email }}](mailto:{{ site.author.email }})
+[tim+blog@0x74696d.com](mailto:tim+blog@0x74696d.com)
 
 If you are sending me anything of a confidential nature, please use PGP encryption.  Sending my personal data in the clear is a good way to avoid having to do business with me in the future.
 PGP public key: [6F725947](/6F725947.asc)

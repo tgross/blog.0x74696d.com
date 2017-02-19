@@ -1,7 +1,9 @@
 ---
-layout: post
-title: "DynamoDB Batch Uploads"
-category: AWS, DynamoDB
+categories:
+- AWS, DynamoDB
+date: 2013-06-05T00:00:00Z
+title: DynamoDB Batch Uploads
+slug: dynamodb-batch-uploads
 ---
 
 I work with a moderately large AWS deployment, and this includes a few applications that are using Amazon's DynamoDB. One of the many many quirks of working with DynamoDB is that it's optimized towards highly parallel operations. Ordinarily this is exactly what you want, but if you ran into the situation I did over the weekend not so much.

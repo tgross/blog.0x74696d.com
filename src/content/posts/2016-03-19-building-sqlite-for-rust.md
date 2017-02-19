@@ -1,9 +1,10 @@
 ---
-layout: post
+categories:
+- rust
+date: 2016-03-19T00:00:00Z
 title: Building sqlite for rust
-category: rust
 tweet: Rust and Cargo get this stuff right!
-
+slug: building-sqlite-for-rust
 ---
 
 I've been playing around with Rust a bit lately and needed to build something with an embedded database, so I reached for SQLite. I need to build SQLite with some specific features enabled and that's hard to guarantee with system packages cross-platform. This gave me a chance to try out building a Rust project linked with some custom C code. The overall direction I'm taking here is largely coming from [this thread](https://users.rust-lang.org/t/linking-with-custom-c-library/637/4) and the Cargo [build script](http://doc.crates.io/build-script.html#case-study-building-some-native-code) page. I'm using [rusqlite](https://github.com/jgallagher/rusqlite) for the SQLite bindings, so I'll need to build that as well.

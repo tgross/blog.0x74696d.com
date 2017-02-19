@@ -1,7 +1,9 @@
 ---
-layout: post
+categories:
+- Docker
+date: 2015-07-06T00:00:00Z
 title: Running a host-local Docker Registry
-category: Docker
+slug: host-local-docker-registry
 ---
 
 One of the options for running a private Docker registry is to run your own with the Docker Registry daemon. When [we](http://www.dramafever.com) started using Docker this was our approach from the beginning. At the time the Docker Registry was a Python app running on `gunicorn`; the new version is written in Go. A nice feature is that one can use S3 as the backing store, which *almost* makes the registry a proxy to S3.

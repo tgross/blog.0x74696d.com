@@ -1,7 +1,9 @@
 ---
-layout: post
-title: "Analytics on the Cheap"
-category: ops, AWS
+categories:
+- ops, AWS
+date: 2015-03-16T00:00:00Z
+title: Analytics on the Cheap
+slug: analytics-on-the-cheap
 ---
 
 In November of 2013 I was at the AWS ReInvent conference, where they previewed their new service Kinesis. The long story short of this is that it's like a hosted Kafka. And the long story short of Kafka is that it's a way to ingest a whole lot of data in the short period of time so that you can process it in some kind of near-offline process later. The seemingly canonical example is something like log data. Loggly uses Kafka for this, I hear? The premise is that you have a stream of data from many clients, you want those clients to be able to treat the messages as close to fire-and-forget as possible (within the boundaries of TCP, if you're using that as the transport), you don't want to drop messages, and you want to be able to get the messages into the system you're using for analysis as soon as possible.

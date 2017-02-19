@@ -1,7 +1,9 @@
 ---
-layout: post
+categories:
+- golang
+date: 2015-03-04T00:00:00Z
 title: go get considered harmful
-category: golang
+slug: go-get-considered-harmful
 ---
 
 One of my favorite essays on Python packaging is Armin Ronacher's [Python Packaging: Hate, hate, hate everywhere](http://lucumr.pocoo.org/2012/6/22/hate-hate-hate-everywhere/). And one of the reasons why I thought of it lately is to remind me that Go isn't the only language with crazy dependency management problems.

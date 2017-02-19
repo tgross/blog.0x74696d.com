@@ -1,9 +1,10 @@
 ---
-layout: post
-title: Production Docker logs on Triton
-category: Joyent, Docker
 canonical: https://www.joyent.com/blog/docker-log-drivers
-
+categories:
+- Joyent, Docker
+date: 2016-03-18T00:00:00Z
+title: Production Docker logs on Triton
+slug: docker-log-drivers
 ---
 
 In a [previous post](/posts/docker-logging) I talked about an approach I took getting logs out of Docker containers when I first started using Docker way back at the end of 2013. But Docker has done a lot of growing up since then!

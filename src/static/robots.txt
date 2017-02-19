@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /src
+Disallow: /CNAME
+Disallow: /LICENSE
+Disallow: /*.asc
+Disallow: /makefile
+Disallow: /zohoverify
+Disallow: /css
+Disallow: /.git

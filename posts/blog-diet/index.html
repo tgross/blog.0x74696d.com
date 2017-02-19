@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Blog Diet</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="/webfonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        <li><a href="/me/">Me</a></li>
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Blog Diet</h1>
+  <section class="byline">January 2, 2016</section>
+  
+
+<p>It's a new year and so why not take the opportunity to revisit my site and make a few improvements? I've had a few people mention in the past that they've had some readability issues with some of the design choices (particularly on Linux). And as I've added more content I've found a few little layout quirks that I'm not 100% happy with. Let's dive right in.</p>
+
+<h2 id="the-spec">The Spec</h2>
+
+<p>The major design criteria are:</p>
+
+<ol>
+<li>Keep page weight low (or lower!).</li>
+<li>Make the page more mobile-friendly.</li>
+<li>Improve the font weights for better accessibility.</li>
+</ol>
+
+<h2 id="the-audit">The Audit</h2>
+
+<p>Partially inspired by Maciej Cegowski's <a href="http://idlewords.com/talks/website_obesity.htm">The Website Obesity Crisis</a>, I first decided to look into reducing page weight. Fortunately the original design was pretty good in this respect. The home page weighed in at 101KB, most of which were the Google web fonts. My <a href="/posts/analytics-on-the-cheap">Analytics on the Cheap</a> was 184KB, most of the extra load coming from loading the Twitter div. An image-heavy post like <a href="posts/falling-in-and-out-of-love-with-dynamodb-part-ii/">Falling In and Out of Love With DynamoDB, Part II</a> was still only 315KB. So there is some room for improvement here but not a lot.</p>
+
+<p><img src="/images/20160102/waterfall-before.png" alt="Homepage waterfall diagram, before" /></p>
+
+<p>I took a pass with Google developer tool's Audit feature and it noted that because I was on an HTTP/1.1 connection that I might want to combine the multiple CSS files. This is optimized for free on HTTP2, but because I'm hosting the blog on Github pages I don't have control over the server. I also noted that <code>pygments.css</code> is being loaded even on pages where I'm never going to have code snippets. There are an awful lot of unused CSS rules on the page too, so we can trim some garbage there. The tool also mentioned that there are no far-future cache headers applied to the assets, but again that's going to be a function of hosting on Github pages (and/or their Fastly CDN configuration). Anything we can do here is going to be a micro-optimization, but what the hell let's do it anyways.</p>
+
+<p>The font weights around the menu needed some work, as did the typography on the <a href="/community.html">community</a> page.</p>
+
+<p><img src="/images/20160102/menu-before.png" alt="Menu, before" />
+<img src="/images/20160102/community-before.png" alt="List of talks, before" /></p>
+
+<h2 id="the-improvements">The Improvements</h2>
+
+<p>Although I'm a big fan of <a href="http://getskeleton.com">Skeleton</a> it's way more than I actually need for this project. There are no forms, buttons, heroes, complex grids, etc. So instead I'm keeping the same basic CSS that I had but just tweaking it to remove cruft.</p>
+
+<p>I've moved the <code>mobile.css</code> into the <code>base.css</code> and used a media query. I originally thought that <code>link media=&quot;only screen and (max-device-width: 480px)&quot;</code> prevented the element from loading, but that turns out not to be true for what should have been obvious reasons -- if we had a <code>max-width</code> criteria it would force downloading new CSS if someone resized their browser! I checked the page on my older Android tablet and realized that I want to expand the media query to cover smaller tablets as well, so I've bumped that up to <code>768px</code>.</p>
+
+<p>I previously failed to notice that the CSS I stole from I-don't-remember-where caused the menu headers (&quot;posts&quot;, &quot;projects&quot;, &quot;community&quot;, etc.) to be hidden on mobile, so that's a quick fix. I also noticed that it did that wretched thing where it intentionally broke zooming. Sorry, fixed now!</p>
+
+<p>The biggest change stylistically was removing the Lato web font that I was loading from Google. Getting rid of that dropped most of the extraneous page weight. I'm not a professional designer and that's not the focus of the blog, so I don't really care that much about &quot;pixel perfect&quot; design. Rather the messing around trying to find the perfect font and doubling the size of the page, I'm just going to leave it up to the reader's machine and browser and <a href="http://www.smashingmagazine.com/2015/11/using-system-ui-fonts-practical-guide/">use their system fonts</a>. The results look good on the five different devices I was able to check. They're all a bit different of course, but better designers than me picked out those fonts on those platforms so let's trust them.</p>
+
+<h2 id="and-done">And... Done!</h2>
+
+<p>I'm pretty happy with the results of just a couple hours of work. There is only one third-party request left on the site (the Twitter bug), and the page is a quarter the size. More importantly, it's more legible on a wider range of devices.</p>
+
+<p><img src="/images/20160102/waterfall-after.png" alt="Homepage waterfall diagram, after" /></p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=http://0x74696d.com%2fposts%2fblog-diet%2f&via=0x74696d"
+     class="ss-twitter"></a>
+</div>
+
+</section>
+<section class="meta">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d">
+    <span class="ss-social-circle ss-twitter" />
+    <div>Follow.</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross">
+    <span class="ss-social-circle ss-octocat" />
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="/me#contact">
+    <span class="ss-social-circle ss-mail" />
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/rss.xml" rel="alternate" type="application/rss+xml" title="0x74696d" />
+    <span class="ss-social-circle ss-rss" />
+    <div>RSS.</div>
+  </a>
+
+  <div style="clear: both"></div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Running a host-local Docker Registry</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="/webfonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        <li><a href="/me/">Me</a></li>
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Running a host-local Docker Registry</h1>
+  <section class="byline">July 6, 2015</section>
+  <p>One of the options for running a private Docker registry is to run your own with the Docker Registry daemon. When <a href="http://www.dramafever.com">we</a> started using Docker this was our approach from the beginning. At the time the Docker Registry was a Python app running on <code>gunicorn</code>; the new version is written in Go. A nice feature is that one can use S3 as the backing store, which <em>almost</em> makes the registry a proxy to S3.</p>
+
+<p>But we ran into a pretty serious problem with it early on in terms of scalability. If we had to scale up a bunch of queue workers all at once to take on additional load in the application, we could overload the EC2 instance the Docker Registry was running on pretty trivially -- if nothing else then with network I/O limitations. We could have probably gotten away with scaling up the box a lot, but this would leave a scary SPOF in our system and make moot the reliability of S3.</p>
+
+<p>Instead we have the registry daemon as a host-local service backed by S3. So that means we have a container running the registry on the host, and we have a CNAME like <code>docker-local.example.com</code> that points to it. When a service starts it just does <code>docker pull docker-local.example.com:5000/my-service:tag</code>, and the Docker Registry backend retrieves the image layers from S3. The IAM role given to the production nodes has read-only access to the S3 bucket and can never push to it.</p>
+
+<p>We use Jenkins to build and ship the containers. My colleagues <a href="https://www.youtube.com/watch?v=8fcDZB-QMRA">Bridget and Peter</a> talked about this in depth at this year's ChefConf. And one of our team's alumni <a href="https://www.youtube.com/watch?v=yU0QhhS-XzI">Jeff</a> talked about GrubHub's implementation of a very similar setup at Dockercon a couple weeks ago. Our Jenkins server has the same host-local Docker Registry setup, but has IAM permissions to write to the S3 bucket. As the sole node allowed to write to S3, we avoid any possibility of data races on the backing store. (If you need multiple writers you'll want to shard which repositories they write to by namespace.)</p>
+
+<p>With this setup, network I/O throughput on start is limited only by the host that requires a new image and whatever S3 can give us. This lets us scale up nodes as fast as AWS can give them to us without worrying about the registry as a point of failure.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=http://0x74696d.com%2fposts%2fhost-local-docker-registry%2f&via=0x74696d"
+     class="ss-twitter"></a>
+</div>
+
+</section>
+<section class="meta">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d">
+    <span class="ss-social-circle ss-twitter" />
+    <div>Follow.</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross">
+    <span class="ss-social-circle ss-octocat" />
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="/me#contact">
+    <span class="ss-social-circle ss-mail" />
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/rss.xml" rel="alternate" type="application/rss+xml" title="0x74696d" />
+    <span class="ss-social-circle ss-rss" />
+    <div>RSS.</div>
+  </a>
+
+  <div style="clear: both"></div>
+</section>
+
+</body>
+</html>

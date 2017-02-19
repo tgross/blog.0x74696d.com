@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  <url>
+    <loc>http://0x74696d.com/posts/secrets-management-in-the-autopilotpattern/</loc>
+    <lastmod>2017-01-26T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/consul-etcd-on-triton/</loc>
+    <lastmod>2016-08-02T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/video-intro-autopilot-pattern/</loc>
+    <lastmod>2016-07-06T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/monitoring-and-scaling-with-application-telemetry/</loc>
+    <lastmod>2016-04-12T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/building-sqlite-for-rust/</loc>
+    <lastmod>2016-03-19T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/docker-log-drivers/</loc>
+    <lastmod>2016-03-18T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/applications-on-autopilot/</loc>
+    <lastmod>2016-03-03T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/mysql-on-autopilot/</loc>
+    <lastmod>2016-02-22T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/blog-diet/</loc>
+    <lastmod>2016-01-02T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/microservices-stack-in-seconds/</loc>
+    <lastmod>2015-11-06T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/dynamic-dns-for-docker-w-containerbuddy/</loc>
+    <lastmod>2015-11-03T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/container-native-architecture-talk/</loc>
+    <lastmod>2015-10-30T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/anti-patterns-for-service-discovery-in-docker/</loc>
+    <lastmod>2015-10-29T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/dynamic-nginx-upstreams-with-containerbuddy/</loc>
+    <lastmod>2015-10-29T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/simplifying-service-discovery-in-docker-with-containerbuddy/</loc>
+    <lastmod>2015-10-29T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/host-local-docker-registry/</loc>
+    <lastmod>2015-07-06T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/analytics-on-the-cheap/</loc>
+    <lastmod>2015-03-16T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/go-get-considered-harmful/</loc>
+    <lastmod>2015-03-04T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/training-wheels-for-lxc-part-i/</loc>
+    <lastmod>2014-02-18T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/tag-all-the-things/</loc>
+    <lastmod>2013-10-12T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/docker-logging/</loc>
+    <lastmod>2013-08-03T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/session-store-design/</loc>
+    <lastmod>2013-07-17T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb-part-ii/</loc>
+    <lastmod>2013-07-11T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb/</loc>
+    <lastmod>2013-06-18T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/dynamodb-batch-uploads/</loc>
+    <lastmod>2013-06-05T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/django-db-antipatterns/</loc>
+    <lastmod>2013-05-19T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/charlesssl/</loc>
+    <lastmod>2013-05-13T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/newblog/</loc>
+    <lastmod>2013-05-12T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/</loc>
+    <lastmod>2017-01-26T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/aws/</loc>
+    <lastmod>2013-10-12T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/aws-dynamodb/</loc>
+    <lastmod>2013-07-11T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/</loc>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/community/</loc>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/community/</loc>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/django-performance/</loc>
+    <lastmod>2013-05-19T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/docker/</loc>
+    <lastmod>2015-07-06T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/golang/</loc>
+    <lastmod>2015-03-04T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/joyent-docker/</loc>
+    <lastmod>2017-01-26T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/me/</loc>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/ops-aws/</loc>
+    <lastmod>2015-03-16T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/posts/</loc>
+    <lastmod>2017-01-26T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/rust/</loc>
+    <lastmod>2016-03-19T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/security/</loc>
+    <lastmod>2013-07-17T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/talks-aws/</loc>
+    <lastmod>2013-06-18T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/categories/talks-docker/</loc>
+    <lastmod>2014-02-18T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/me/</loc>
+  </url>
+  
+</urlset>

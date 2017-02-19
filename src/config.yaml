@@ -1,0 +1,16 @@
+baseURL: http://0x74696d.com/
+disablePathToLower: true
+languageCode: en-us
+title: "0x74696d"
+publishDir: ".."
+
+blackfriday:
+  smartypants: false
+
+params:
+  author: "Tim Gross"
+  github: "tgross"
+  twitter: "0x74696d"
+  description: "T-Minus 15.193792102158E+9 years until the universe closes!"
+
+...

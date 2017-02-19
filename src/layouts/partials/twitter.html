@@ -1,4 +1,4 @@
 <div class="share">
-  <a href="https://twitter.com/intent/tweet?url=http://0x74696d.com{{ page.url }}&via={{ site.author.twitter }}{%if page.tweet %}&text={{ page.tweet}}{% endif %}"
+  <a href="https://twitter.com/intent/tweet?url=http://0x74696d.com{{ .URL }}&via={{ .Site.Params.twitter }}{{ if .Params.tweet }}&text={{ .Params.tweet }}{{ end }}"
      class="ss-twitter"></a>
 </div>

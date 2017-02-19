@@ -1,0 +1,17 @@
+{{ partial "declarations.html" . }}
+<head>
+{{ partial "head.html" . }}
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+{{ partial "menu.html" . }}
+<section class="container content">
+  <h1>{{ .Title }}</h1>
+  <section class="byline">{{ .Date.Format "January 2, 2006" }}</section>
+  {{ .Content }}
+  {{ partial "twitter.html" . }}
+</section>
+{{ partial "footer.html" . }}
+</body>
+</html>

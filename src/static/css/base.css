@@ -54,6 +54,31 @@ li {
   }
 
 
+  .pager a, .pager b {
+      color: #444;
+      text-transform: uppercase;
+      text-decoration: none;
+      transition: color 0.25s ease-in;
+      -webkit-transition: color 0.25s ease-in;
+  }
+  .pager a:hover, .pager a:hover b { color: #307EA9; }
+
+  .pager ul {
+      padding: 0;
+      margin: 5px 0;
+      font-weight: 200;
+  }
+  .pager li {
+      display: inline;
+      padding-right: 15px;
+      font-size: 16px;
+      font-size: 0.888rem;
+  }
+  .pager span {
+      float: right;
+  }
+
+
 h1 {
     font-size: 26px;
     font-size: 1.444rem;

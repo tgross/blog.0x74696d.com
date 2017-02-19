@@ -1,10 +1,10 @@
 <section class="meta">
-  <a class="block" href="https://twitter.com/intent/follow?screen_name={{ site.author.twitter }}">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name={{ .Site.Params.twitter }}">
     <span class="ss-social-circle ss-twitter" />
     <div>Follow.</div>
   </a>
 
-  <a class="block" href="https://github.com/{{ site.author.github }}">
+  <a class="block" href="https://github.com/{{ .Site.Params.github }}">
     <span class="ss-social-circle ss-octocat" />
     <div>Collaborate.</div>
   </a>
@@ -14,7 +14,7 @@
     <div>Communicate.</div>
   </a>
 
-  <a class="block" href="/rss.xml">
+  <a class="block" href="/rss.xml" rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" />
     <span class="ss-social-circle ss-rss" />
     <div>RSS.</div>
   </a>

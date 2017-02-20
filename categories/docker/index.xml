@@ -43,37 +43,35 @@
 &lt;h1 id=&#34;docker-logs&#34;&gt;docker logs&lt;/h1&gt;
 
 &lt;p&gt;Having a &lt;code&gt;docker logs&lt;/code&gt; command available must be what threw me off. Docker captures all the &lt;code&gt;stdout&lt;/code&gt;/&lt;code&gt;stderr&lt;/code&gt; from the process you&#39;re running, and you can get the docker daemon to spit this out with &lt;code&gt;docker logs $CONTAINER_ID&lt;/code&gt;. But if the process you&#39;re running is a long-running daemon, that&#39;s probably less than satisfactory. At first I thought I&#39;d be clever and thought I could periodically run &lt;code&gt;docker logs &amp;gt;&amp;gt; /var/log/myapp.log&lt;/code&gt;. Let&#39;s try that with a Django app on gunicorn and see what happens.&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;$ ID=docker run myimage python manage.py run_gunicorn -b 0.0.0.0:8000
-$ docker logs $ID
-2013-08-03 18:45:05 [1710] [INFO] Starting gunicorn 0.14.2
-2013-08-03 18:45:05 [1710] [INFO] Listening at: http://0.0.0.0:8000 (1710)
-2013-08-03 18:45:05 [1710] [INFO] Using worker: sync
-2013-08-03 18:45:05 [1713] [INFO] Booting worker with pid: 1713
-$ # ok, let&#39;s do that again
-$ docker logs $ID
-2013-08-03 18:45:05 [1710] [INFO] Starting gunicorn 0.14.2
-2013-08-03 18:45:05 [1710] [INFO] Listening at: http://0.0.0.0:8000 (1710)
-2013-08-03 18:45:05 [1710] [INFO] Using worker: sync
-2013-08-03 18:45:05 [1713] [INFO] Booting worker with pid: 1713
-&lt;/code&gt;&lt;/pre&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span&gt;&lt;/span&gt;$ &lt;span class=&#34;nv&#34;&gt;ID&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;docker run myimage python manage.py run_gunicorn -b &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;.0.0.0:8000
+$ docker logs &lt;span class=&#34;nv&#34;&gt;$ID&lt;/span&gt;
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:45:05 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Starting gunicorn &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;.14.2
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:45:05 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Listening at: http://0.0.0.0:8000 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:45:05 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Using worker: sync
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:45:05 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1713&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Booting worker with pid: &lt;span class=&#34;m&#34;&gt;1713&lt;/span&gt;
+$ &lt;span class=&#34;c1&#34;&gt;# ok, let&amp;#39;s do that again&lt;/span&gt;
+$ docker logs &lt;span class=&#34;nv&#34;&gt;$ID&lt;/span&gt;
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:45:05 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Starting gunicorn &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;.14.2
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:45:05 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Listening at: http://0.0.0.0:8000 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:45:05 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Using worker: sync
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:45:05 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1713&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Booting worker with pid: &lt;span class=&#34;m&#34;&gt;1713&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Uh oh. If I just append the output of &lt;code&gt;docker logs&lt;/code&gt; I&#39;ll be writing the entire log out to the file each time. That&#39;s going to suck after a while. You don&#39;t want to use &lt;code&gt;docker logs&lt;/code&gt; to write out logs for your process.&lt;/p&gt;
 
 &lt;h1 id=&#34;mounted-volumes&#34;&gt;mounted volumes&lt;/h1&gt;
 
 &lt;p&gt;Instead you should bind a volume to the container and write your logs from your process to that mount point. This maps a location in the container&#39;s file system to a location on the host. You can then access the logs separately from the running process in your container and use tools like &lt;code&gt;logrotate&lt;/code&gt; to handle them.&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;$ ID=docker run -v /var/myapp/log:/var/log myimage python manage.py
-  run_gunicorn -b 0.0.0.0:8000 --log-file=/var/log/gunicorn.log
-$ docker logs $ID
-$ # nada!
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span&gt;&lt;/span&gt;$ &lt;span class=&#34;nv&#34;&gt;ID&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;docker run -v /var/myapp/log:/var/log myimage python manage.py
+  run_gunicorn -b &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;.0.0.0:8000 --log-file&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;/var/log/gunicorn.log
+$ docker logs &lt;span class=&#34;nv&#34;&gt;$ID&lt;/span&gt;
+$ &lt;span class=&#34;c1&#34;&gt;# nada!&lt;/span&gt;
 $ tail /var/myapp/log/gunicorn.log
-2013-08-03 18:53:11 [1710] [INFO] Starting gunicorn 0.14.2
-2013-08-03 18:53:11 [1710] [INFO] Listening at: http://0.0.0.0:8000 (1710)
-2013-08-03 18:53:11 [1710] [INFO] Using worker: sync
-2013-08-03 18:53:11 [1713] [INFO] Booting worker with pid: 1811
-&lt;/code&gt;&lt;/pre&gt;
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:53:11 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Starting gunicorn &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;.14.2
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:53:11 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Listening at: http://0.0.0.0:8000 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:53:11 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1710&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Using worker: sync
+&lt;span class=&#34;m&#34;&gt;2013&lt;/span&gt;-08-03 &lt;span class=&#34;m&#34;&gt;18&lt;/span&gt;:53:11 &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1713&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt;INFO&lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; Booting worker with pid: &lt;span class=&#34;m&#34;&gt;1811&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;It&#39;s fair to note that attaching a volume from the host slightly weakens the LXC security advantages. The contained process can now write outside its container and this is a &lt;a href=&#34;https://www.owasp.org/index.php/Log_injection&#34;&gt;potential attack vector&lt;/a&gt; if the contained process is compromised.&lt;/p&gt;
 

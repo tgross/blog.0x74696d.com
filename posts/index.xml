@@ -102,23 +102,22 @@ $ tree /src/jgallagher/rusqlite
 &lt;h2 id=&#34;cargo-toml&#34;&gt;Cargo.toml&lt;/h2&gt;
 
 &lt;p&gt;This is just the &amp;quot;hello world&amp;quot; of &lt;code&gt;rusqlite&lt;/code&gt;, so our demonstration application will be &lt;a href=&#34;https://github.com/jgallagher/rusqlite/blob/master/README.md&#34;&gt;the example code from the rusqlite README&lt;/a&gt;. Here&#39;s our demo app&#39;s Cargo.toml:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;[package]&lt;/span&gt;
+&lt;span class=&#34;na&#34;&gt;name&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;quot;demo&amp;quot;&lt;/span&gt;
+&lt;span class=&#34;na&#34;&gt;version&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;quot;0.1.0&amp;quot;&lt;/span&gt;
+&lt;span class=&#34;na&#34;&gt;authors&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;[&amp;quot;Tim Gross &amp;lt;tim@0x74696d.com&amp;gt;&amp;quot;]&lt;/span&gt;
+&lt;span class=&#34;na&#34;&gt;build&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;quot;build.rs&amp;quot;&lt;/span&gt;
+&lt;span class=&#34;na&#34;&gt;links&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;quot;libsqlite&amp;quot;&lt;/span&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-toml&#34;&gt;[package]
-name = &amp;quot;demo&amp;quot;
-version = &amp;quot;0.1.0&amp;quot;
-authors = [&amp;quot;Tim Gross &amp;lt;tim@0x74696d.com&amp;gt;&amp;quot;]
-build = &amp;quot;build.rs&amp;quot;
-links = &amp;quot;libsqlite&amp;quot;
+&lt;span class=&#34;k&#34;&gt;[dependencies]&lt;/span&gt;
+&lt;span class=&#34;na&#34;&gt;time&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;quot;~0.1.0&amp;quot;&lt;/span&gt;
 
-[dependencies]
-time = &amp;quot;~0.1.0&amp;quot;
+&lt;span class=&#34;k&#34;&gt;[dependencies.rusqlite]&lt;/span&gt;
+&lt;span class=&#34;na&#34;&gt;path&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;quot;/src/jgallagher/rusqlite&amp;quot;&lt;/span&gt;
 
-[dependencies.rusqlite]
-path = &amp;quot;/src/jgallagher/rusqlite&amp;quot;
-
-[build-dependencies]
-gcc = &amp;quot;0.3&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;
+&lt;span class=&#34;k&#34;&gt;[build-dependencies]&lt;/span&gt;
+&lt;span class=&#34;na&#34;&gt;gcc&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;quot;0.3&amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Note that I&#39;ve got four different dependencies here and each one is being added in a different way. The most straightforward is the &lt;code&gt;time&lt;/code&gt; crate, which our demonstration app uses to get the current time when inserting a row. We&#39;ve pinned it to a specific version with the &lt;code&gt;~&lt;/code&gt; flag, which means we&#39;ll accept patch version updates but not minor version increases (in the semver sense). When we build, Cargo will fetch this dependency from crates.io, compile it, and then cache the output of that compilation in our target directory for linking down the road.&lt;/p&gt;
 
@@ -131,41 +130,37 @@ gcc = &amp;quot;0.3&amp;quot;
 &lt;h2 id=&#34;build-rs&#34;&gt;build.rs&lt;/h2&gt;
 
 &lt;p&gt;We still need to tell Cargo how to actually build SQLite, and is pretty straightforward with the &lt;code&gt;gcc&lt;/code&gt; crate. In our &lt;a href=&#34;http://doc.crates.io/build-script.html&#34;&gt;&lt;code&gt;build.rs&lt;/code&gt; script&lt;/a&gt; we just need to pass the appropriate arguments to the gcc methods and we&#39;ll get the expected output.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;extern&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;crate&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;gcc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-rust&#34;&gt;extern crate gcc;
-
-fn main() {
-gcc::Config::new()
-    .define(&amp;quot;SQLITE_ENABLE_FTS5&amp;quot;, Some(&amp;quot;1&amp;quot;))
-    .define(&amp;quot;SQLITE_ENABLE_RTREE&amp;quot;, Some(&amp;quot;1&amp;quot;))
-    .define(&amp;quot;SQLITE_ENABLE_JSON1&amp;quot;, Some(&amp;quot;1&amp;quot;))
-    .define(&amp;quot;SQLITE_ENABLE_DBSTAT_VTAB&amp;quot;, Some(&amp;quot;1&amp;quot;))
-    .define(&amp;quot;SQLITE_ENABLE_EXPLAIN_COMMENTS&amp;quot;, Some(&amp;quot;1&amp;quot;))
-    .file(&amp;quot;/src/sqlite/src/sqlite3.c&amp;quot;)
-    .compile(&amp;quot;libsqlite3.a&amp;quot;);
-}
-&lt;/code&gt;&lt;/pre&gt;
+&lt;span class=&#34;k&#34;&gt;fn&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;gcc&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;Config&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;new&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;SQLITE_ENABLE_FTS5&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;1&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;SQLITE_ENABLE_RTREE&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;1&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;SQLITE_ENABLE_JSON1&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;1&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;SQLITE_ENABLE_DBSTAT_VTAB&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;1&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;SQLITE_ENABLE_EXPLAIN_COMMENTS&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;1&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;file&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;/src/sqlite/src/sqlite3.c&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;compile&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;quot;libsqlite3.a&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;This is the equivalent of doing:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;gcc -DSQLITE_ENABLE_FTS5=1 \
-	-DSQLITE_ENABLE_RTREE=1 \
-	-DSQLITE_ENABLE_JSON1=1 \
-	-DSQLITE_ENABLE_DBSTAT_VTAB=1 \
-	-DSQLITE_ENABLE_EXPLAIN_COMMENTS=1 \
-	-c src/sqlite3.c \
-	-lpthread -ldl \
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span&gt;&lt;/span&gt;gcc -DSQLITE_ENABLE_FTS5&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+	-DSQLITE_ENABLE_RTREE&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+	-DSQLITE_ENABLE_JSON1&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+	-DSQLITE_ENABLE_DBSTAT_VTAB&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+	-DSQLITE_ENABLE_EXPLAIN_COMMENTS&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+	-c src/sqlite3.c &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+	-lpthread -ldl &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
 	-o libsqlite3.a
-
-&lt;/code&gt;&lt;/pre&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Note that the linked pthread and ld libs will be provided as part of our standard rust build. Optimization level and whether to include debug symbols will be set according to the Cargo build, but these can be overridden (see the &lt;a href=&#34;http://alexcrichton.com/gcc-rs/gcc/struct.Config.html#method.opt_level&#34;&gt;&lt;code&gt;gcc::Config&lt;/code&gt;&lt;/a&gt; docs).&lt;/p&gt;
 
 &lt;p&gt;Also note here that we&#39;re hard-coding the path to the &lt;a href=&#34;https://www.sqlite.org/amalgamation.html&#34;&gt;SQLite source amalgamation file&lt;/a&gt;, which kinda sucks. The &lt;code&gt;libsqlite3-sys&lt;/code&gt; crate handles this by taking an environment variable, or we could just vendor the &lt;code&gt;sqlite3.c&lt;/code&gt; source and header file alongside our code. If anyone knows a good workaround I&#39;d be interested to hear about it.&lt;/p&gt;
 
 &lt;p&gt;In any case, now we&#39;re ready to build!&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;$ cargo build
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span&gt;&lt;/span&gt;$ cargo build
 cargo build
     Compiling bitflags v0.1.1
     Compiling winapi v0.2.6
@@ -174,24 +169,24 @@ cargo build
     Compiling winapi-build v0.1.1
     Compiling gcc v0.3.25
     Compiling kernel32-sys v0.2.1
-    Compiling libsqlite3-sys v0.4.0 (file:///src/tgross/demo)
-    Compiling time v0.1.34
-    Compiling demo v0.1.0 (file:///src/tgross/demo)
-    Compiling rusqlite v0.6.0 (file:///src/tgross/demo)
+    Compiling libsqlite3-sys v0.4.0 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;file:///src/tgross/demo&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+    Compiling &lt;span class=&#34;nb&#34;&gt;time&lt;/span&gt; v0.1.34
+    Compiling demo v0.1.0 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;file:///src/tgross/demo&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+    Compiling rusqlite v0.6.0 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;file:///src/tgross/demo&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
 
 $ ldd target/debug/demo
-    linux-vdso.so.1 (0x00007ffdf7abe000)
-    libdl.so.2 =&amp;gt; /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f9404...
-    libpthread.so.0 =&amp;gt; /lib/x86_64-linux-gnu/libpthread.so.0 (0x...
-    libgcc_s.so.1 =&amp;gt; /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x0000...
-    libc.so.6 =&amp;gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007f940385...
-    /lib64/ld-linux-x86-64.so.2 (0x00007f94045b9000)
-    libm.so.6 =&amp;gt; /lib/x86_64-linux-gnu/libm.so.6 (0x00007f940355...
+    linux-vdso.so.1 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007ffdf7abe000&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+    libdl.so.2 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libdl.so.2 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007f9404...
+    libpthread.so.0 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libpthread.so.0 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x...
+    libgcc_s.so.1 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libgcc_s.so.1 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x0000...
+    libc.so.6 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libc.so.6 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007f940385...
+    /lib64/ld-linux-x86-64.so.2 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007f94045b9000&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+    libm.so.6 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libm.so.6 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007f940355...
 
 $ ./target/debug/demo
-Found person Person { id: 1, name: &amp;quot;Steven&amp;quot;,
-time_created: Timespec { sec: 1458435347, nsec: 0 }, data: None }
-&lt;/code&gt;&lt;/pre&gt;
+Found person Person &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt; id: &lt;span class=&#34;m&#34;&gt;1&lt;/span&gt;, name: &lt;span class=&#34;s2&#34;&gt;&amp;quot;Steven&amp;quot;&lt;/span&gt;,
+time_created: Timespec &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt; sec: &lt;span class=&#34;m&#34;&gt;1458435347&lt;/span&gt;, nsec: &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;, data: None &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 </description>
     </item>
     

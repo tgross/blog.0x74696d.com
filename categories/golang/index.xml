@@ -105,39 +105,38 @@ $ export GOPATH=$HOME/go
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;And a makefile that might look like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-make&#34; data-lang=&#34;make&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;MAKEFLAGS&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+=&lt;/span&gt; --warn-undefined-variables
+&lt;span class=&#34;nv&#34;&gt;SHELL&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; /bin/bash
+&lt;span class=&#34;nv&#34;&gt;.SHELLFLAGS&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; -eu -o pipefail
+&lt;span class=&#34;nv&#34;&gt;.DEFAULT_GOAL&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; all
 
-&lt;pre&gt;&lt;code class=&#34;language-make&#34;&gt;MAKEFLAGS += --warn-undefined-variables
-SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail
-.DEFAULT_GOAL := all
+&lt;span class=&#34;k&#34;&gt;export &lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;GOPATH&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;shell &lt;span class=&#34;nb&#34;&gt;pwd&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;/.godeps:&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;shell &lt;span class=&#34;nb&#34;&gt;pwd&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;DEPS&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; .godeps/src/github.com
 
-export GOPATH := $(shell pwd)/.godeps:$(shell pwd)
-DEPS := .godeps/src/github.com
+&lt;span class=&#34;nf&#34;&gt;.PHONY&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;	*
 
-.PHONY:	*
+&lt;span class=&#34;nf&#34;&gt;all&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;	&lt;span class=&#34;n&#34;&gt;clean&lt;/span&gt; .&lt;span class=&#34;n&#34;&gt;godeps&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;test&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;
 
-all:	clean .godeps test build
-
-clean:
+&lt;span class=&#34;nf&#34;&gt;clean&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
 	rm -rf .godeps/*
 	rm -rf build/*
 
-.godeps:
+&lt;span class=&#34;nf&#34;&gt;.godeps&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
 	mkdir -p .godeps
-	git clone git@github.com:MyOrg/somepackage.git \
-        ${DEPS}/ThirdPartyA/somepackage \
-        &amp;amp;&amp;amp; cd ${DEPS}/ThirdPartyA/somepackage &amp;amp;&amp;amp; git checkout c7d7a7c
-	git clone git@github.com:MyOrg/some-other-package.git \
-        ${DEPS}/ThirdPartyB/some-other-package \
-        &amp;amp;&amp;amp; cd ${DEPS}/ThirdPartyB/some-other-package &amp;amp;&amp;amp; git checkout aa3257c
+	git clone git@github.com:MyOrg/somepackage.git &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+        &lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;DEPS&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;/ThirdPartyA/somepackage &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+        &lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;cd&lt;/span&gt; &lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;DEPS&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;/ThirdPartyA/somepackage &lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; git checkout c7d7a7c
+	git clone git@github.com:MyOrg/some-other-package.git &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+        &lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;DEPS&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;/ThirdPartyB/some-other-package &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+        &lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;cd&lt;/span&gt; &lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;DEPS&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;/ThirdPartyB/some-other-package &lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; git checkout aa3257c
 
-test:
+&lt;span class=&#34;nf&#34;&gt;test&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
 	go vet mylibrary
-	go test mylibrary -v -race -coverprofile=coverage.out
+	go &lt;span class=&#34;nb&#34;&gt;test&lt;/span&gt; mylibrary -v -race -coverprofile&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;coverage.out
 
-build:
-	docker build -t=&amp;quot;my-container-image&amp;quot; .
-&lt;/code&gt;&lt;/pre&gt;
+&lt;span class=&#34;nf&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
+	docker build -t&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;my-container-image&amp;quot;&lt;/span&gt; .
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Note that there&#39;s no re-writing imports here. Your Go code is blissfully unaware of the behind-the-scenes work you&#39;re doing here to give it the correctly pinned dependencies.&lt;/p&gt;
 

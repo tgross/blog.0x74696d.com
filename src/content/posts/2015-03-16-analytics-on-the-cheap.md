@@ -43,7 +43,7 @@ The first two layers aren't particularly interesting except that by the time we 
 
 **Example request: user watched a segment of video**
 
-~~~
+```
 POST /tick/ HTTP/1.1
 Host: https://api.example.com
 Content-Type: application/x-www-form-urlencoded
@@ -60,7 +60,7 @@ video_type=video
 content_id=4
 start_timecode=60
 end_timecode=120
-~~~
+```
 
 In practice we have a dozen extra fields on there and some of the names are different for weird historical reasons. But the point is that we've got this far with only ever hitting our session store once (if it's an authenticated session and if you're using a session store instead of signed/encrypted on-the-wire sessions) and making one hop thru Nginx.
 
@@ -72,13 +72,13 @@ So for our example we're going to have the fields in this order: event timestamp
 
 **Example request to S3**
 
-~~~
+```
 GET /tick HTTP/1.1
 Host: https://example.bucket.s3.amazonaws.com
 X-Amz-Authentication: xxxxx
 
 data=|2014-01-15T19:33:23|xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx|1234567|Registered|InternalCodeForConsumerType|Wales|watch|video|4|60|120|
-~~~
+```
 
 (Notice that we start and stop with a pipe -- this will come up again later!)
 
@@ -88,7 +88,7 @@ If you really care about latency of the initial request a lot, you can reduce S3
 
 Why sign the GET? Because we have the S3 bucket locked down so that only our ingest servers can make the GET. This prevents third-parties or incautious developers from messing around with our analytics data. Create an IAM user just for your ingest servers and use that AWS access key and secret key in your application to sign the request. Here's the IAM configuration you'll want for that user:
 
-~~~
+```json
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -100,9 +100,10 @@ Why sign the GET? Because we have the S3 bucket locked down so that only our ing
       "Resource": [
         "arn:aws:s3:::example.bucket/tick"
       ]
-    },
-   {
-~~~
+    }
+  ]
+}
+```
 
 
 Within an hour or so each GET shows up in the logs for the S3 bucket wherever we're sending the logs for our S3 `example.bucket` (for example, `example.bucket.logs`). At this point your possibilities for analysis are broad. If you have a small amount of data and just want to dick around with grep/awk, you can do that. If you have millions of messages a minute and need to pipe it to Redshift, you can do that. I'll get to that in a moment but let's have a short aside about operational costs of this system at this point.
@@ -129,8 +130,7 @@ Doing any kind of analysis at this point probably means we need to ingest the da
 
 The S3 log files are named for the hour in which they were created. Our quick-and-dirty way to deal with this for a daily roll-up is to create a new table for each day's raw rows (we do lots of post-processing in another step to figure out unique sessions, separate ads from video plays, etc.). We keep the raw tables for a while so we create one for each day, but if you don't want to do that you can just throw out the daily raw tables once you've post-processed them. As long as you keep the original logs in S3/Glacier (12 9's durability) you can always go back and re-process if there's a new kind of analysis you want to do. If we continue the example from above our raw table might look something like this:
 
-~~~
-
+``` sql
 CREATE TABLE raw_s3_rows (
     left_margin VARCHAR(600) ENCODE text32k,
     event_time TIMESTAMP ENCODE delta SORTKEY,
@@ -146,14 +146,13 @@ CREATE TABLE raw_s3_rows (
     end INT4 ENCODE mostly16,
     right_margin VARCHAR(200) ENCODE text255
 );
-~~~
+```
 
 Note the two weird bits. The `left_margin` field lets us cut off everything we see left of the first delimiter in the log line, and the `right_margin` does the same at the end. That's why we started our querystring parameter with a pipe earlier. We don't have a lot of control over the logging format that S3 uses, so this should give us a guarantee that we know where the start and end of our data are. Obviously this will break big-time if you allow unauthenticated GETs to the S3 key you're using for logging because any asshole on the web can come along and stuff evil in there.
 
 Now we can load in the raw S3 logs:
 
-~~~
-
+``` sql
 COPY raw_s3_rows
   FROM 's3://example.bucket.logs/log-$DATESTAMP'
   CREDENTIALS 'aws_access_key_id=<ACCESSKEY>;aws_secret_access_key=<SECRETKEY>'
@@ -162,7 +161,7 @@ COPY raw_s3_rows
   EMPTYASNULL
   BLANKSASNULL
   MAXERROR AS 1000;
-~~~
+```
 
 Of course you'll want to automate this in some way to remove the `$DATESTAMP` bit and have that be the hourly log names. We bail out if we get a lot of errors in the loading process, but because of the kind of data we're dealing with we're okay if there are a few bad messages (in practice we catch this at the validation stage so if we're seeing errors it's because we did something dumb like added a field without also updating the `CREATE TABLE` script).
 

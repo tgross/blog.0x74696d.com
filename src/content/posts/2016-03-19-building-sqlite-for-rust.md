@@ -14,7 +14,7 @@ I've been playing around with Rust a bit lately and needed to build something wi
 The other nice thing I got to try out here is how to build a sensible project structure for a project that might mix open source and private code. Cargo has some very minimal expectations about the source code directory, but doesn't dictate much past that. So unlike that *other* language [(*ahem*)](http://0x74696d.com/posts/go-get-considered-harmful) Rust is pretty chill about letting you decide what works for your project and organization. How this reflects on the culture of those two languages is left as an exercise for the reader.
 
 
-~~~
+```
 $ tree /src/tgross/demo
 .
 ├── build.rs
@@ -35,7 +35,7 @@ $ tree /src/jgallagher/rusqlite
 ├── src/
 │   └── main.rs
 └── target/
-~~~
+```
 
 In this directory tree I've got my own code namespaced under `tgross/` and my library code in the `jgallagher/rusqlite` directory. The `rusqlite` developers in turn decided to "vendor" their `libsqlite3-sys` crate because it's really just there to create bindings and doesn't stand on its own. I could just as easily take `rusqlite` and vendor it as a Git submodule or subtree at an arbitrary location within my own project's directory structure. Rather than pretending that our packaging and dependency tree can be described entirely by `import`s in our source code, Rust gives us Cargo, and we can give Cargo search paths for libraries.
 
@@ -47,7 +47,7 @@ Ok, rant over. Deep breaths...
 
 This is just the "hello world" of `rusqlite`, so our demonstration application will be [the example code from the rusqlite README](https://github.com/jgallagher/rusqlite/blob/master/README.md). Here's our demo app's Cargo.toml:
 
-~~~toml
+``` ini
 [package]
 name = "demo"
 version = "0.1.0"
@@ -63,7 +63,7 @@ path = "/src/jgallagher/rusqlite"
 
 [build-dependencies]
 gcc = "0.3"
-~~~
+```
 
 Note that I've got four different dependencies here and each one is being added in a different way. The most straightforward is the `time` crate, which our demonstration app uses to get the current time when inserting a row. We've pinned it to a specific version with the `~` flag, which means we'll accept patch version updates but not minor version increases (in the semver sense). When we build, Cargo will fetch this dependency from crates.io, compile it, and then cache the output of that compilation in our target directory for linking down the road.
 
@@ -77,7 +77,7 @@ Lastly and perhaps less obviously, we have a `links` and `build` section under `
 
 We still need to tell Cargo how to actually build SQLite, and is pretty straightforward with the `gcc` crate. In our [`build.rs` script](http://doc.crates.io/build-script.html) we just need to pass the appropriate arguments to the gcc methods and we'll get the expected output.
 
-~~~rust
+``` rust
 extern crate gcc;
 
 fn main() {
@@ -90,11 +90,11 @@ gcc::Config::new()
     .file("/src/sqlite/src/sqlite3.c")
     .compile("libsqlite3.a");
 }
-~~~
+```
 
 This is the equivalent of doing:
 
-~~~bash
+``` bash
 gcc -DSQLITE_ENABLE_FTS5=1 \
 	-DSQLITE_ENABLE_RTREE=1 \
 	-DSQLITE_ENABLE_JSON1=1 \
@@ -104,7 +104,7 @@ gcc -DSQLITE_ENABLE_FTS5=1 \
 	-lpthread -ldl \
 	-o libsqlite3.a
 
-~~~
+```
 
 Note that the linked pthread and ld libs will be provided as part of our standard rust build. Optimization level and whether to include debug symbols will be set according to the Cargo build, but these can be overridden (see the [`gcc::Config`](http://alexcrichton.com/gcc-rs/gcc/struct.Config.html#method.opt_level) docs).
 
@@ -112,7 +112,7 @@ Also note here that we're hard-coding the path to the [SQLite source amalgamatio
 
 In any case, now we're ready to build!
 
-~~~bash
+``` bash
 $ cargo build
 cargo build
     Compiling bitflags v0.1.1
@@ -139,4 +139,4 @@ $ ldd target/debug/demo
 $ ./target/debug/demo
 Found person Person { id: 1, name: "Steven",
 time_created: Timespec { sec: 1458435347, nsec: 0 }, data: None }
-~~~
+```

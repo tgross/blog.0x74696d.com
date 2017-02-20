@@ -51,81 +51,77 @@
 <p>The first part is to use AWS tags to uniquely name each EC2 instance. Instances in an autoscaling group all have the tag <code>aws:autoscaling:groupName</code> automatically added. If our group names are well-structured, we can use them to tag individual instances with a unique and predictable <code>Name</code> tag.</p>
 
 <p>First we'll use the Python <code>boto</code> library to get all the instances we're interested in. Put this in your Fabfile. Later we'll call this function from a task that puts this all together.</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span></span><span class="n">AUTOSCALE_TAG</span> <span class="o">=</span> <span class="s1">&#39;aws:autoscaling:groupName&#39;</span>
 
-<pre><code class="language-python">AUTOSCALE_TAG = 'aws:autoscaling:groupName'
-
-def get_instances(role=None, zone=None, stage='prod'):
-    &quot;&quot;&quot;
-    Get EC2 instances for a given functional role, AWS availability
-    zone, and deployment stage. Ex. instances in group &quot;web-prod-1a&quot;
-    &quot;&quot;&quot;
-    conn = boto.ec2.get_region(region).connect()
-    instances = []
-    for reservation in conn.get_all_instances():
-        for inst in reservation.instances:
-            # we only want autoscaling instances, and not ones that
-            # are being terminated (no public_dns_name)
-            group = instance.tags.get(AUTOSCALE_TAG, False)
-            if group and instance.public_dns_name:
-                inst_role, inst_stage, inst_zone = group.split('-')
-                if (role==inst_role and zone=inst_zone and
-                      stage=inst_stage):
-                    instances.append(instance)
-    return instances
-</code></pre>
+<span class="k">def</span> <span class="nf">get_instances</span><span class="p">(</span><span class="n">role</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">zone</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s1">&#39;prod&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get EC2 instances for a given functional role, AWS availability</span>
+<span class="sd">    zone, and deployment stage. Ex. instances in group &quot;web-prod-1a&quot;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">boto</span><span class="o">.</span><span class="n">ec2</span><span class="o">.</span><span class="n">get_region</span><span class="p">(</span><span class="n">region</span><span class="p">)</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+    <span class="n">instances</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">reservation</span> <span class="ow">in</span> <span class="n">conn</span><span class="o">.</span><span class="n">get_all_instances</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">inst</span> <span class="ow">in</span> <span class="n">reservation</span><span class="o">.</span><span class="n">instances</span><span class="p">:</span>
+            <span class="c1"># we only want autoscaling instances, and not ones that</span>
+            <span class="c1"># are being terminated (no public_dns_name)</span>
+            <span class="n">group</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">tags</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">AUTOSCALE_TAG</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">group</span> <span class="ow">and</span> <span class="n">instance</span><span class="o">.</span><span class="n">public_dns_name</span><span class="p">:</span>
+                <span class="n">inst_role</span><span class="p">,</span> <span class="n">inst_stage</span><span class="p">,</span> <span class="n">inst_zone</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">role</span><span class="o">==</span><span class="n">inst_role</span> <span class="ow">and</span> <span class="n">zone</span><span class="o">=</span><span class="n">inst_zone</span> <span class="ow">and</span>
+                      <span class="n">stage</span><span class="o">=</span><span class="n">inst_stage</span><span class="p">):</span>
+                    <span class="n">instances</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">instances</span>
+</code></pre></div>
 
 <p>This is a de-factored version of what I actually run; normally much of this is factored away into a common library of code we use for AWS management. This version also leaves off handling of user input errors for clarity and brevity (as usual). It should be clear what we're doing for naming conventions. We have instances grouped into &quot;roles&quot; like &quot;web&quot;, &quot;worker&quot;, or code names for internal-facing services, etc. We split them across AWS availability zones, and we can handle multiple stages with the same function (i.e. &quot;prod&quot;, &quot;staging&quot;, &quot;test&quot;, etc.), although we normally run all non-production instances under a different AWS account.</p>
 
 <p>This function gets called by a task that does the actual tagging:</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span></span><span class="k">def</span> <span class="nf">tag_instances</span><span class="p">(</span><span class="n">role</span><span class="o">=</span><span class="s1">&#39;web&#39;</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s1">&#39;prod&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tags all instances for a given role across all AZ.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">zone</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;1a&#39;</span><span class="p">,</span> <span class="s1">&#39;1b&#39;</span><span class="p">,</span> <span class="s1">&#39;1c&#39;</span><span class="p">,</span> <span class="s1">&#39;1d&#39;</span><span class="p">,</span> <span class="s1">&#39;1e&#39;</span><span class="p">):</span>
+        <span class="n">hosts_in_zone</span> <span class="o">=</span> <span class="n">get_instances</span><span class="p">(</span><span class="n">role</span><span class="o">=</span><span class="n">role</span><span class="p">,</span> <span class="n">zone</span><span class="o">=</span><span class="n">zone</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="n">stage</span><span class="p">)</span>
 
-<pre><code class="language-python">
-def tag_instances(role='web', stage='prod'):
-    &quot;&quot;&quot;
-    Tags all instances for a given role across all AZ.
-    &quot;&quot;&quot;
-    for zone in ('1a', '1b', '1c', '1d', '1e'):
-        hosts_in_zone = get_instances(role=role, zone=zone, stage=stage)
+        <span class="c1"># construct a base for the name tag</span>
+        <span class="n">zone_map</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;1a&#39;</span><span class="p">:</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1b&#39;</span><span class="p">:</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;1c&#39;</span><span class="p">:</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;1d&#39;</span><span class="p">:</span> <span class="s1">&#39;3&#39;</span><span class="p">,</span> <span class="s1">&#39;1e&#39;</span><span class="p">:</span> <span class="s1">&#39;4&#39;</span><span class="p">}</span>
+        <span class="n">base_name</span> <span class="o">=</span> <span class="s1">&#39;{}{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">zone_map</span><span class="p">[</span><span class="n">zone</span><span class="p">])</span>
+        <span class="n">used_names</span> <span class="o">=</span> <span class="p">{}</span>
 
-        # construct a base for the name tag
-        zone_map = {'1a': '0', '1b': '1', '1c': '2', '1d': '3', '1e': '4'}
-        base_name = '{}{}'.format(zone, zone_map[zone])
-        used_names = {}
-
-        # find the unnamed instances and name them; we can't rely on
-        # order of tags coming back so we loop over them twice.
-        unnamed_hosts = []
-        for host in hosts_in_zone:
-            name = host.tags.get('Name', '')
-            if name:
-                used_names[name] = host
-            else:
-                print('Found unnamed host {}'.format(host))
-                unnamed_hosts.append(host)
-        for host in unnamed_hosts:
-            i = 1
-            # find the next open name and assign it to the host
-            while True:
-                # use whatever padding you need here
-                hostname = '{}{:02}'.format(base_name, str(i))
-                if hostname not in used_names:
-                    print('Tagging {}'.format(hostname))
-                    host.add_tag('Name', hostname)
-                    used_names[hostname] = host
-                    break
-                else:
-                    i += 1
-</code></pre>
+        <span class="c1"># find the unnamed instances and name them; we can&#39;t rely on</span>
+        <span class="c1"># order of tags coming back so we loop over them twice.</span>
+        <span class="n">unnamed_hosts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">host</span> <span class="ow">in</span> <span class="n">hosts_in_zone</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">host</span><span class="o">.</span><span class="n">tags</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+                <span class="n">used_names</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">host</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Found unnamed host {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">host</span><span class="p">))</span>
+                <span class="n">unnamed_hosts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">host</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">host</span> <span class="ow">in</span> <span class="n">unnamed_hosts</span><span class="p">:</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="c1"># find the next open name and assign it to the host</span>
+            <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+                <span class="c1"># use whatever padding you need here</span>
+                <span class="n">hostname</span> <span class="o">=</span> <span class="s1">&#39;{}{:02}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">base_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">hostname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">used_names</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Tagging {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hostname</span><span class="p">))</span>
+                    <span class="n">host</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
+                    <span class="n">used_names</span><span class="p">[</span><span class="n">hostname</span><span class="p">]</span> <span class="o">=</span> <span class="n">host</span>
+                    <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+</code></pre></div>
 
 <p>This algorithm isn't particularly efficient. But the <code>boto</code> API doesn't guarantee any sort of ordering, and we don't know if the array of names is sparse at runtime (for example, what if we had to terminate an instance that went belly-up?). Our total number of instances isn't particularly large, so this is acceptably bad.</p>
 
 <p>We can then take this function and wrap it in a Fabric task for all our known roles.</p>
-
-<pre><code class="language-python">def tag_all_the_things():
-    tag_instances()
-    tag_instances('worker')
-    tag_instances('admin')
-    # etc., add as many as you need here
-</code></pre>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span></span><span class="k">def</span> <span class="nf">tag_all_the_things</span><span class="p">():</span>
+    <span class="n">tag_instances</span><span class="p">()</span>
+    <span class="n">tag_instances</span><span class="p">(</span><span class="s1">&#39;worker&#39;</span><span class="p">)</span>
+    <span class="n">tag_instances</span><span class="p">(</span><span class="s1">&#39;admin&#39;</span><span class="p">)</span>
+    <span class="c1"># etc., add as many as you need here</span>
+</code></pre></div>
 
 <p>So before we start a session of work we can go <code>fab tag_all_the_things</code> and know that all our currently-running and available EC2 instances will be name-tagged like we can see in the console below:</p>
 
@@ -146,28 +142,27 @@ def tag_instances(role='web', stage='prod'):
 <p>I can do:</p>
 
 <p><code>fab web001 dostuff</code></p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span></span><span class="c1"># get a reference to the fabfile module</span>
+<span class="n">this</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">all_hosts</span> <span class="o">=</span> <span class="p">{}</span>
 
-<pre><code class="language-python"># get a reference to the fabfile module
-this = __import__(__name__)
-all_hosts = {}
+<span class="c1"># create a function</span>
+<span class="k">def</span> <span class="nf">_set_host_factory</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="k">return</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">_set_host</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
 
-# create a function
-def _set_host_factory(name):
-    return lambda: _set_host(name)
+<span class="k">def</span> <span class="nf">_set_host</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="n">env</span><span class="o">.</span><span class="n">hosts</span> <span class="o">=</span> <span class="p">[</span><span class="n">all_hosts</span><span class="p">[</span><span class="n">name</span><span class="p">],]</span>
+    <span class="n">env</span><span class="o">.</span><span class="n">host_name</span> <span class="o">=</span> <span class="n">name</span>
 
-def _set_host(name):
-    env.hosts = [all_hosts[name],]
-    env.host_name = name
-
-# note: this loop is in the module namespace, not a function
-for host in get_instances():
-    tag = host.tags.get('Name')
-    host_name = host.public_dns_name
-    if host_name:
-        all_hosts[tag] = host_name
-        # bind our function to a name at the module level
-        setattr(this, tag, _set_host_factory(tag))
-</code></pre>
+<span class="c1"># note: this loop is in the module namespace, not a function</span>
+<span class="k">for</span> <span class="n">host</span> <span class="ow">in</span> <span class="n">get_instances</span><span class="p">():</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">host</span><span class="o">.</span><span class="n">tags</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span>
+    <span class="n">host_name</span> <span class="o">=</span> <span class="n">host</span><span class="o">.</span><span class="n">public_dns_name</span>
+    <span class="k">if</span> <span class="n">host_name</span><span class="p">:</span>
+        <span class="n">all_hosts</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">host_name</span>
+        <span class="c1"># bind our function to a name at the module level</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">this</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">_set_host_factory</span><span class="p">(</span><span class="n">tag</span><span class="p">))</span>
+</code></pre></div>
 
 <p>In this same section we could add code that adds the hosts to the Fabric roledefs as well. And if we'd prefer, we could have the <code>_set_host</code> function append to the Fabric <code>env.hosts</code> instead of replacing it. That would let us run more than one hostname in the fab command (ex. <code>fab web001 web002 dostuff</code>). But if I'm pushing tasks up to multiple hosts I usually like to do it by roledef or looping over the hosts so that I can more easily follow the progress of the task. Your mileage may vary.</p>
 
@@ -187,40 +182,38 @@ drwxr-xr-x  2 tgross  staff    68B Oct 12 11:36 multi
 </code></pre>
 
 <p>I've got a <code>my_config</code> file that contains everything you'd usually find in a ssh config file. Then in my <code>~/.bash_profile</code> I've got the following:</p>
-
-<pre><code class="language-bash"># gets hostnames provided by the fab script
-alias update-ssh='cat ~/.ssh/my_config $FABFILEPATH/ssh_host.config &gt; ~/.ssh/config'
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span></span><span class="c1"># gets hostnames provided by the fab script</span>
+<span class="nb">alias</span> update-ssh<span class="o">=</span><span class="s1">&#39;cat ~/.ssh/my_config $FABFILEPATH/ssh_host.config &gt; ~/.ssh/config&#39;</span>
 update-ssh
-</code></pre>
+</code></pre></div>
 
 <p>Where <code>$FABFILEPATH</code> is the directory where my Fabfile lives. This means that every time I fire up a shell or use the command alias <code>update-ssh</code>, I'm replacing my <code>~/.ssh/config</code> file with the combination of my personal configuration and some file that lives in the <code>$FABFILEPATH</code>. So where does this file come from? We can create it from our Fabfile by modifying the code we saw above like so:</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span></span><span class="c1"># get a reference to the fabfile module</span>
+<span class="n">this</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">all_hosts</span> <span class="o">=</span> <span class="p">{}</span>
 
-<pre><code class="language-python"># get a reference to the fabfile module
-this = __import__(__name__)
-all_hosts = {}
+<span class="c1"># create a function</span>
+<span class="k">def</span> <span class="nf">_set_host_factory</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="k">return</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">_set_host</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
 
-# create a function
-def _set_host_factory(name):
-    return lambda: _set_host(name)
+<span class="k">def</span> <span class="nf">_set_host</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="n">env</span><span class="o">.</span><span class="n">hosts</span> <span class="o">=</span> <span class="p">[</span><span class="n">all_hosts</span><span class="p">[</span><span class="n">name</span><span class="p">],]</span>
+    <span class="n">env</span><span class="o">.</span><span class="n">host_name</span> <span class="o">=</span> <span class="n">name</span>
 
-def _set_host(name):
-    env.hosts = [all_hosts[name],]
-    env.host_name = name
+<span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;./ssh_host.config&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
 
-f = open('./ssh_host.config', 'w')
+<span class="c1"># note: this loop is in the module namespace, not a function</span>
+<span class="k">for</span> <span class="n">host</span> <span class="ow">in</span> <span class="n">get_instances</span><span class="p">():</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">host</span><span class="o">.</span><span class="n">tags</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span>
+    <span class="n">host_name</span> <span class="o">=</span> <span class="n">host</span><span class="o">.</span><span class="n">public_dns_name</span>
+    <span class="k">if</span> <span class="n">host_name</span><span class="p">:</span>
+        <span class="n">all_hosts</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">host_name</span>
+        <span class="c1"># bind our function to a name at the module level</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">this</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">_set_host_factory</span><span class="p">(</span><span class="n">tag</span><span class="p">))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Host {}</span><span class="se">\n</span><span class="s1">Hostname {}</span><span class="se">\n</span><span class="s1">User ubuntu</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">host_name</span><span class="p">))</span>
 
-# note: this loop is in the module namespace, not a function
-for host in get_instances():
-    tag = host.tags.get('Name')
-    host_name = host.public_dns_name
-    if host_name:
-        all_hosts[tag] = host_name
-        # bind our function to a name at the module level
-        setattr(this, tag, _set_host_factory(tag))
-        f.write('Host {}\nHostname {}\nUser ubuntu\n\n'.format(tag, host_name))
-
-f.close()
-</code></pre>
+<span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div>
 
 <p>We've added code to write out host aliases and hostnames to the <code>ssh_host.config</code> file that we'll concatenate into our <code>~/.ssh/config</code> file. This lets me access any instance just by going <code>ssh web001</code>.</p>
 

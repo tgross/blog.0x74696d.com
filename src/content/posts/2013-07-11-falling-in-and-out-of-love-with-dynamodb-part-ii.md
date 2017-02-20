@@ -35,17 +35,17 @@ For this, we use the following key schema:
 
 For each relationship we make two writes; one in each direction of the graph. Note that the range keys are all strings, which means having a delimiter and type coercion of integer IDs. Using the API to query this is stupid-easy. Say I want to know which actors a given user is a fan of. Using the `boto` library it's something like this:
 
-~~~ python
+``` python
 results = table.query(hash_key=user_id,
                       range_key=BEGINS_WITH('FAN_OF.Actor.'))
-~~~
+```
 
 Or I can run it backwards, and find out which users have fanned a given actor:
 
-~~~ python
+``` python
 results = table.query(hash_key=actor_id,
                       range_key=BEGINS_WITH('FANNED_BY.User.')
-~~~
+```
 
 For this sort of thing DynamoDB is awesome. The use case matches the structural quirks perfectly, and the pay-as-you-go pricing is great for what was at the time an unproven feature.
 
@@ -137,7 +137,7 @@ Amazon doesn't provide an autoscaling API for DynamoDB. The API for provisioning
 
 We have a large daily swing in load because "prime time TV" still exists on the web if you have a predominantly North American audience. Because this is a predictable swing in load, we have a cron job that fires off increases and decreases in provisioning. The job fires every 15 minutes. Starting in the early AM it checks if the current throughput is within 80% of provisioned throughput and if so steps up in 20% increments over the course of the day. Using `boto` it's something like the code below.
 
-~~~ python
+``` python
 ANALYTICS = 'analytics_table'
 PROVISIONED = 'ProvisionedThroughput
 READ_CAP = 'ReadCapacityUnits'
@@ -177,7 +177,7 @@ if datetime.datetime.now().hour > 6:
         ddb.update_throughput(table,
                               provset[READ_CAP],
                               provset[WRITE_CAP])
-~~~
+```
 
 I'm eliding a bunch of setup and error-handling code -- check the `boto` docs. We have a similar branch of code that is hit when `now` is in the wee hours of the morning. This branch checks whether the currently used throughput is below a threshold value and steps down our provisioning. Rather than keeping track of state (so we don't use up our 2 decreases), this branch checks the value of the provisioning against a hard-coded value before making the API call.
 

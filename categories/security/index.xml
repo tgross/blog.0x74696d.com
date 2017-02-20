@@ -87,20 +87,18 @@
 &lt;p&gt;What you &lt;em&gt;should&lt;/em&gt; do (and what the &lt;a href=&#34;http://blog.xk72.com/&#34;&gt;author&lt;/a&gt; of Charles should recommend) is to set up your own certificate authority (CA) and trust that instead.  We can use this for more than just Charles, but I&#39;ll touch on that at the end of this post.  The whole process is barely more complicated than generating the X.509 self-signed cert you might be using for your home web server anyways.  The instructions below work on my OS X development machine but should be the same for any Unixy machine with OpenSSL installed.&lt;/p&gt;
 
 &lt;p&gt;We&#39;re going to build our new CA in &lt;code&gt;/usr/local&lt;/code&gt;, and OpenSSL on my machine was built so that its configuration file was stored in &lt;code&gt;/opt/local/etc/openssl/openssl.cnf&lt;/code&gt;.  Yeah, yeah, we can get religious about the Unix FHS some other time.  Let&#39;s get our environment prepped:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;mkdir -p /usr/local/CharlesCA
-cd /usr/local/CharlesCA
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span&gt;&lt;/span&gt;mkdir -p /usr/local/CharlesCA
+&lt;span class=&#34;nb&#34;&gt;cd&lt;/span&gt; /usr/local/CharlesCA
 mkdir certs private newcerts
-echo 01 &amp;gt; serial
+&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;01&lt;/span&gt; &amp;gt; serial
 touch index.txt
-&lt;/code&gt;&lt;/pre&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;On the last two items: &lt;code&gt;serial&lt;/code&gt; contains the next serial number that will be assigned to a cert, in hex.  The &lt;code&gt;index.txt&lt;/code&gt; file is the text database of issued certificates.  Next we create the certificate and key used for our new CA.&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;openssl req -new -x509 -days 3650 -extensions v3_ca \
-            -keyout private/ca_key.pem -out certs/ca_cert.pem \
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span&gt;&lt;/span&gt;openssl req -new -x509 -days &lt;span class=&#34;m&#34;&gt;3650&lt;/span&gt; -extensions v3_ca &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
+            -keyout private/ca_key.pem -out certs/ca_cert.pem &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
             -config /opt/local/etc/openssl/openssl.cnf
-&lt;/code&gt;&lt;/pre&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Ok, what are we doing here?  We&#39;re making a new X.509 certificate request with the appropriate extension to use the certificate for signing other certificates (or in other words, use it as a CA).  We&#39;re going to give it a very long expiration period because we&#39;re lazy and want to guarantee we won&#39;t have to do this again on this machine.  And we&#39;re outputting both a private keyfile (&lt;code&gt;ca_key.pem&lt;/code&gt;) and the public certificate file (&lt;code&gt;ca_cert.pem&lt;/code&gt;). If you&#39;re following along, you&#39;ll get something like the below.  Fill in your information.&lt;/p&gt;
 
@@ -128,10 +126,9 @@ Email Address []:tim@0x74696d.com
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;We&#39;ve got our CA now, and if we trust it as a root authority (we&#39;ll get to that in a minute), we can create SSL certificates that our browser will accept without complaint.  But Charles expects the signing certificate to be in PKCS12 format.  So we need to use OpenSSL again to convert our keys to a .pfx file.&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;openssl pkcs12 -export -out ca_cert.pfx -inkey private/ca_key.pem \
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span&gt;&lt;/span&gt;openssl pkcs12 -export -out ca_cert.pfx -inkey private/ca_key.pem &lt;span class=&#34;se&#34;&gt;\&lt;/span&gt;
                -in certs/ca_cert.pem
-&lt;/code&gt;&lt;/pre&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;blockquote&gt;
 &lt;aside&gt;Update 2013/10/12: Thanks to &lt;a href=&#34;https://twitter.com/markaufflick&#34;&gt;Mark Aufflick&lt;/a&gt; who pointed out I was missing the certs directory path from the &#34;-in&#34; argument of this command&lt;/aside&gt;

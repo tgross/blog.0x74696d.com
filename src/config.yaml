@@ -3,6 +3,8 @@ disablePathToLower: true
 languageCode: en-us
 title: "0x74696d"
 publishDir: ".."
+PygmentsCodeFences: true
+pygmentsuseclasses: true
 
 blackfriday:
   smartypants: false

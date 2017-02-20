@@ -14,7 +14,7 @@ I spent a couple of days this week working on a new deployment design using [Doc
 
 Having a `docker logs` command available must be what threw me off. Docker captures all the `stdout`/`stderr` from the process you're running, and you can get the docker daemon to spit this out with `docker logs $CONTAINER_ID`. But if the process you're running is a long-running daemon, that's probably less than satisfactory. At first I thought I'd be clever and thought I could periodically run `docker logs >> /var/log/myapp.log`. Let's try that with a Django app on gunicorn and see what happens.
 
-~~~ bash
+``` bash
 $ ID=docker run myimage python manage.py run_gunicorn -b 0.0.0.0:8000
 $ docker logs $ID
 2013-08-03 18:45:05 [1710] [INFO] Starting gunicorn 0.14.2
@@ -27,7 +27,7 @@ $ docker logs $ID
 2013-08-03 18:45:05 [1710] [INFO] Listening at: http://0.0.0.0:8000 (1710)
 2013-08-03 18:45:05 [1710] [INFO] Using worker: sync
 2013-08-03 18:45:05 [1713] [INFO] Booting worker with pid: 1713
-~~~
+```
 
 Uh oh. If I just append the output of `docker logs` I'll be writing the entire log out to the file each time. That's going to suck after a while. You don't want to use `docker logs` to write out logs for your process.
 
@@ -35,7 +35,7 @@ Uh oh. If I just append the output of `docker logs` I'll be writing the entire l
 
 Instead you should bind a volume to the container and write your logs from your process to that mount point. This maps a location in the container's file system to a location on the host. You can then access the logs separately from the running process in your container and use tools like `logrotate` to handle them.
 
-~~~ bash
+``` bash
 $ ID=docker run -v /var/myapp/log:/var/log myimage python manage.py
   run_gunicorn -b 0.0.0.0:8000 --log-file=/var/log/gunicorn.log
 $ docker logs $ID
@@ -45,7 +45,7 @@ $ tail /var/myapp/log/gunicorn.log
 2013-08-03 18:53:11 [1710] [INFO] Listening at: http://0.0.0.0:8000 (1710)
 2013-08-03 18:53:11 [1710] [INFO] Using worker: sync
 2013-08-03 18:53:11 [1713] [INFO] Booting worker with pid: 1811
-~~~
+```
 
 It's fair to note that attaching a volume from the host slightly weakens the LXC security advantages. The contained process can now write outside its container and this is a [potential attack vector](https://www.owasp.org/index.php/Log_injection) if the contained process is compromised.
 

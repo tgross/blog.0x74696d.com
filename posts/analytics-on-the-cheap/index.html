@@ -120,21 +120,21 @@ data=|2014-01-15T19:33:23|xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx|1234567|Registere
 <p>If you really care about latency of the initial request a lot, you can reduce S3 latency slightly by using multiple identical-to-your-application S3 keys. S3 suffers from hot-hashes -- although I've never noticed it at our scale -- so you can hash the requests among <em>n</em> keys in the same bucket and it won't matter to the final logging output.</p>
 
 <p>Why sign the GET? Because we have the S3 bucket locked down so that only our ingest servers can make the GET. This prevents third-parties or incautious developers from messing around with our analytics data. Create an IAM user just for your ingest servers and use that AWS access key and secret key in your application to sign the request. Here's the IAM configuration you'll want for that user:</p>
-
-<pre><code>{
-  &quot;Version&quot;: &quot;2012-10-17&quot;,
-  &quot;Statement&quot;: [
-    {
-      &quot;Effect&quot;: &quot;Allow&quot;,
-      &quot;Action&quot;: [
-        &quot;s3:GetObject&quot;,
-      ],
-      &quot;Resource&quot;: [
-        &quot;arn:aws:s3:::example.bucket/tick&quot;
-      ]
-    },
-   {
-</code></pre>
+<div class="highlight"><pre><code class="language-json" data-lang="json"><span></span><span class="p">{</span>
+  <span class="nt">&quot;Version&quot;</span><span class="p">:</span> <span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;Statement&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">&quot;Effect&quot;</span><span class="p">:</span> <span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;Action&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
+      <span class="p">],</span>
+      <span class="nt">&quot;Resource&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;arn:aws:s3:::example.bucket/tick&quot;</span>
+      <span class="p">]</span>
+    <span class="p">}</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
 
 <p>Within an hour or so each GET shows up in the logs for the S3 bucket wherever we're sending the logs for our S3 <code>example.bucket</code> (for example, <code>example.bucket.logs</code>). At this point your possibilities for analysis are broad. If you have a small amount of data and just want to dick around with grep/awk, you can do that. If you have millions of messages a minute and need to pipe it to Redshift, you can do that. I'll get to that in a moment but let's have a short aside about operational costs of this system at this point.</p>
 
@@ -155,39 +155,35 @@ data=|2014-01-15T19:33:23|xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx|1234567|Registere
 <p>Doing any kind of analysis at this point probably means we need to ingest the data into a different format. I dunno about you, but sort, uniq, grep, awk get a little tiresome once we start working with hundreds of files with billions of rows each. At our scale we could probably just barely get away with a beefy MySQL instance (we've standardized on MySQL), but we decided to use AWS Redshift instead and have been pretty happy with it. One of the nice features it has is for this kind of ingest is that you can copy directly from s3.</p>
 
 <p>The S3 log files are named for the hour in which they were created. Our quick-and-dirty way to deal with this for a daily roll-up is to create a new table for each day's raw rows (we do lots of post-processing in another step to figure out unique sessions, separate ads from video plays, etc.). We keep the raw tables for a while so we create one for each day, but if you don't want to do that you can just throw out the daily raw tables once you've post-processed them. As long as you keep the original logs in S3/Glacier (12 9's durability) you can always go back and re-process if there's a new kind of analysis you want to do. If we continue the example from above our raw table might look something like this:</p>
-
-<pre><code>
-CREATE TABLE raw_s3_rows (
-    left_margin VARCHAR(600) ENCODE text32k,
-    event_time TIMESTAMP ENCODE delta SORTKEY,
-    event_guid CHAR(45) ENCODE raw DISTKEY,
-    user_id INT4 ENCODE mostly8,
-    user_type INT2 ENCODE mostly8,
-    consumer CHAR(40) ENCODE bytedict,
-    country CHAR(4) ENCODE bytedict,
-    event_type CHAR(20) ENCODE bytedict,
-    video_type CHAR(10) ENCODE bytedict,
-    content_id INT4 ENCODE mostly8,
-    start INT4 ENCODE mostly16,
-    end INT4 ENCODE mostly16,
-    right_margin VARCHAR(200) ENCODE text255
-);
-</code></pre>
+<div class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">raw_s3_rows</span> <span class="p">(</span>
+    <span class="n">left_margin</span> <span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">600</span><span class="p">)</span> <span class="n">ENCODE</span> <span class="n">text32k</span><span class="p">,</span>
+    <span class="n">event_time</span> <span class="k">TIMESTAMP</span> <span class="n">ENCODE</span> <span class="n">delta</span> <span class="n">SORTKEY</span><span class="p">,</span>
+    <span class="n">event_guid</span> <span class="nb">CHAR</span><span class="p">(</span><span class="mi">45</span><span class="p">)</span> <span class="n">ENCODE</span> <span class="n">raw</span> <span class="n">DISTKEY</span><span class="p">,</span>
+    <span class="n">user_id</span> <span class="n">INT4</span> <span class="n">ENCODE</span> <span class="n">mostly8</span><span class="p">,</span>
+    <span class="n">user_type</span> <span class="n">INT2</span> <span class="n">ENCODE</span> <span class="n">mostly8</span><span class="p">,</span>
+    <span class="n">consumer</span> <span class="nb">CHAR</span><span class="p">(</span><span class="mi">40</span><span class="p">)</span> <span class="n">ENCODE</span> <span class="n">bytedict</span><span class="p">,</span>
+    <span class="n">country</span> <span class="nb">CHAR</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="n">ENCODE</span> <span class="n">bytedict</span><span class="p">,</span>
+    <span class="n">event_type</span> <span class="nb">CHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span> <span class="n">ENCODE</span> <span class="n">bytedict</span><span class="p">,</span>
+    <span class="n">video_type</span> <span class="nb">CHAR</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="n">ENCODE</span> <span class="n">bytedict</span><span class="p">,</span>
+    <span class="n">content_id</span> <span class="n">INT4</span> <span class="n">ENCODE</span> <span class="n">mostly8</span><span class="p">,</span>
+    <span class="k">start</span> <span class="n">INT4</span> <span class="n">ENCODE</span> <span class="n">mostly16</span><span class="p">,</span>
+    <span class="k">end</span> <span class="n">INT4</span> <span class="n">ENCODE</span> <span class="n">mostly16</span><span class="p">,</span>
+    <span class="n">right_margin</span> <span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span> <span class="n">ENCODE</span> <span class="n">text255</span>
+<span class="p">);</span>
+</code></pre></div>
 
 <p>Note the two weird bits. The <code>left_margin</code> field lets us cut off everything we see left of the first delimiter in the log line, and the <code>right_margin</code> does the same at the end. That's why we started our querystring parameter with a pipe earlier. We don't have a lot of control over the logging format that S3 uses, so this should give us a guarantee that we know where the start and end of our data are. Obviously this will break big-time if you allow unauthenticated GETs to the S3 key you're using for logging because any asshole on the web can come along and stuff evil in there.</p>
 
 <p>Now we can load in the raw S3 logs:</p>
-
-<pre><code>
-COPY raw_s3_rows
-  FROM 's3://example.bucket.logs/log-$DATESTAMP'
-  CREDENTIALS 'aws_access_key_id=&lt;ACCESSKEY&gt;;aws_secret_access_key=&lt;SECRETKEY&gt;'
-  DELIMITER '|'
-  TIMEFORMAT AS 'YYYY-MM-DD-HH-MI-SS'
-  EMPTYASNULL
-  BLANKSASNULL
-  MAXERROR AS 1000;
-</code></pre>
+<div class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">COPY</span> <span class="n">raw_s3_rows</span>
+  <span class="k">FROM</span> <span class="s1">&#39;s3://example.bucket.logs/log-$DATESTAMP&#39;</span>
+  <span class="n">CREDENTIALS</span> <span class="s1">&#39;aws_access_key_id=&lt;ACCESSKEY&gt;;aws_secret_access_key=&lt;SECRETKEY&gt;&#39;</span>
+  <span class="k">DELIMITER</span> <span class="s1">&#39;|&#39;</span>
+  <span class="n">TIMEFORMAT</span> <span class="k">AS</span> <span class="s1">&#39;YYYY-MM-DD-HH-MI-SS&#39;</span>
+  <span class="n">EMPTYASNULL</span>
+  <span class="n">BLANKSASNULL</span>
+  <span class="n">MAXERROR</span> <span class="k">AS</span> <span class="mi">1000</span><span class="p">;</span>
+</code></pre></div>
 
 <p>Of course you'll want to automate this in some way to remove the <code>$DATESTAMP</code> bit and have that be the hourly log names. We bail out if we get a lot of errors in the loading process, but because of the kind of data we're dealing with we're okay if there are a few bad messages (in practice we catch this at the validation stage so if we're seeing errors it's because we did something dumb like added a field without also updating the <code>CREATE TABLE</code> script).</p>
 

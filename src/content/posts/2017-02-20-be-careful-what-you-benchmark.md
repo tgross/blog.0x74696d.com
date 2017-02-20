@@ -43,7 +43,7 @@ func BenchmarkSnowflakeGen(b *testing.B) {
 
 ## The Benchmarks
 
-Before I ran the benchmark I wanted to do some reasoning from first principles. Because I can't generate more than 4096 IDs per millisecond, I know that we have a lower bound of 244 nanoseconds. A single thread could manage this only if all the rest of the code was free. So that's our target for multi-threaded code. I ran through all three benchmarks on my Linux development machine and I was pretty happy with the result.
+Before I ran the benchmark I wanted to do some reasoning from first principles. Because I can't generate more than 4096 IDs per millisecond, I know that we have a lower bound of 244 nanoseconds assuming we can saturate the server. A single thread could manage this only if all the rest of the code was free. So that's our target for multi-threaded code. I ran through all three benchmarks on my Linux development machine and I was pretty happy with the result.
 
 ```
 $ cat /proc/cpuinfo | grep "model name" | head -1
@@ -120,7 +120,7 @@ $ nproc
 $ cat /proc/cpuinfo | grep "model name" | head -1
 model name      : Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz
 
-$ go test -v -run NULL -benchmem -bench .
+$ go test -v -run NULL -bench .
 BenchmarkSavakiSnowflakeGen-4       5000000      373 ns/op
 BenchmarkSnowflakeGen-4             5000000      263 ns/op
 BenchmarkTwitterSnowflakeGen-4     10000000      247 ns/op
@@ -128,7 +128,7 @@ PASS
 ok      _/go/snowflake       6.228s
 ```
 
-And here I run it on a Triton `g4-highcpu-4G`. Note that in this case we're running on a bare metal container where we can see all cores of the underlying host but the process is only scheduled time across those processor according to the [Fair Share Scheduler (FSS)](https://wiki.smartos.org/display/DOC/Managing+CPU+Cycles+in+a+Zone). This instance has a rough equivalent of the same 4 vCPU that the AWS instance has, albeit on slightly slower processors, but at half the price. This benchmark is also *pure* CPU which means that Triton's profound I/O advantages in avoiding hardware virtualization don't come into play at all!
+And here I run it on a Triton `g4-highcpu-4G`. Note that in this case we're running on a bare metal container where we can see all cores of the underlying host but the process is only scheduled time across those processors according to the [Fair Share Scheduler (FSS)](https://wiki.smartos.org/display/DOC/Managing+CPU+Cycles+in+a+Zone). This instance has CPU shares very roughly equivalent to the same 4 vCPU that the AWS instance has, albeit on slightly slower processors and at half the price. This benchmark is also *pure* CPU which means that Triton's profound I/O advantages in avoiding hardware virtualization don't come into play at all! So don't try to directly compare the "marketing number" of 4 vCPU.
 
 ```
 $ nproc
@@ -137,21 +137,21 @@ $ cat /proc/cpuinfo | grep "model name" | head -1
 model name      : Intel(r) Xeon(r) CPU E5-2690 v3 @ 2.60GHz
 
 # wow, lots of Amdahl's law appears with 48 processors visible!
-$ go test -v -run NULL -benchmem -bench .
+$ go test -v -run NULL -bench .
 BenchmarkSavakiSnowflakeGen-48      1000000     1280 ns/op
 BenchmarkSnowflakeGen-48            1000000     1135 ns/op
 BenchmarkTwitterSnowflakeGen-48     1000000     1414 ns/op
 PASS
 ok      _/go/snowflake       4.778s
 
-$ GOMAXPROCS=8 go test -v -run NULL -benchmem -bench .
+$ GOMAXPROCS=8 go test -v -run NULL -bench .
 BenchmarkSavakiSnowflakeGen-8       3000000      523 ns/op
 BenchmarkSnowflakeGen-8             5000000      437 ns/op
 BenchmarkTwitterSnowflakeGen-8      2000000      659 ns/op
 PASS
 ok      _/go/snowflake       6.721s
 
-$ GOMAXPROCS=4 go test -v -run NULL -benchmem -bench .
+$ GOMAXPROCS=4 go test -v -run NULL  -bench .
 BenchmarkSavakiSnowflakeGen-4       3000000      449 ns/op
 BenchmarkSnowflakeGen-4             5000000      356 ns/op
 BenchmarkTwitterSnowflakeGen-4      3000000      497 ns/op
@@ -165,7 +165,7 @@ Ok, so now that we've run the benchmark everywhere we see that the problem appea
 
 The next step was to take a profiler to both implementations on both my development machine and in Docker for Mac. It would have been neat to see the profiling on MacOS as well by way of comparison but apparently go's profiling is totally broken outside of Linux.
 
-First I ran the benchmark again on my Linux laptop, this time outputting a CPU profile. I'll then run this output through go's `pprof` tool. I first looked at the top 20 calls, sorted by cumulative time. The cumulative time in pprof refers to the total amount of time spent in the call including all its callees. As we'd expect for a tight-looping benchmark, we spend the vast majority of our time in the code we're benchmarking. Perhaps unsurprisingly we spend about 70% of our time locking and unlocking a mutex.
+First I ran the benchmark again on my Linux laptop, this time outputting a CPU profile. I'll then run this output through go's `pprof` tool. I first looked at the top 20 calls, sorted by cumulative time. The cumulative time in `pprof` refers to the total amount of time spent in the call including all its callees. As we'd hope and expect for a tight-looping benchmark, we spend the vast majority of our time in the code we're benchmarking. Perhaps unsurprisingly we spend about 70% of our time locking and unlocking a mutex.
 
 ```
 $ go test -v -run NULL -bench BenchmarkSnowflake -cpuprofile cpu-snowflake.prof
@@ -409,7 +409,7 @@ We're pushing into areas where I don't have deep expertise, but given that I've 
 My version, on native Linux.
 
 ```
-$ strace -cf go test -benchmem -run NULL -bench BenchmarkSnowflake
+$ strace -cf go test -run NULL -bench BenchmarkSnowflake
 
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
@@ -427,7 +427,7 @@ $ strace -cf go test -benchmem -run NULL -bench BenchmarkSnowflake
 The Twitter version, on native Linux.
 
 ```
-$  strace -cf go test -benchmem -run NULL -bench BenchmarkTwitter
+$  strace -cf go test -run NULL -bench BenchmarkTwitter
 ...
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
@@ -447,7 +447,7 @@ $  strace -cf go test -benchmem -run NULL -bench BenchmarkTwitter
 My version, on Docker for Mac.
 
 ```
-$ strace -cf go test -benchmem -run NULL -bench BenchmarkSnowflake
+$ strace -cf go test -run NULL -bench BenchmarkSnowflake
 ...
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
@@ -468,7 +468,7 @@ $ strace -cf go test -benchmem -run NULL -bench BenchmarkSnowflake
 The Twitter version, on Docker for Mac.
 
 ```
-$ strace -cf go test -benchmem -run NULL -bench BenchmarkTwitter
+$ strace -cf go test -run NULL -bench BenchmarkTwitter
 ...
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
@@ -483,7 +483,7 @@ $ strace -cf go test -benchmem -run NULL -bench BenchmarkTwitter
 100.00    3.806243                129994       702 total
 ```
 
-We expect to see lots of `futex` calls ("fast user space mutex") because the golang runtime uses it a bunch under the hood for scheduling and our `mutex.Lock`/`mutex.ULock` calls. We can see that my version spends more of its total time in system calls than the Twitter version in both cases. We can also see the large amount of overhead that `strace` is incurring; these benchmarks only take ~1sec without it! So we should take the timing with a heaping tablespoon of salt. But now wait a second, where is `clock_gettime` in the native Linux version?
+We expect to see lots of `futex` calls ("fast user space mutex") because the golang runtime uses it a bunch under the hood for scheduling and our `mutex.Lock`/`mutex.ULock` calls. We can see that my version spends more of its total time in system calls than the Twitter version in both cases. We can also see the large amount of overhead that `strace` is incurring; these benchmarks only take ~1sec without it! If only Linux had dtrace! So we should take the timing with a heaping tablespoon of salt. But now wait a second, where is `clock_gettime` in the native Linux version?
 
 ## You know what time it is
 

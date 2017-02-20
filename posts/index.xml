@@ -53,7 +53,7 @@
 
 &lt;h2 id=&#34;the-benchmarks&#34;&gt;The Benchmarks&lt;/h2&gt;
 
-&lt;p&gt;Before I ran the benchmark I wanted to do some reasoning from first principles. Because I can&#39;t generate more than 4096 IDs per millisecond, I know that we have a lower bound of 244 nanoseconds. A single thread could manage this only if all the rest of the code was free. So that&#39;s our target for multi-threaded code. I ran through all three benchmarks on my Linux development machine and I was pretty happy with the result.&lt;/p&gt;
+&lt;p&gt;Before I ran the benchmark I wanted to do some reasoning from first principles. Because I can&#39;t generate more than 4096 IDs per millisecond, I know that we have a lower bound of 244 nanoseconds assuming we can saturate the server. A single thread could manage this only if all the rest of the code was free. So that&#39;s our target for multi-threaded code. I ran through all three benchmarks on my Linux development machine and I was pretty happy with the result.&lt;/p&gt;
 
 &lt;pre&gt;&lt;code&gt;$ cat /proc/cpuinfo | grep &amp;quot;model name&amp;quot; | head -1
 model name      : Intel(R) Core(TM) i7-4712HQ CPU @ 2.30GHz
@@ -126,7 +126,7 @@ ok      snowflake    4.989s
 $ cat /proc/cpuinfo | grep &amp;quot;model name&amp;quot; | head -1
 model name      : Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz
 
-$ go test -v -run NULL -benchmem -bench .
+$ go test -v -run NULL -bench .
 BenchmarkSavakiSnowflakeGen-4       5000000      373 ns/op
 BenchmarkSnowflakeGen-4             5000000      263 ns/op
 BenchmarkTwitterSnowflakeGen-4     10000000      247 ns/op
@@ -134,7 +134,7 @@ PASS
 ok      _/go/snowflake       6.228s
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;And here I run it on a Triton &lt;code&gt;g4-highcpu-4G&lt;/code&gt;. Note that in this case we&#39;re running on a bare metal container where we can see all cores of the underlying host but the process is only scheduled time across those processor according to the &lt;a href=&#34;https://wiki.smartos.org/display/DOC/Managing+CPU+Cycles+in+a+Zone&#34;&gt;Fair Share Scheduler (FSS)&lt;/a&gt;. This instance has a rough equivalent of the same 4 vCPU that the AWS instance has, albeit on slightly slower processors, but at half the price. This benchmark is also &lt;em&gt;pure&lt;/em&gt; CPU which means that Triton&#39;s profound I/O advantages in avoiding hardware virtualization don&#39;t come into play at all!&lt;/p&gt;
+&lt;p&gt;And here I run it on a Triton &lt;code&gt;g4-highcpu-4G&lt;/code&gt;. Note that in this case we&#39;re running on a bare metal container where we can see all cores of the underlying host but the process is only scheduled time across those processors according to the &lt;a href=&#34;https://wiki.smartos.org/display/DOC/Managing+CPU+Cycles+in+a+Zone&#34;&gt;Fair Share Scheduler (FSS)&lt;/a&gt;. This instance has CPU shares very roughly equivalent to the same 4 vCPU that the AWS instance has, albeit on slightly slower processors and at half the price. This benchmark is also &lt;em&gt;pure&lt;/em&gt; CPU which means that Triton&#39;s profound I/O advantages in avoiding hardware virtualization don&#39;t come into play at all! So don&#39;t try to directly compare the &amp;quot;marketing number&amp;quot; of 4 vCPU.&lt;/p&gt;
 
 &lt;pre&gt;&lt;code&gt;$ nproc
 48
@@ -142,21 +142,21 @@ $ cat /proc/cpuinfo | grep &amp;quot;model name&amp;quot; | head -1
 model name      : Intel(r) Xeon(r) CPU E5-2690 v3 @ 2.60GHz
 
 # wow, lots of Amdahl&#39;s law appears with 48 processors visible!
-$ go test -v -run NULL -benchmem -bench .
+$ go test -v -run NULL -bench .
 BenchmarkSavakiSnowflakeGen-48      1000000     1280 ns/op
 BenchmarkSnowflakeGen-48            1000000     1135 ns/op
 BenchmarkTwitterSnowflakeGen-48     1000000     1414 ns/op
 PASS
 ok      _/go/snowflake       4.778s
 
-$ GOMAXPROCS=8 go test -v -run NULL -benchmem -bench .
+$ GOMAXPROCS=8 go test -v -run NULL -bench .
 BenchmarkSavakiSnowflakeGen-8       3000000      523 ns/op
 BenchmarkSnowflakeGen-8             5000000      437 ns/op
 BenchmarkTwitterSnowflakeGen-8      2000000      659 ns/op
 PASS
 ok      _/go/snowflake       6.721s
 
-$ GOMAXPROCS=4 go test -v -run NULL -benchmem -bench .
+$ GOMAXPROCS=4 go test -v -run NULL  -bench .
 BenchmarkSavakiSnowflakeGen-4       3000000      449 ns/op
 BenchmarkSnowflakeGen-4             5000000      356 ns/op
 BenchmarkTwitterSnowflakeGen-4      3000000      497 ns/op
@@ -170,7 +170,7 @@ ok      _/go/snowflake       6.001s
 
 &lt;p&gt;The next step was to take a profiler to both implementations on both my development machine and in Docker for Mac. It would have been neat to see the profiling on MacOS as well by way of comparison but apparently go&#39;s profiling is totally broken outside of Linux.&lt;/p&gt;
 
-&lt;p&gt;First I ran the benchmark again on my Linux laptop, this time outputting a CPU profile. I&#39;ll then run this output through go&#39;s &lt;code&gt;pprof&lt;/code&gt; tool. I first looked at the top 20 calls, sorted by cumulative time. The cumulative time in pprof refers to the total amount of time spent in the call including all its callees. As we&#39;d expect for a tight-looping benchmark, we spend the vast majority of our time in the code we&#39;re benchmarking. Perhaps unsurprisingly we spend about 70% of our time locking and unlocking a mutex.&lt;/p&gt;
+&lt;p&gt;First I ran the benchmark again on my Linux laptop, this time outputting a CPU profile. I&#39;ll then run this output through go&#39;s &lt;code&gt;pprof&lt;/code&gt; tool. I first looked at the top 20 calls, sorted by cumulative time. The cumulative time in &lt;code&gt;pprof&lt;/code&gt; refers to the total amount of time spent in the call including all its callees. As we&#39;d hope and expect for a tight-looping benchmark, we spend the vast majority of our time in the code we&#39;re benchmarking. Perhaps unsurprisingly we spend about 70% of our time locking and unlocking a mutex.&lt;/p&gt;
 
 &lt;pre&gt;&lt;code&gt;$ go test -v -run NULL -bench BenchmarkSnowflake -cpuprofile cpu-snowflake.prof
 BenchmarkSnowflakeGen-8             5000000      244 ns/op
@@ -407,7 +407,7 @@ Showing top 20 nodes out of 24 (cum &amp;gt;= 0.02s)
 
 &lt;p&gt;My version, on native Linux.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code&gt;$ strace -cf go test -benchmem -run NULL -bench BenchmarkSnowflake
+&lt;pre&gt;&lt;code&gt;$ strace -cf go test -run NULL -bench BenchmarkSnowflake
 
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
@@ -424,7 +424,7 @@ Showing top 20 nodes out of 24 (cum &amp;gt;= 0.02s)
 
 &lt;p&gt;The Twitter version, on native Linux.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code&gt;$  strace -cf go test -benchmem -run NULL -bench BenchmarkTwitter
+&lt;pre&gt;&lt;code&gt;$  strace -cf go test -run NULL -bench BenchmarkTwitter
 ...
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
@@ -443,7 +443,7 @@ Showing top 20 nodes out of 24 (cum &amp;gt;= 0.02s)
 
 &lt;p&gt;My version, on Docker for Mac.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code&gt;$ strace -cf go test -benchmem -run NULL -bench BenchmarkSnowflake
+&lt;pre&gt;&lt;code&gt;$ strace -cf go test -run NULL -bench BenchmarkSnowflake
 ...
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
@@ -462,7 +462,7 @@ Showing top 20 nodes out of 24 (cum &amp;gt;= 0.02s)
 
 &lt;p&gt;The Twitter version, on Docker for Mac.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code&gt;$ strace -cf go test -benchmem -run NULL -bench BenchmarkTwitter
+&lt;pre&gt;&lt;code&gt;$ strace -cf go test -run NULL -bench BenchmarkTwitter
 ...
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
@@ -477,7 +477,7 @@ Showing top 20 nodes out of 24 (cum &amp;gt;= 0.02s)
 100.00    3.806243                129994       702 total
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;We expect to see lots of &lt;code&gt;futex&lt;/code&gt; calls (&amp;quot;fast user space mutex&amp;quot;) because the golang runtime uses it a bunch under the hood for scheduling and our &lt;code&gt;mutex.Lock&lt;/code&gt;/&lt;code&gt;mutex.ULock&lt;/code&gt; calls. We can see that my version spends more of its total time in system calls than the Twitter version in both cases. We can also see the large amount of overhead that &lt;code&gt;strace&lt;/code&gt; is incurring; these benchmarks only take ~1sec without it! So we should take the timing with a heaping tablespoon of salt. But now wait a second, where is &lt;code&gt;clock_gettime&lt;/code&gt; in the native Linux version?&lt;/p&gt;
+&lt;p&gt;We expect to see lots of &lt;code&gt;futex&lt;/code&gt; calls (&amp;quot;fast user space mutex&amp;quot;) because the golang runtime uses it a bunch under the hood for scheduling and our &lt;code&gt;mutex.Lock&lt;/code&gt;/&lt;code&gt;mutex.ULock&lt;/code&gt; calls. We can see that my version spends more of its total time in system calls than the Twitter version in both cases. We can also see the large amount of overhead that &lt;code&gt;strace&lt;/code&gt; is incurring; these benchmarks only take ~1sec without it! If only Linux had dtrace! So we should take the timing with a heaping tablespoon of salt. But now wait a second, where is &lt;code&gt;clock_gettime&lt;/code&gt; in the native Linux version?&lt;/p&gt;
 
 &lt;h2 id=&#34;you-know-what-time-it-is&#34;&gt;You know what time it is&lt;/h2&gt;
 

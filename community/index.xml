@@ -1,3 +1,262 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-&lt;?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Communities on 0x74696d</title>
+    <link>http://0x74696d.com/community/index.xml</link>
+    <description>Recent content in Communities on 0x74696d</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <atom:link href="http://0x74696d.com/community/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Community</title>
+      <link>http://0x74696d.com/community/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/community/</guid>
+      <description>
 
+&lt;p&gt;Philly has a great tech scene. I regularly attend the Philly DevOps group, I make occasional appearances at PhillyDB and the Python group PhillyPUG, and I try to get to some of the great annual events in Philadelphia like Redsnake and BarCamp.  I&#39;ve been the sometimes host of the AWS NYC meetup and was the lead organizer for PhillyPUG for a highly chaotic year or so. Feel free to find me at one of these events and tell me how much my blog sucks. Or receive questionable advice about your deployment process, software infrastructure, or startup idea for the low-low price of having a beer or a cup of coffee with me. I occasionally get it into my head to stand up and talk in front of other people, and some of those talks will make their way into this blog in the future.&lt;/p&gt;
+
+&lt;h2 id=&#34;talks-podcasts-panels-and-workshops&#34;&gt;Talks, podcasts, panels, and workshops&lt;/h2&gt;
+
+&lt;ul class=&#34;listing&#34;&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://dynamicinfradays.org/events/2016-nyc/programme.html#observability&#34;&gt;Observability in the Containerized World [workshop]&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  ContainerDays NYC 2016 | 2016 Nov
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://www.devopsdays.org/events/2016-philadelphia/program/tim-gross/&#34;&gt;Software Defined Culture [opening keynote]&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  DevOpsDays Philadelphia | 2016 Oct
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://conferences.oreilly.com/velocity/devops-web-performance-ny/public/schedule/detail/53601&#34;&gt;Ops in the time of serverless containerized webscale&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Velocity Conf NY | 2016 Sep
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://promcon.io/2016-berlin/talks/full-stack-metrics-with-tritons-native-prometheus-support/&#34;&gt;Full Stack Metrics w/ Native Prometheus Support&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  PromCon Berlin | 2016 Aug
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/PhillyDevOps/events/232054327/&#34;&gt;Applications on Autopilot&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Philly DevOps | 2016 Aug
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://nodesummit.com/events/sf2016/&#34;&gt;Containers. Microservices. Node.js&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Node Summit SF | 2016 Jul
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://www.arresteddevops.com/application-configuration/&#34;&gt;Application Configuration [podcast]&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Arrested DevOps | 2016 Jul
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://containersummit.io/city-series/2016/austin/videos/containerpilot-and-the-autopilot-pattern&#34;&gt;Applications on Autopilot&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  &lt;a href=&#34;http://containersummit.io/city-series/2016/austin&#34;&gt;Container Summit Austin&lt;/a&gt; | 2016 Jul
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://conferences.oreilly.com/velocity/devops-web-performance-ca/public/schedule/detail/50513&#34;&gt;Stateful Applications on Autopilot&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Velocity Santa Clara | 2016 Jun
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://dynamicinfradays.org/events/2016-boston/programme.html#autopilot&#34;&gt;Autopilot - Real-world Applications in Containers&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  ContainerDays Boston | 2016 May
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://containersummit.io/events/vegas-2016/training&#34;&gt;Docker Production Training&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Container Summit LV | 2016 May
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://2016.container.camp/usa/&#34;&gt;Applications on Autopilot&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Container.Camp SF | 2016 Apr
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/GoLangPhilly/events/228110580/&#34;&gt;Containerbuddy&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  GoLang Philly | 2016 Mar
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/Golang-DC/events/228413343/&#34;&gt;Containerbuddy&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  GoLang DC | 2016 Feb
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://containersummit.io/events/nyc-2016/videos/applications-on-autopilot&#34;&gt;Applications on Autopilot&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Container Summit NY | 2016 Feb
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://soundcloud.com/thenewstackatscale/show-3-monitoring-and-containers&#34;&gt;The New Stack @Scale [Podcast]&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  The New Stack | 2015 Nov
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://blog.newrelic.com/2016/01/07/containers-futurestack-fs15-video&#34;&gt;Containers in Production - Crazy? Awesome?&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  FutureStack.io | 2015 Nov
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://0x74696d.com/talk-kubecon-2015/&#34;&gt;Framework-Agnostic Discovery&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  &lt;a href=&#34;http://kubecon2015.sched.org/event/de8c17e8a0bfad2f82127c494b2c0d62#.VkKHKa6rRE4&#34;&gt;KubeCon&lt;/a&gt; | 2015 Nov
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://0x74696d.com/posts/container-native-architecture-talk/&#34;&gt;Container-Native Architecture&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  &lt;a href=&#34;http://dynamicinfradays.org/events/2015-nyc/&#34;&gt;ContainerDaysNYC&lt;/a&gt; | 2015 Oct
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://thenewstack.io/tns-analysts-show-50-docker-for-today-and-tomorrow-from-dockercon/&#34;&gt;New Stack Analysts [Podcast]&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  The New Stack | 2015 Jun
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://www.youtube.com/watch?v=g12-fq1Szhc&#34;&gt;Autoscaling Groups and More [Podcast]&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  HangOps | 2015 Feb
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/phillypug/events/193735402/&#34;&gt;Introduction to Python for Women and Their Friends [Workshop]&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  PhillyPUG | 2014 Aug
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/PhillyDevOps/events/165354902/&#34;&gt;Docker - Training Wheels for LXC&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Philly DevOps | 2014 Feb
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/PhillyDB/events/123618362/&#34;&gt;Falling In and Out of Love with DynamoDB&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  PhillyDB | 2013 Jun
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/phillypug/events/116076692/&#34;&gt;Django Data-Access Antipatterns&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Philly PUG | 2013 May
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/phillypug/events/108553202/&#34;&gt;Introduction to Python for Women and Their Friends [Workshop]&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  PhillyPUG | 2013 Apr
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  Architecting Availability on AWS&lt;/i&gt;
+  &lt;span&gt;
+  AWS NYC Meetup | 2013 Feb
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/phillypug/events/54174712/&#34;&gt;Protocol Fuzzing with Sulley and Python&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  PhillyPUG | 2012 Apr
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://www.meetup.com/phillypug/events/20258941/&#34;&gt;Win32 Debugging with Python&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  PhillyPUG | 2011 Jun
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;/ul&gt;
+&lt;br/&gt;
+
+
+&lt;p&gt;Behold some of my very small contributions to the world below, and realize that you should definitely start working on some open source projects if you aren&#39;t already.  I&#39;d like to start contributing to some larger or more important projects, so stay tuned here or in future blog postings to see what kind of comically-bad PRs I send the way of your favorite FOSS project.&lt;/p&gt;
+
+&lt;h2 id=&#34;open-source-contributions&#34;&gt;Open source contributions&lt;/h2&gt;
+
+&lt;p&gt;&lt;ul class=&#34;listing&#34;&gt;
+
+&lt;li&gt;&lt;a href=&#34;https://github.com/autopilotpattern&#34;&gt;Autopilot patterns&lt;/a&gt;&lt;span&gt;design patterns for self-operating containerized applications&lt;/span&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;a href=&#34;https://github.com/joyent/containerpilot&#34;&gt;ContainerPilot&lt;/a&gt;&lt;span&gt;app-centric supervisor for self-operating containerized applications&lt;/span&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;a href=&#34;https://github.com/dramafever/goamz&#34;&gt;goamz&lt;/a&gt;&lt;span&gt;expanded map support for DynamoDB&lt;/span&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;a href=&#34;https://github.com/dramafever/django-cache-machine&#34;&gt;django-cache-machine&lt;/a&gt;&lt;span&gt;multiple-DB support&lt;/span&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;a href=&#34;https://github.com/boto/boto&#34;&gt;boto&lt;/a&gt;&lt;span&gt;documentation fixes for RDS API&lt;/span&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;a href=&#34;https://github.com/tgross/gilamon&#34;&gt;GilaMon&lt;/a&gt;&lt;span&gt;distributed file system replication monitor&lt;/span&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;a href=&#34;https://github.com/tgross/cloudplaya&#34;&gt;cloudplaya&lt;/a&gt;&lt;span&gt;authentication patches&lt;/span&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;a href=&#34;https://github.com/tgross/mirocommunity&#34;&gt;Miro Community&lt;/a&gt;&lt;span&gt;comment display in profiles&lt;/span&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;a href=&#34;https://github.com/tgross/aivscan&#34;&gt;AIVScan&lt;/a&gt;&lt;span&gt;web interface for nmap (primary back-end developer)&lt;/span&gt;&lt;/li&gt;
+
+&lt;/ul&gt;
+&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

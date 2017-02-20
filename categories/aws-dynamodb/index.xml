@@ -1,3 +1,307 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-&lt;?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Aws Dynamodb on 0x74696d</title>
+    <link>http://0x74696d.com/categories/aws-dynamodb/index.xml</link>
+    <description>Recent content in Aws Dynamodb on 0x74696d</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <atom:link href="http://0x74696d.com/categories/aws-dynamodb/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Falling In And Out Of Love with DynamoDB, Part II</title>
+      <link>http://0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb-part-ii/</link>
+      <pubDate>Thu, 11 Jul 2013 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb-part-ii/</guid>
+      <description>
 
+&lt;p&gt;Amazon&#39;s DynamoDB provides high concurrent throughput, availability across multiple AWS data centers, and the convenience of pay-as-you go pricing. All this is great, but key design for DynamoDB results in some unexpected challenges. &lt;a href=&#34;http://www.dramafever.com&#34;&gt;We&lt;/a&gt; have built a number of production systems at this point using DynamoDB and as such have a bit of a love/hate relationship with the product.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;In my &lt;a href=&#34;{% post_url 2013-06-18-falling-in-and-out-of-love-with-dynamodb %}&#34;&gt;last post&lt;/a&gt; I put up my slides from a talk by this same title. But sharing slides for a talk online without video isn&#39;t all that useful, so this is an attempt to distill the essence of a few of my points in the talk to something more comprehensible.&lt;/aside&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&#34;schema-less-ish&#34;&gt;Schema-less-ish&lt;/h2&gt;
+
+&lt;p&gt;DynamoDB is schema-less, but the design of your keys has a big impact on application design, throughput performance, and cost. Table rows are referenced by primary key: either a hash key or a hash key and range key. Range keys are sorted but -- this is the big catch -- they are sorted only within a given hash key&#39;s bucket. Hash key queries are exact, whereas range key queries can be conditional; you can ask for the range key portion to be &amp;quot;starts with&amp;quot; or &amp;quot;greater than&amp;quot;.  If you have a hash-range key want to use the API and not spin up map-reduce (effectively, for anything soft real-time), you need to query the hash key and range key together.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/dynamo-hashrange.png&#34; alt=&#34;range key sorting&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;For the example schema above, I can do a query for all items where &lt;code&gt;hash == 1&lt;/code&gt;, or all items where &lt;code&gt;hash == 1&lt;/code&gt; and &lt;code&gt;range &amp;gt; b&lt;/code&gt;.  But I can&#39;t make an API query for all items where &lt;code&gt;range &amp;gt; b&lt;/code&gt;.  For that I need to do a very expensive table scan or send it off to map-reduce.&lt;/p&gt;
+
+&lt;p&gt;Our fan/follow system uses DynamoDB&#39;s weird key structure to its advantage. &lt;em&gt;Full disclosure: someone on our team smarter than me came up with this.&lt;/em&gt; This feature lets us create relationships between arbitrary entities on our site. So a user can become a &amp;quot;fan&amp;quot; of an actor or a series or &amp;quot;follow&amp;quot; another user (under the hood this is the same data structure). In other words, we&#39;re looking to create a graph database.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/graph.png&#34; alt=&#34;graph database&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;For this, we use the following key schema:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hash key                 |   range key
+-------------------------------------------------------------
+content_type.entity_id   |   FAN_OF.content_type.entity_id
+content_type.entity_id   |   FANNED_BY.content_type.entity_id
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;For each relationship we make two writes; one in each direction of the graph. Note that the range keys are all strings, which means having a delimiter and type coercion of integer IDs. Using the API to query this is stupid-easy. Say I want to know which actors a given user is a fan of. Using the &lt;code&gt;boto&lt;/code&gt; library it&#39;s something like this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;results = table.query(hash_key=user_id,
+                      range_key=BEGINS_WITH(&#39;FAN_OF.Actor.&#39;))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Or I can run it backwards, and find out which users have fanned a given actor:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;results = table.query(hash_key=actor_id,
+                      range_key=BEGINS_WITH(&#39;FANNED_BY.User.&#39;)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;For this sort of thing DynamoDB is awesome. The use case matches the structural quirks perfectly, and the pay-as-you-go pricing is great for what was at the time an unproven feature.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-firehose&#34;&gt;The Firehose&lt;/h2&gt;
+
+&lt;p&gt;We started running into real trouble when we wanted to use DynamoDB for time series data. I&#39;m not saying DynamoDB is unsuited for time series data, but the gotchas start to multiply rapidly. Our use case here was our analytics &amp;quot;firehose&amp;quot;; a ping that each of our video player clients sends back every minute containing a bunch of data we need for metrics, revenue-sharing data, etc. In other words, business critical and high volume. Originally all this data was going into a giant append-only MySQL table, but with something like 70% of all our requests resulting in writes to this table the performance was getting to be terrible as we scaled-up.  We could have sharded the MySQL database, of course. But an eventually-consistent lock-free database that supported widely-parallel writes seemed like an ideal use case for DynamoDB.&lt;/p&gt;
+
+&lt;p&gt;A naive approach to the key schema went like this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hash key        | range key   |  attributes
+---------------------------------------------------
+series.episode  | timestamp   |  session_id, etc.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So if we needed data for a given series and episode, we can query and then slice on the range. But if you want a whole month&#39;s worth of data for, say, cutting your monthly revenue-sharing checks to content licensors, you&#39;re going to run an EMR job. And there are two additional problems.  The first is that the time it takes to run that EMR job will increase over time as the number of properties grow. I&#39;ll get to the second problem in a moment.&lt;/p&gt;
+
+&lt;p&gt;When we took a second crack at the design for this, we ended up having this conversation a lot:&lt;/p&gt;
+
+&lt;blockquote&gt;
+&#34;Hey, you know in MongoDB you can...&#34;&lt;br/&gt;&#34;Nope, hierarchical keys, remember?&#34;
+&lt;/blockquote&gt;
+
+&lt;p&gt;or this one:&lt;/p&gt;
+
+&lt;blockquote&gt;
+&#34;Well in Redis you can...&#34;&lt;br/&gt;&#34;Nope, hierarchical keys, remember?&#34;
+&lt;/blockquote&gt;
+
+&lt;p&gt;So this was the second attempt / dirty hack:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hash key  | range key   |  attributes
+------------------------------------------------------------
+day       | timestamp   |  session_id, series, episode, etc.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;You still end up having to do a scan with EMR, but only over the data from a given day. Then you can aggregate data for series and episodes based on the attributes. You&#39;ll also need to roll-up tables as you go to reduce the amount of processing.  This is a bad hack, because you end up with write throughput that looks like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/thruput-badhashkey.png&#34; alt=&#34;cloudwatch with bad throughput&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;That&#39;s right, the throughput is a tenth of what we provisioned. This is where the abstraction of the managed service starts to leak. When you provision throughput, Amazon is spinning up &lt;code&gt;n&lt;/code&gt; instances of whatever the underlying processes are. Your provisioned throughput is distributed among these instances.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/dynamotalk-keydistribution-bad.png&#34; alt=&#34;bad key distribution&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Rows are written to the instances based on the hash key, not the combined hash+range key. Duh, it&#39;s a hash, right?  Which means in the schema above, we have a hot hash key, and with a hot key, throughput will be &lt;code&gt;(provisioned throughput / however many instances Amazon has provisioned)&lt;/code&gt;. The number of instances is undocumented and abstracted from you but I&#39;ve been able to estimate there are roughly 10 instances running when write throughput ranges between 200-500.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/dynamotalk-keydistribution-good.png&#34; alt=&#34;good key distribution&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Avoiding hot hash keys is key to DynamoDB performance.  Because the throughput is divided by the number of instances, you end up with not just reduce throughput when you&#39;re writing to a single hash but &lt;em&gt;diminishing returns&lt;/em&gt; on the throughput you provision. This was also the second problem with using series/episode as a hash key.  There&#39;s plenty of key space given the size of our library, but too many hot writes because the latest episodes tend to be the most popular.&lt;/p&gt;
+
+&lt;p&gt;Another thing to keep in mind here is that writes are at least 5x as expensive as reads. A unit of read capacity gets you 1 consistent read up to 4KB (or 2 eventually consistent reads), whereas the write unit is for 1KB writes. This doesn&#39;t include secondary indexes, which add another increment in cost for each index. So writes can be significantly more expensive.&lt;/p&gt;
+
+&lt;p&gt;Key design impacts throughput for both reads and writes, and the size of rows and number of secondary indexes impacts the ratio of writes vs reads. And because provisioning for DynamoDB is pay-as-you-go, this means &lt;em&gt;there is a direct relationship between key schema design and operational cost.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;time-series-data&#34;&gt;Time Series Data&lt;/h2&gt;
+
+&lt;p&gt;It is possible to do time-series data in the hash key, but only barely. You can add a random token to the end of timestamp that provides enough active key space to avoid a hot hash key. Then when you process the job in map-reduce, you remove that token.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hash key                  | range key    |  attributes
+-----------------------------------------------------------------
+timestamp + random token  | session_id   |  series, episode, etc.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;A two-ASCII-character token is enough to give you plenty of key space. Note that this makes it impossible to make API-based queries, because you&#39;ll need to make thousands of queries per timestamp you want to grab. You can &lt;em&gt;only&lt;/em&gt; query this schema with map-reduce.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;I had a chance to talk to some of the DynamoDB team recently about this approach and it&#39;s pretty clear this is a wrong-headed plan of attack they would probably not recommend. But at the time secondary indexes weren&#39;t available and in this use case we didn&#39;t need to query via the API. So we ran with this for a while despite some serious warts.&lt;/aside&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;This design makes the writes simple and reduces the cost of doing ingest, but adds operational complications. In order to reduce the time it takes to do post-processing, you&#39;re going to want to roll-off data that you&#39;ve processed by rotating tables. For us this meant doing a monthly rotation of tables, but the time it took to do a month&#39;s worth of data was impractically long and we wanted to eventually be able to shrink the processing window down so that our management team could use this for actionable BI (i.e. no more than 24 hours old).&lt;/p&gt;
+
+&lt;p&gt;You are &lt;em&gt;much&lt;/em&gt; better off using a secondary index on an attribute which is a timestamp. Your row-writes will double in cost, but it&#39;ll be worth the greatly reduced complication and cost of your post-processing in EMR.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;We ultimately replaced this entire system with a fun hack using a handful of evented Flask servers making 0-byte GETs (with appended query-strings) against S3 and ingesting S3 logs into Redshift. This reduced costs to a fraction of what they were but I&#39;m going to leave that discussion for another time and an upcoming jointly-written post with one of our senior developers.&lt;/aside&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&#34;throttling&#34;&gt;Throttling&lt;/h2&gt;
+
+&lt;p&gt;One of the other problems we ran into with DynamoDB is dealing with throttling. Estimating the required provisioned throughput was pretty easy, but the load is also spiky. Our content team might post a new episode of a popular series and then announce it via social channels in the early evening, for example, and this will result in a sharp increase in new streams as those notifications arrive.&lt;/p&gt;
+
+&lt;p&gt;At the time we started this analytic ingest project, DynamoDB would throttle you fairly quickly if you went over provisioning. What&#39;s worse, the monitoring in Cloudwatch has poor resolution (minimum of 5 minutes average intervals), which means you could conceivably be throttled without it showing up in your alarms system until it&#39;s too late. If you are using a blocking backend (ex. Django), you&#39;re going to block the web thread/process if you are throttled. Amazon has provided a bit more leeway in throttling than they used to, but this only reduces the problem. Cloudwatch metrics for DynamoDB currently lag by 10-15 minutes, although at least the Cloudwatch monitor uses the same units as your provisioning, which wasn&#39;t the case when we started out.&lt;/p&gt;
+
+&lt;p&gt;If your application allows for eventual consistency as our analytics ingest project did, you can avoid throttling problems by making your writes asynchronous. Our pipeline took the incoming pings, pre-processed them, placed them into a queue (we use SQS for this, but RabbitMQ is another good option), and then pulled the messages off the queue with a worker that makes the writes. If we have load spikes or a failure in the workers, we can safely allow messages to accumulate in the queue. Once the problem has abated, we can always spin up extra worker capacity as needed to burn down the queue.&lt;/p&gt;
+
+&lt;h2 id=&#34;semi-homemade-autoscaling&#34;&gt;Semi-Homemade Autoscaling&lt;/h2&gt;
+
+&lt;p&gt;Amazon doesn&#39;t provide an autoscaling API for DynamoDB. The API for provisioning has a couple of important quirks. You can only increase the provisioning by up to +100% per API call, and another API request to increase will fail until the provisioning change has been completed (presumably this is because Amazon is spinning up DynamoDB instances). You can decrease the provisioning down to 1 read/write unit with a single call, but you are allowed only 2 decreases in provisioning per table per day.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/daily_nginx_requests.png&#34; alt=&#34;Nginx requests, intentionally unitless&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We have a large daily swing in load because &amp;quot;prime time TV&amp;quot; still exists on the web if you have a predominantly North American audience. Because this is a predictable swing in load, we have a cron job that fires off increases and decreases in provisioning. The job fires every 15 minutes. Starting in the early AM it checks if the current throughput is within 80% of provisioned throughput and if so steps up in 20% increments over the course of the day. Using &lt;code&gt;boto&lt;/code&gt; it&#39;s something like the code below.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;ANALYTICS = &#39;analytics_table&#39;
+PROVISIONED = &#39;ProvisionedThroughput
+READ_CAP = &#39;ReadCapacityUnits&#39;
+WRITE_CAP = &#39;WriteCapacityUnits&#39;
+
+# fill in your connection details here.
+# Gotta love that consistent connection API, boto
+ddb = boto.connect_dynamodb()
+cw = boto.ec2.cloudwatch.CloudWatchConnection()
+
+metric_c = cw.list_metrics(&#39;&#39;,
+                           {&#39;TableName&#39;: ANALYTICS},
+                           &#39;ConsumedWriteCapacity&#39;,
+                           &#39;AWS/DynamoDB&#39;)
+consumed = metric.query(start, end, &#39;Sum&#39;, unit=&#39;Count&#39;,
+                        period=300)[0][&#39;Sum&#39;]
+
+if datetime.datetime.now().hour &amp;gt; 6:
+    metric_p = cw.list_metrics(&#39;&#39;,
+                               {&#39;TableName&#39;: ANALYTICS},
+                               &#39;ProvisionedWriteCapacity&#39;,
+                               &#39;AWS/DynamoDB&#39;)[0]
+    provisioned = metric_p.query(start, end, &#39;Sum&#39;, unit=&#39;Count&#39;,
+                                 period=300)[0][&#39;Sum&#39;]
+
+    ratio = consumed / provisioned
+    if ratio &amp;gt; .80:
+        provset = {}
+        provset[READ_CAP] = ddb.describe_table(ANALYTICS) \
+                                              [&#39;Table&#39;] \
+                                              [PROVISIONED][READ_CAP]
+        provset[WRITE_CAP] = ddb.describe_table(ANALYTICS) \
+                                              [&#39;Table&#39;] \
+                                              [PROVISIONED][WRITE_CAP]
+        provset[pMetric]=threshold*1.2
+        table = ddb.get_table(ANALYTICS)
+        ddb.update_throughput(table,
+                              provset[READ_CAP],
+                              provset[WRITE_CAP])
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;I&#39;m eliding a bunch of setup and error-handling code -- check the &lt;code&gt;boto&lt;/code&gt; docs. We have a similar branch of code that is hit when &lt;code&gt;now&lt;/code&gt; is in the wee hours of the morning. This branch checks whether the currently used throughput is below a threshold value and steps down our provisioning. Rather than keeping track of state (so we don&#39;t use up our 2 decreases), this branch checks the value of the provisioning against a hard-coded value before making the API call.&lt;/p&gt;
+
+&lt;p&gt;The very minor risk here is that if we were to somehow have a sudden rush of traffic at 4AM we would get throttled quite a bit, but the SQS queue protects us from this being a serious problem. This solution works for our predictable and relatively smoothly-changing load, but your mileage may vary.&lt;/p&gt;
+
+&lt;h2 id=&#34;is-dynamodb-the-right-tool-for-the-job&#34;&gt;Is DynamoDB the right tool for the job?&lt;/h2&gt;
+
+&lt;p&gt;Between this post, the &lt;a href=&#34;http://0x74796d.com/slides/falling-in-and-out-of-love-with-dynamodb.html&#34;&gt;slides from the talk&lt;/a&gt;, and the earlier discussion of &lt;a href=&#34;{% post_url 2013-06-05-dynamodb-batch-uploads %}&#34;&gt;batch writing&lt;/a&gt;, we&#39;ve gone over a lot of the interesting properties and gotchas for working with DynamoDB. Some takeaways from my experiences:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Poor key design == cost &amp;amp; pain&lt;/li&gt;
+&lt;li&gt;Batch write with high concurrency to improve throughput&lt;/li&gt;
+&lt;li&gt;Use estimation and active monitoring to reduce costs&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To figure out if DynamoDB is the right tool for your project, you&#39;ll need to look at these three items. And if you&#39;re tired of this topic, for my next post we&#39;ve leave DynamoDB behind for a while.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>DynamoDB Batch Uploads</title>
+      <link>http://0x74696d.com/posts/dynamodb-batch-uploads/</link>
+      <pubDate>Wed, 05 Jun 2013 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/dynamodb-batch-uploads/</guid>
+      <description>&lt;p&gt;I work with a moderately large AWS deployment, and this includes a few applications that are using Amazon&#39;s DynamoDB. One of the many many quirks of working with DynamoDB is that it&#39;s optimized towards highly parallel operations. Ordinarily this is exactly what you want, but if you ran into the situation I did over the weekend not so much.&lt;/p&gt;
+
+&lt;p&gt;I had a modestly-sized data subset of user video-watching habits -- on the order of 10s of millions of rows -- that had to be transfered from a MySQL instance on RDS to DynamoDB. Obviously when going from a relational store to a non-relational one, there also needed to be a transformation of that data. The data had to be duplicated to three different tables because of an idiosyncratic schema optimized towards fast reads. (Actually, more like idiomatic -- I&#39;m speaking at &lt;a href=&#34;http://www.meetup.com/phillydb/&#34;&gt;PhillyDB&lt;/a&gt; this month on DynamoDB if you&#39;re interested in learning more about DynamoDB schema design, operations, etc.) And due to what was honestly some poor decision-making on my part, I needed it done in a hurry.&lt;/p&gt;
+
+&lt;p&gt;I already had code that would be writing new records to the table later down the road when the system went to production, so I figured I&#39;d just make a query against RDS, page the results in chunks of a couple hundred, do the transformations, and then use the &lt;a href=&#34;http://boto.readthedocs.org/en/latest/dynamodb_tut.html&#34;&gt;boto&lt;/a&gt;-based code to do the uploads. No problem, right?  Except that of course when I tried that I was maxing out at about 100 writes/second, which was going to take way more time than I had. I wanted at least 1000/sec, and more if I wanted to make it to beer o&#39;clock before the weekend was over.&lt;/p&gt;
+
+&lt;p&gt;At this point I checked that I hadn&#39;t made a bone-headed key distribution mistake that would throttle me down to a tenth of my provisioned throughput, and I switched to the &lt;code&gt;batch_write&lt;/code&gt; API (this I should have done in the first place, but I was going for laziness) and fiddled with my query page size.  I could still only get up to about 200 writes/second this way.&lt;/p&gt;
+
+&lt;p&gt;Time to get hacky.&lt;/p&gt;
+
+&lt;p&gt;The first step was to take the query and data transformation out of the loop and avoid doing the work on a constrained-in-every-way EC2 instance. I grabbed the RDS table with &lt;code&gt;mysqldump&lt;/code&gt; and brought it to my laptop.  Armed with &lt;code&gt;sed&lt;/code&gt;, &lt;code&gt;cut&lt;/code&gt;, and &lt;code&gt;sort&lt;/code&gt;, I managed to get the table into the shape I wanted it after about an hour, resulting in three big ol&#39; CSV files something like the one below.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;user,    series, episode, timestamp, moddt
+1234567, 123,    1,       60,        2013-06-05T10:00:00
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Timestamp in this case is position within the video. And DynamoDB only takes strings and numbers, so there&#39;s no good way to dates represented which is how you end up with ISO-format date strings.&lt;/p&gt;
+
+&lt;p&gt;Next I needed to be able to generate a lot of simultaneous parallel requests in order to hit the throughput I wanted. I have a production system using &lt;code&gt;gevent&lt;/code&gt; that can process 1000+ writes/sec to DynamoDB per core before it has its coffee in the morning, but it&#39;s specialized for its task and again, I was in a hurry. And even with that system I&#39;d previously ran into throughput problems due to GIL contention, so multiprocessing was the way to go.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;import csv
+import boto
+from multiprocessing import Pool
+
+
+def write_data(filename):
+   &amp;quot;&amp;quot;&amp;quot;
+   This will be called by __main__ for each process in our Pool.
+   Error handling and logging of results elided.
+   Don&#39;t write production code like this!
+   &amp;quot;&amp;quot;&amp;quot;
+   conn = boto.connect_dynamodb(aws_access_key_id=MY_ID,
+                         aws_secret_access_key=MY_SECRET)
+   table = conn.get_table(&#39;my_table_name&#39;)
+
+   with open(filename, &#39;rb&#39;) as f:
+      reader = csv.reader(f)
+      items = []
+      for row in reader:
+         dyn_row = table.new_item(hash_key=&#39;{}&#39;,format(row[0]),
+                                  attrs = {&#39;series&#39;: row[1],
+                                           &#39;episode&#39;: row[2],
+                                           &#39;timestamp&#39;: row[3],
+                                           &#39;moddt&#39;: row[4] })
+         items.append(dyn_row)
+
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now, you could stop here and just &lt;code&gt;batch_write&lt;/code&gt; things up to DynamoDB and that will work if you&#39;re writing a couple thousand rows. But it should be obvious we&#39;re going to blow up memory on our laptop if we try that.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;      if len(items) == 25:
+         batch_list = conn.new_batch_write_list()
+         batch_list.add_batch(table, items)
+         response = conn.batch_write_item(batch_list)
+         items = []
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Okay, so we&#39;ll treat our list as a queue, and when it gets to the maximum size we can push in a single batch write, we&#39;ll push that up. But I buried the problem with this when I elided the error handling -- if the write is throttled by DynamoDB, you&#39;ll be silently dropping writes because &lt;code&gt;boto&lt;/code&gt; doesn&#39;t raise an exception. So let&#39;s try that part again.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;      if len(items) &amp;gt; 25:
+         batch_items = items[:25]
+         batch_list = conn.new_batch_write_list()
+         batch_list.add_batch(table, batch_items)
+         response = conn.batch_write_item(batch_list)
+         if not response[&#39;UnprocessedItems&#39;]:
+            items = items[25:]
+         else:
+            unprocessed = [
+                           ui[&#39;PutRequest&#39;][&#39;Item&#39;][&#39;user&#39;]
+                           for ui in
+                           response[&#39;UnprocessedItems&#39;][&#39;my_table_name&#39;]
+                           ]
+            for item in batch_items:
+               if item[&#39;user&#39;] not in unprocessed:
+                  items.remove(item)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;On every &lt;code&gt;batch_write&lt;/code&gt; request we take out what we&#39;ve successfully written and retry everything else in the next pass. Yes, we&#39;re doing a &lt;em&gt;lot&lt;/em&gt; of allocation with the list, but there&#39;s a reason for it. We&#39;re almost certain to get throttled by DynamoDB in a batch upload unless we massively over-provision.  This function minimizes the number of requests we make while constraining the length of the list. I modeled this and throttling would have to reach consistent double-digit percentages of unprocessed writes before we&#39;d see significant loss of throughput or runaway memory usage.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;if __name__ == &#39;__main__&#39;:
+    files = [&#39;xaao&#39;,&#39;xabf&#39;,&#39;xabw&#39;,... ]
+    pool = Pool(processes=len(files))
+    pool.map(write_data, files)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Last we use our multiprocessing pool to split the job over a large number of processes. I used &lt;code&gt;split -a 3 -l 300000&lt;/code&gt; to split my big CSVs into a couple hundred files. With no shared memory between the processes, I can use the non-thread-safe code above without worry. This let me crank through all the input files within a few hours and I was ready for beer o&#39;clock.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;Download this example code &lt;a href=&#34;https://github.com/tgross/tgross.github.io/tree/master/_code/dynamodb-batch-uploads&#34;&gt;here&lt;/a&gt;&lt;/aside&gt;
+&lt;/blockquote&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

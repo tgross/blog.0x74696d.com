@@ -1,3 +1,372 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-&lt;?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>0x74696d</title>
+    <link>http://0x74696d.com/index.xml</link>
+    <description>Recent content on 0x74696d</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 26 Jan 2017 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://0x74696d.com/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Secrets Management in the Autopilot Pattern</title>
+      <link>http://0x74696d.com/posts/secrets-management-in-the-autopilotpattern/</link>
+      <pubDate>Thu, 26 Jan 2017 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/secrets-management-in-the-autopilotpattern/</guid>
+      <description>&lt;p&gt;No matter how we deploy our applications, managing secrets invokes the chicken-and-the-egg problem. Any system for secrets management has to answer the question of how the application authenticates to the system managing the secrets in the first place. Applications built with the Autopilot Pattern can be easily made to leverage secrets management services, but it&#39;s important to understand the security model and threat model of these services.&lt;/p&gt;
 
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/secrets-management-in-the-autopilotpattern&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Consul and etcd in the Autopilot Pattern</title>
+      <link>http://0x74696d.com/posts/consul-etcd-on-triton/</link>
+      <pubDate>Tue, 02 Aug 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/consul-etcd-on-triton/</guid>
+      <description>&lt;p&gt;Applications developed with the Autopilot Pattern are self-operating and self-configuring but use an external service catalog like Consul or etcd to store and coordinate global state. ContainerPilot sends the service catalog heartbeats to record that an instance of an application is still up and running. Both Consul and etcd have interesting assumptions about their topology that end users deploying on Triton should be aware of.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/consul-etcd-on-triton&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Video - Introduction to the Autopilot Pattern</title>
+      <link>http://0x74696d.com/posts/video-intro-autopilot-pattern/</link>
+      <pubDate>Wed, 06 Jul 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/video-intro-autopilot-pattern/</guid>
+      <description>&lt;p&gt;In this video I introduce the Autopilot Pattern with illustrated examples and a walkthrough of our Autopilot Pattern example application and how ContainerPilot makes it easier to containerize applications new and old.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/video-autopilot-pattern&#34;&gt;Check out the full article and the video on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Monitoring and scaling with ContainerPilot telemetry</title>
+      <link>http://0x74696d.com/posts/monitoring-and-scaling-with-application-telemetry/</link>
+      <pubDate>Tue, 12 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/monitoring-and-scaling-with-application-telemetry/</guid>
+      <description>&lt;p&gt;Application health checking is a key feature of ContainerPilot (formerly Containerbuddy). The user-defined health check gives us a binary way of determining whether the application is working. If the application is healthy, ContainerPilot sends a heartbeat to the discovery catalog, and if it&#39;s not, other ContainerPilot-enabled applications will stop sending requests to it. But automatic scaling of a service depends on more than just the pass/fail of a health check. Every application has key performance indicators that tell us if the service is nearing overload and should be scaled up or is under-utilized and can be scaled down.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/containerpilot-telemetry&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Building sqlite for rust</title>
+      <link>http://0x74696d.com/posts/building-sqlite-for-rust/</link>
+      <pubDate>Sat, 19 Mar 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/building-sqlite-for-rust/</guid>
+      <description>
+
+&lt;p&gt;I&#39;ve been playing around with Rust a bit lately and needed to build something with an embedded database, so I reached for SQLite. I need to build SQLite with some specific features enabled and that&#39;s hard to guarantee with system packages cross-platform. This gave me a chance to try out building a Rust project linked with some custom C code. The overall direction I&#39;m taking here is largely coming from &lt;a href=&#34;https://users.rust-lang.org/t/linking-with-custom-c-library/637/4&#34;&gt;this thread&lt;/a&gt; and the Cargo &lt;a href=&#34;http://doc.crates.io/build-script.html#case-study-building-some-native-code&#34;&gt;build script&lt;/a&gt; page. I&#39;m using &lt;a href=&#34;https://github.com/jgallagher/rusqlite&#34;&gt;rusqlite&lt;/a&gt; for the SQLite bindings, so I&#39;ll need to build that as well.&lt;/p&gt;
+
+&lt;h2 id=&#34;project-outline&#34;&gt;Project outline&lt;/h2&gt;
+
+&lt;p&gt;The other nice thing I got to try out here is how to build a sensible project structure for a project that might mix open source and private code. Cargo has some very minimal expectations about the source code directory, but doesn&#39;t dictate much past that. So unlike that &lt;em&gt;other&lt;/em&gt; language &lt;a href=&#34;http://0x74696d.com/posts/go-get-considered-harmful&#34;&gt;(&lt;em&gt;ahem&lt;/em&gt;)&lt;/a&gt; Rust is pretty chill about letting you decide what works for your project and organization. How this reflects on the culture of those two languages is left as an exercise for the reader.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ tree /src/tgross/demo
+.
+├── build.rs
+├── Cargo.toml
+├── .git/
+├── src/
+│   └── main.rs
+└── target/
+
+$ tree /src/jgallagher/rusqlite
+.
+├── Cargo.toml
+├── .git/
+├── libsqlite3-sys/
+│   ├── build.rs
+│   └── Cargo.toml
+│   └── src/
+├── src/
+│   └── main.rs
+└── target/
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In this directory tree I&#39;ve got my own code namespaced under &lt;code&gt;tgross/&lt;/code&gt; and my library code in the &lt;code&gt;jgallagher/rusqlite&lt;/code&gt; directory. The &lt;code&gt;rusqlite&lt;/code&gt; developers in turn decided to &amp;quot;vendor&amp;quot; their &lt;code&gt;libsqlite3-sys&lt;/code&gt; crate because it&#39;s really just there to create bindings and doesn&#39;t stand on its own. I could just as easily take &lt;code&gt;rusqlite&lt;/code&gt; and vendor it as a Git submodule or subtree at an arbitrary location within my own project&#39;s directory structure. Rather than pretending that our packaging and dependency tree can be described entirely by &lt;code&gt;import&lt;/code&gt;s in our source code, Rust gives us Cargo, and we can give Cargo search paths for libraries.&lt;/p&gt;
+
+&lt;p&gt;This is really important if you want to have repeatable builds and to keep all your hair during development. It means that source control and the on-disk representation of source code is decoupled from the import paths in the source code. If every scrap of code you write and pull from third parties exists in a giant monorepo (like Google does it), maybe you won&#39;t notice. But this means I can start development by pulling from GitHub or &lt;a href=&#34;https://crates.io/&#34;&gt;crates.io&lt;/a&gt;, fork a local copy of a dependency for debugging, or mirror a third-party repository in my CI/CD workflow. (DevOps pro-tip: this means you can still ship software to customers when GitHub is down.) And all of that happens without running around my source tree rewriting imports, or worrying about tree-shaking, or fiddling with environment variables. &lt;em&gt;The Rust developers got this shit right.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Ok, rant over. Deep breaths...&lt;/p&gt;
+
+&lt;h2 id=&#34;cargo-toml&#34;&gt;Cargo.toml&lt;/h2&gt;
+
+&lt;p&gt;This is just the &amp;quot;hello world&amp;quot; of &lt;code&gt;rusqlite&lt;/code&gt;, so our demonstration application will be &lt;a href=&#34;https://github.com/jgallagher/rusqlite/blob/master/README.md&#34;&gt;the example code from the rusqlite README&lt;/a&gt;. Here&#39;s our demo app&#39;s Cargo.toml:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-toml&#34;&gt;[package]
+name = &amp;quot;demo&amp;quot;
+version = &amp;quot;0.1.0&amp;quot;
+authors = [&amp;quot;Tim Gross &amp;lt;tim@0x74696d.com&amp;gt;&amp;quot;]
+build = &amp;quot;build.rs&amp;quot;
+links = &amp;quot;libsqlite&amp;quot;
+
+[dependencies]
+time = &amp;quot;~0.1.0&amp;quot;
+
+[dependencies.rusqlite]
+path = &amp;quot;/src/jgallagher/rusqlite&amp;quot;
+
+[build-dependencies]
+gcc = &amp;quot;0.3&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Note that I&#39;ve got four different dependencies here and each one is being added in a different way. The most straightforward is the &lt;code&gt;time&lt;/code&gt; crate, which our demonstration app uses to get the current time when inserting a row. We&#39;ve pinned it to a specific version with the &lt;code&gt;~&lt;/code&gt; flag, which means we&#39;ll accept patch version updates but not minor version increases (in the semver sense). When we build, Cargo will fetch this dependency from crates.io, compile it, and then cache the output of that compilation in our target directory for linking down the road.&lt;/p&gt;
+
+&lt;p&gt;We also have a separate &lt;code&gt;[dependencies.rusqlite]&lt;/code&gt; section here, where we&#39;ve specified a path. This path will be an on-disk location where Cargo will try to find the dependency, rather than going out to the Internet for it. This is convenient if I want to work up a patch of &lt;code&gt;rusqlite&lt;/code&gt; or if I&#39;ve got another private project that I want to link in here without fetching it from GitHub (i.e. from the mirror of repos on my CI/CD system). We can also pass feature flags or other compiler options to the dependency when we have it in its own section like this. Another option is to just have a &lt;code&gt;path&lt;/code&gt; field under your Cargo config and have Cargo search there first. But if you have a whole lot of code within those paths (as I do with a fairly flat &lt;code&gt;/src/tgross/&lt;/code&gt; directory), then you&#39;re going to be risking annoying collisions.&lt;/p&gt;
+
+&lt;p&gt;Next we have &lt;code&gt;gcc&lt;/code&gt;, which is marked under &lt;code&gt;[build-dependencies]&lt;/code&gt;. This feature lets you fetch crates for purposes of the build process (or for testing with &lt;code&gt;[dev-dependencies]&lt;/code&gt;), but these crates won&#39;t be linked into your final library or executable binary output. We&#39;re going to use the &lt;a href=&#34;http://alexcrichton.com/gcc-rs/gcc/index.html&#34;&gt;&lt;code&gt;gcc&lt;/code&gt; crate&lt;/a&gt; to assist us with building SQLite.&lt;/p&gt;
+
+&lt;p&gt;Lastly and perhaps less obviously, we have a &lt;code&gt;links&lt;/code&gt; and &lt;code&gt;build&lt;/code&gt; section under &lt;code&gt;[package]&lt;/code&gt;. This is how we&#39;re going to tell Cargo that we have to build and link an external library.&lt;/p&gt;
+
+&lt;h2 id=&#34;build-rs&#34;&gt;build.rs&lt;/h2&gt;
+
+&lt;p&gt;We still need to tell Cargo how to actually build SQLite, and is pretty straightforward with the &lt;code&gt;gcc&lt;/code&gt; crate. In our &lt;a href=&#34;http://doc.crates.io/build-script.html&#34;&gt;&lt;code&gt;build.rs&lt;/code&gt; script&lt;/a&gt; we just need to pass the appropriate arguments to the gcc methods and we&#39;ll get the expected output.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-rust&#34;&gt;extern crate gcc;
+
+fn main() {
+gcc::Config::new()
+    .define(&amp;quot;SQLITE_ENABLE_FTS5&amp;quot;, Some(&amp;quot;1&amp;quot;))
+    .define(&amp;quot;SQLITE_ENABLE_RTREE&amp;quot;, Some(&amp;quot;1&amp;quot;))
+    .define(&amp;quot;SQLITE_ENABLE_JSON1&amp;quot;, Some(&amp;quot;1&amp;quot;))
+    .define(&amp;quot;SQLITE_ENABLE_DBSTAT_VTAB&amp;quot;, Some(&amp;quot;1&amp;quot;))
+    .define(&amp;quot;SQLITE_ENABLE_EXPLAIN_COMMENTS&amp;quot;, Some(&amp;quot;1&amp;quot;))
+    .file(&amp;quot;/src/sqlite/src/sqlite3.c&amp;quot;)
+    .compile(&amp;quot;libsqlite3.a&amp;quot;);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This is the equivalent of doing:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;gcc -DSQLITE_ENABLE_FTS5=1 \
+	-DSQLITE_ENABLE_RTREE=1 \
+	-DSQLITE_ENABLE_JSON1=1 \
+	-DSQLITE_ENABLE_DBSTAT_VTAB=1 \
+	-DSQLITE_ENABLE_EXPLAIN_COMMENTS=1 \
+	-c src/sqlite3.c \
+	-lpthread -ldl \
+	-o libsqlite3.a
+
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Note that the linked pthread and ld libs will be provided as part of our standard rust build. Optimization level and whether to include debug symbols will be set according to the Cargo build, but these can be overridden (see the &lt;a href=&#34;http://alexcrichton.com/gcc-rs/gcc/struct.Config.html#method.opt_level&#34;&gt;&lt;code&gt;gcc::Config&lt;/code&gt;&lt;/a&gt; docs).&lt;/p&gt;
+
+&lt;p&gt;Also note here that we&#39;re hard-coding the path to the &lt;a href=&#34;https://www.sqlite.org/amalgamation.html&#34;&gt;SQLite source amalgamation file&lt;/a&gt;, which kinda sucks. The &lt;code&gt;libsqlite3-sys&lt;/code&gt; crate handles this by taking an environment variable, or we could just vendor the &lt;code&gt;sqlite3.c&lt;/code&gt; source and header file alongside our code. If anyone knows a good workaround I&#39;d be interested to hear about it.&lt;/p&gt;
+
+&lt;p&gt;In any case, now we&#39;re ready to build!&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;$ cargo build
+cargo build
+    Compiling bitflags v0.1.1
+    Compiling winapi v0.2.6
+    Compiling libc v0.2.8
+    Compiling pkg-config v0.3.8
+    Compiling winapi-build v0.1.1
+    Compiling gcc v0.3.25
+    Compiling kernel32-sys v0.2.1
+    Compiling libsqlite3-sys v0.4.0 (file:///src/tgross/demo)
+    Compiling time v0.1.34
+    Compiling demo v0.1.0 (file:///src/tgross/demo)
+    Compiling rusqlite v0.6.0 (file:///src/tgross/demo)
+
+$ ldd target/debug/demo
+    linux-vdso.so.1 (0x00007ffdf7abe000)
+    libdl.so.2 =&amp;gt; /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f9404...
+    libpthread.so.0 =&amp;gt; /lib/x86_64-linux-gnu/libpthread.so.0 (0x...
+    libgcc_s.so.1 =&amp;gt; /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x0000...
+    libc.so.6 =&amp;gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007f940385...
+    /lib64/ld-linux-x86-64.so.2 (0x00007f94045b9000)
+    libm.so.6 =&amp;gt; /lib/x86_64-linux-gnu/libm.so.6 (0x00007f940355...
+
+$ ./target/debug/demo
+Found person Person { id: 1, name: &amp;quot;Steven&amp;quot;,
+time_created: Timespec { sec: 1458435347, nsec: 0 }, data: None }
+&lt;/code&gt;&lt;/pre&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Production Docker logs on Triton</title>
+      <link>http://0x74696d.com/posts/docker-log-drivers/</link>
+      <pubDate>Fri, 18 Mar 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/docker-log-drivers/</guid>
+      <description>&lt;p&gt;In a &lt;a href=&#34;http://0x74696d.com/posts/docker-logging&#34;&gt;previous post&lt;/a&gt; I talked about an approach I took getting logs out of Docker containers when I first started using Docker way back at the end of 2013. But Docker has done a lot of growing up since then!&lt;/p&gt;
+
+&lt;p&gt;Using &lt;code&gt;docker logs&lt;/code&gt; to get our container logs works in development but in production we need to centralize our logs. Triton has support for the syslog, Graylog, and Fluentd log drivers and we can use them to support production-ready log collection.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/docker-log-drivers&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Implementing the autopilot pattern</title>
+      <link>http://0x74696d.com/posts/applications-on-autopilot/</link>
+      <pubDate>Thu, 03 Mar 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/applications-on-autopilot/</guid>
+      <description>&lt;p&gt;Deploying containerized applications and connecting them together is a challenge because it forces developers to design for operationalization. Autopiloting applications are a powerful design pattern to solving these problems. By pushing the responsibility for understanding startup, shutdown, scaling, and recovery from failure into the application, we can build intelligent architectures that minimize human intervention in operation. But we can&#39;t rewrite all our applications at once, so we need a way to build application containers that can knit together legacy and greenfield applications alike. This project demonstrates the autopilot pattern by applying it to a simple microservices deployment using Nginx and two Node.js applications.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/applications-on-autopilot&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>MySQL on Autopilot</title>
+      <link>http://0x74696d.com/posts/mysql-on-autopilot/</link>
+      <pubDate>Mon, 22 Feb 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/mysql-on-autopilot/</guid>
+      <description>&lt;p&gt;DBaaS solutions lock too many doors: we&#39;re locked into a service provider and locked out of configuring it as we need. Fortunately, modern operational patterns are emerging that eliminate the complexity of running even sophisticated applications like databases and free us from the lock-in of *aaS. Now we are free to develop on our laptops and deploy to private data centers, combining the simplicity we thought was only possible with *aaS with the portability of running applications on our own terms. Let&#39;s take a look at how to do that with MySQL.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/dbaas-simplicity-no-lock-in&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Blog Diet</title>
+      <link>http://0x74696d.com/posts/blog-diet/</link>
+      <pubDate>Sat, 02 Jan 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/blog-diet/</guid>
+      <description>
+
+&lt;p&gt;It&#39;s a new year and so why not take the opportunity to revisit my site and make a few improvements? I&#39;ve had a few people mention in the past that they&#39;ve had some readability issues with some of the design choices (particularly on Linux). And as I&#39;ve added more content I&#39;ve found a few little layout quirks that I&#39;m not 100% happy with. Let&#39;s dive right in.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-spec&#34;&gt;The Spec&lt;/h2&gt;
+
+&lt;p&gt;The major design criteria are:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Keep page weight low (or lower!).&lt;/li&gt;
+&lt;li&gt;Make the page more mobile-friendly.&lt;/li&gt;
+&lt;li&gt;Improve the font weights for better accessibility.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&#34;the-audit&#34;&gt;The Audit&lt;/h2&gt;
+
+&lt;p&gt;Partially inspired by Maciej Cegowski&#39;s &lt;a href=&#34;http://idlewords.com/talks/website_obesity.htm&#34;&gt;The Website Obesity Crisis&lt;/a&gt;, I first decided to look into reducing page weight. Fortunately the original design was pretty good in this respect. The home page weighed in at 101KB, most of which were the Google web fonts. My &lt;a href=&#34;http://0x74696d.com/posts/analytics-on-the-cheap&#34;&gt;Analytics on the Cheap&lt;/a&gt; was 184KB, most of the extra load coming from loading the Twitter div. An image-heavy post like &lt;a href=&#34;posts/falling-in-and-out-of-love-with-dynamodb-part-ii/&#34;&gt;Falling In and Out of Love With DynamoDB, Part II&lt;/a&gt; was still only 315KB. So there is some room for improvement here but not a lot.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/images/20160102/waterfall-before.png&#34; alt=&#34;Homepage waterfall diagram, before&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;I took a pass with Google developer tool&#39;s Audit feature and it noted that because I was on an HTTP/1.1 connection that I might want to combine the multiple CSS files. This is optimized for free on HTTP2, but because I&#39;m hosting the blog on Github pages I don&#39;t have control over the server. I also noted that &lt;code&gt;pygments.css&lt;/code&gt; is being loaded even on pages where I&#39;m never going to have code snippets. There are an awful lot of unused CSS rules on the page too, so we can trim some garbage there. The tool also mentioned that there are no far-future cache headers applied to the assets, but again that&#39;s going to be a function of hosting on Github pages (and/or their Fastly CDN configuration). Anything we can do here is going to be a micro-optimization, but what the hell let&#39;s do it anyways.&lt;/p&gt;
+
+&lt;p&gt;The font weights around the menu needed some work, as did the typography on the &lt;a href=&#34;http://0x74696d.com/community.html&#34;&gt;community&lt;/a&gt; page.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/images/20160102/menu-before.png&#34; alt=&#34;Menu, before&#34; /&gt;
+&lt;img src=&#34;http://0x74696d.com/images/20160102/community-before.png&#34; alt=&#34;List of talks, before&#34; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;the-improvements&#34;&gt;The Improvements&lt;/h2&gt;
+
+&lt;p&gt;Although I&#39;m a big fan of &lt;a href=&#34;http://getskeleton.com&#34;&gt;Skeleton&lt;/a&gt; it&#39;s way more than I actually need for this project. There are no forms, buttons, heroes, complex grids, etc. So instead I&#39;m keeping the same basic CSS that I had but just tweaking it to remove cruft.&lt;/p&gt;
+
+&lt;p&gt;I&#39;ve moved the &lt;code&gt;mobile.css&lt;/code&gt; into the &lt;code&gt;base.css&lt;/code&gt; and used a media query. I originally thought that &lt;code&gt;link media=&amp;quot;only screen and (max-device-width: 480px)&amp;quot;&lt;/code&gt; prevented the element from loading, but that turns out not to be true for what should have been obvious reasons -- if we had a &lt;code&gt;max-width&lt;/code&gt; criteria it would force downloading new CSS if someone resized their browser! I checked the page on my older Android tablet and realized that I want to expand the media query to cover smaller tablets as well, so I&#39;ve bumped that up to &lt;code&gt;768px&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;I previously failed to notice that the CSS I stole from I-don&#39;t-remember-where caused the menu headers (&amp;quot;posts&amp;quot;, &amp;quot;projects&amp;quot;, &amp;quot;community&amp;quot;, etc.) to be hidden on mobile, so that&#39;s a quick fix. I also noticed that it did that wretched thing where it intentionally broke zooming. Sorry, fixed now!&lt;/p&gt;
+
+&lt;p&gt;The biggest change stylistically was removing the Lato web font that I was loading from Google. Getting rid of that dropped most of the extraneous page weight. I&#39;m not a professional designer and that&#39;s not the focus of the blog, so I don&#39;t really care that much about &amp;quot;pixel perfect&amp;quot; design. Rather the messing around trying to find the perfect font and doubling the size of the page, I&#39;m just going to leave it up to the reader&#39;s machine and browser and &lt;a href=&#34;http://www.smashingmagazine.com/2015/11/using-system-ui-fonts-practical-guide/&#34;&gt;use their system fonts&lt;/a&gt;. The results look good on the five different devices I was able to check. They&#39;re all a bit different of course, but better designers than me picked out those fonts on those platforms so let&#39;s trust them.&lt;/p&gt;
+
+&lt;h2 id=&#34;and-done&#34;&gt;And... Done!&lt;/h2&gt;
+
+&lt;p&gt;I&#39;m pretty happy with the results of just a couple hours of work. There is only one third-party request left on the site (the Twitter bug), and the page is a quarter the size. More importantly, it&#39;s more legible on a wider range of devices.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/images/20160102/waterfall-after.png&#34; alt=&#34;Homepage waterfall diagram, after&#34; /&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Deploy a microservices stack in seconds</title>
+      <link>http://0x74696d.com/posts/microservices-stack-in-seconds/</link>
+      <pubDate>Fri, 06 Nov 2015 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/microservices-stack-in-seconds/</guid>
+      <description>&lt;p&gt;Over the last couple weeks I&#39;ve been working on a project at Joyent to demonstrate the components of a container-native microservices architecture. Today I&#39;ve put the pieces together. I&#39;m using &lt;a href=&#34;https://github.com/joyent/containerbuddy&#34;&gt;Containerbuddy&lt;/a&gt; in a stack that includes Nginx, Couchbase, a Node.js application, Cloudflare DNS, and our Triton platform. All the components can be swapped out for your favorite ones just by changing a &lt;code&gt;docker-compose.yml&lt;/code&gt; description.&lt;/p&gt;
+
+&lt;p&gt;And there&#39;s not a scheduler in sight! When you ditch your VMs and deploy on bare metal in an environment where containers have their own NIC(s), you don&#39;t need all that extra overhead. Simple tools will do the job for you.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/how-to-dockerize-a-complete-application&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Automatic DNS Updates w/ Containerbuddy</title>
+      <link>http://0x74696d.com/posts/dynamic-dns-for-docker-w-containerbuddy/</link>
+      <pubDate>Tue, 03 Nov 2015 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/dynamic-dns-for-docker-w-containerbuddy/</guid>
+      <description>&lt;p&gt;In a container-native project, we need to balance the desire for ephemeral infrastructure with the requirement to provide a predictable load-balanced interface with the outside world. By updating DNS records for a domain based on changes in the discovery service, we can make sure our users can reach the load-balancer for our project at all times.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/automatic-dns-updates-with-containerbuddy&#34;&gt;Continue reading this article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Container-Native Architecture [talk]</title>
+      <link>http://0x74696d.com/posts/container-native-architecture-talk/</link>
+      <pubDate>Fri, 30 Oct 2015 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/container-native-architecture-talk/</guid>
+      <description>&lt;p&gt;On October 29th I gave a talk on container-native architecture at &lt;a href=&#34;http://dynamicinfradays.org/events/2015-nyc/&#34;&gt;ContainerDays NYC&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://dynamicinfradays.org/events/2015-nyc/programme.html#architecture&#34;&gt;From the programme:&lt;/a&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;Moving your application into a container and deploying it to production is a great first step towards taking advantage of containerization. This gets you past &amp;quot;works on my machine&amp;quot;, and Docker makes this easy. But the real value of containers -- fast immutable deployments, maximizing resource utilization, and bare-metal performance -- comes from an architecture optimized for containers. This is container-native architecture.&lt;/p&gt;
+
+&lt;p&gt;Tim will explore the story of a real-world large scale production microservices deployment of Docker, and the challenges faced in both design and operations of migrating this kind of multi-faceted application to a container-native architecture.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;You can find my slides &lt;a href=&#34;http://0x74696d.com/talk-containerdays-nyc-2015/#/&#34;&gt;here&lt;/a&gt;. I experimented with &lt;code&gt;reveal.js&lt;/code&gt; for these, so use &lt;code&gt;&amp;lt;space&lt;/code&gt;&amp;gt; to advance and &lt;code&gt;s&lt;/code&gt; to get the speaker&#39;s notes.&lt;/p&gt;
+
+&lt;p&gt;You can watch the talk on &lt;a href=&#34;https://www.youtube.com/watch?v=08BuE6xyRnc&#34;&gt;YouTube&lt;/a&gt;.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Anti-patterns for service discovery in Docker</title>
+      <link>http://0x74696d.com/posts/anti-patterns-for-service-discovery-in-docker/</link>
+      <pubDate>Thu, 29 Oct 2015 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/anti-patterns-for-service-discovery-in-docker/</guid>
+      <description>&lt;p&gt;Common patterns for microservice container deployments carry hidden assumptions that increase operational costs and put availability at risk. Let&#39;s break down the reasons why and how to build discovery for a container-native world.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/container-native-discovery&#34;&gt;Continue reading this article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Dynamic Nginx upstreams with Containerbuddy</title>
+      <link>http://0x74696d.com/posts/dynamic-nginx-upstreams-with-containerbuddy/</link>
+      <pubDate>Thu, 29 Oct 2015 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/dynamic-nginx-upstreams-with-containerbuddy/</guid>
+      <description>&lt;p&gt;Containerbuddy simplifies service discovery in Docker and provides a workaround for applications not designed from the start for container-native discovery. Here I demonstrate how to make Nginx container-native with Containerbuddy.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/dynamic-nginx-upstreams-with-containerbuddy&#34;&gt;Continue reading this article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Simplifying service discovery in Docker with Containerbuddy</title>
+      <link>http://0x74696d.com/posts/simplifying-service-discovery-in-docker-with-containerbuddy/</link>
+      <pubDate>Thu, 29 Oct 2015 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/simplifying-service-discovery-in-docker-with-containerbuddy/</guid>
+      <description>&lt;p&gt;Container-native applications have new responsibilities for discovery. But no one wants to rewrite all our current applications! So what do we do about it?&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/introducing-containerbuddy&#34;&gt;Continue reading this article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

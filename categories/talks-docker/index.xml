@@ -1,3 +1,30 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-&lt;?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Talks Docker on 0x74696d</title>
+    <link>http://0x74696d.com/categories/talks-docker/index.xml</link>
+    <description>Recent content in Talks Docker on 0x74696d</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <atom:link href="http://0x74696d.com/categories/talks-docker/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Docker: Training Wheels For LXC, Part I [talk]</title>
+      <link>http://0x74696d.com/posts/training-wheels-for-lxc-part-i/</link>
+      <pubDate>Tue, 18 Feb 2014 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/training-wheels-for-lxc-part-i/</guid>
+      <description>&lt;blockquote&gt;
+&lt;aside&gt;Welcome &lt;a href=&#34;http://sysadvent.blogspot.com/2014/12/day-1-docker-in-production-reality-not.html&#34;&gt;sysadvent readers!&lt;/a&gt; You&#39;ll almost certainly note that I never got around to writing a Part II of this post or expanding on other Docker-related topics on this blog. I&#39;ve been busy working away pretty solidly with not a ton of time for blogging or tweeting. But if you&#39;re interested in more DevOps goodness be sure to follow @bridgetkromhout and stay tuned here for new material over the next few months. Thanks for reading!&lt;/aside&gt;
+&lt;/blockquote&gt;
 
+&lt;p&gt;Tonight I&#39;m giving a talk on how Docker is really just a wrapper on LXC, and when it might be better to use LXC along with your favorite configuration management tools instead of Docker. &lt;a href=&#34;http://0x74696d.com/slides/training-wheels-for-lxc/slides.html&#34;&gt;Here&lt;/a&gt; are the slides for my talk.&lt;/p&gt;
+
+&lt;p&gt;I&#39;ll have a longer blog post and a deep dive into the code for this in the next week or two.&lt;/p&gt;
+
+&lt;p&gt;PhillyDevOps is hosting the event, and I&#39;m looking forward to Chris Couples&#39; talk on &amp;quot;DevOps for Small Shops&amp;quot;. Thanks to Dave Konopka and Hector Castroy for putting the event together. They regularly recruit great speakers on a range of devops topics, so if that&#39;s the sort of thing that interests you join the &lt;a href=&#34;http://www.meetup.com/PhillyDevOps/&#34;&gt;meetup&lt;/a&gt;. Come to a meeting and give a talk or have a beer with me afterwards!&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

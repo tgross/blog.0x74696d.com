@@ -1,3 +1,85 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-&lt;?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Docker on 0x74696d</title>
+    <link>http://0x74696d.com/categories/docker/index.xml</link>
+    <description>Recent content in Docker on 0x74696d</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <atom:link href="http://0x74696d.com/categories/docker/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Running a host-local Docker Registry</title>
+      <link>http://0x74696d.com/posts/host-local-docker-registry/</link>
+      <pubDate>Mon, 06 Jul 2015 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/host-local-docker-registry/</guid>
+      <description>&lt;p&gt;One of the options for running a private Docker registry is to run your own with the Docker Registry daemon. When &lt;a href=&#34;http://www.dramafever.com&#34;&gt;we&lt;/a&gt; started using Docker this was our approach from the beginning. At the time the Docker Registry was a Python app running on &lt;code&gt;gunicorn&lt;/code&gt;; the new version is written in Go. A nice feature is that one can use S3 as the backing store, which &lt;em&gt;almost&lt;/em&gt; makes the registry a proxy to S3.&lt;/p&gt;
 
+&lt;p&gt;But we ran into a pretty serious problem with it early on in terms of scalability. If we had to scale up a bunch of queue workers all at once to take on additional load in the application, we could overload the EC2 instance the Docker Registry was running on pretty trivially -- if nothing else then with network I/O limitations. We could have probably gotten away with scaling up the box a lot, but this would leave a scary SPOF in our system and make moot the reliability of S3.&lt;/p&gt;
+
+&lt;p&gt;Instead we have the registry daemon as a host-local service backed by S3. So that means we have a container running the registry on the host, and we have a CNAME like &lt;code&gt;docker-local.example.com&lt;/code&gt; that points to it. When a service starts it just does &lt;code&gt;docker pull docker-local.example.com:5000/my-service:tag&lt;/code&gt;, and the Docker Registry backend retrieves the image layers from S3. The IAM role given to the production nodes has read-only access to the S3 bucket and can never push to it.&lt;/p&gt;
+
+&lt;p&gt;We use Jenkins to build and ship the containers. My colleagues &lt;a href=&#34;https://www.youtube.com/watch?v=8fcDZB-QMRA&#34;&gt;Bridget and Peter&lt;/a&gt; talked about this in depth at this year&#39;s ChefConf. And one of our team&#39;s alumni &lt;a href=&#34;https://www.youtube.com/watch?v=yU0QhhS-XzI&#34;&gt;Jeff&lt;/a&gt; talked about GrubHub&#39;s implementation of a very similar setup at Dockercon a couple weeks ago. Our Jenkins server has the same host-local Docker Registry setup, but has IAM permissions to write to the S3 bucket. As the sole node allowed to write to S3, we avoid any possibility of data races on the backing store. (If you need multiple writers you&#39;ll want to shard which repositories they write to by namespace.)&lt;/p&gt;
+
+&lt;p&gt;With this setup, network I/O throughput on start is limited only by the host that requires a new image and whatever S3 can give us. This lets us scale up nodes as fast as AWS can give them to us without worrying about the registry as a point of failure.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Logging with Docker</title>
+      <link>http://0x74696d.com/posts/docker-logging/</link>
+      <pubDate>Sat, 03 Aug 2013 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/docker-logging/</guid>
+      <description>
+
+&lt;blockquote&gt;
+&lt;aside&gt;Hello from the future (November 2015)! Apparently this article has some good Google juice and so people still land here looking for guidance on logging in Docker more than 2 years later. Today Docker provides &lt;a href=&#34;https://docs.docker.com/reference/logging/overview/&#34;&gt;log drivers&lt;/a&gt; now that will let you send your logs off the host via syslog or other log shipping mechanisms. So please don&#39;t follow the advice in this article!&lt;/aside&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;I spent a couple of days this week working on a new deployment design using &lt;a href=&#34;http://docker.io&#34;&gt;Docker&lt;/a&gt;. Obviously Docker is a new project, so the documentation is a bit of a mess and not quite keeping up with progress on the code. You come to expect that on fast-moving open source projects, so we figured no biggie. But the one almost-deal-breaker for us was trying to figure out logging, so I thought I&#39;d do a short write-up on that here.&lt;/p&gt;
+
+&lt;h1 id=&#34;docker-logs&#34;&gt;docker logs&lt;/h1&gt;
+
+&lt;p&gt;Having a &lt;code&gt;docker logs&lt;/code&gt; command available must be what threw me off. Docker captures all the &lt;code&gt;stdout&lt;/code&gt;/&lt;code&gt;stderr&lt;/code&gt; from the process you&#39;re running, and you can get the docker daemon to spit this out with &lt;code&gt;docker logs $CONTAINER_ID&lt;/code&gt;. But if the process you&#39;re running is a long-running daemon, that&#39;s probably less than satisfactory. At first I thought I&#39;d be clever and thought I could periodically run &lt;code&gt;docker logs &amp;gt;&amp;gt; /var/log/myapp.log&lt;/code&gt;. Let&#39;s try that with a Django app on gunicorn and see what happens.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;$ ID=docker run myimage python manage.py run_gunicorn -b 0.0.0.0:8000
+$ docker logs $ID
+2013-08-03 18:45:05 [1710] [INFO] Starting gunicorn 0.14.2
+2013-08-03 18:45:05 [1710] [INFO] Listening at: http://0.0.0.0:8000 (1710)
+2013-08-03 18:45:05 [1710] [INFO] Using worker: sync
+2013-08-03 18:45:05 [1713] [INFO] Booting worker with pid: 1713
+$ # ok, let&#39;s do that again
+$ docker logs $ID
+2013-08-03 18:45:05 [1710] [INFO] Starting gunicorn 0.14.2
+2013-08-03 18:45:05 [1710] [INFO] Listening at: http://0.0.0.0:8000 (1710)
+2013-08-03 18:45:05 [1710] [INFO] Using worker: sync
+2013-08-03 18:45:05 [1713] [INFO] Booting worker with pid: 1713
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Uh oh. If I just append the output of &lt;code&gt;docker logs&lt;/code&gt; I&#39;ll be writing the entire log out to the file each time. That&#39;s going to suck after a while. You don&#39;t want to use &lt;code&gt;docker logs&lt;/code&gt; to write out logs for your process.&lt;/p&gt;
+
+&lt;h1 id=&#34;mounted-volumes&#34;&gt;mounted volumes&lt;/h1&gt;
+
+&lt;p&gt;Instead you should bind a volume to the container and write your logs from your process to that mount point. This maps a location in the container&#39;s file system to a location on the host. You can then access the logs separately from the running process in your container and use tools like &lt;code&gt;logrotate&lt;/code&gt; to handle them.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;$ ID=docker run -v /var/myapp/log:/var/log myimage python manage.py
+  run_gunicorn -b 0.0.0.0:8000 --log-file=/var/log/gunicorn.log
+$ docker logs $ID
+$ # nada!
+$ tail /var/myapp/log/gunicorn.log
+2013-08-03 18:53:11 [1710] [INFO] Starting gunicorn 0.14.2
+2013-08-03 18:53:11 [1710] [INFO] Listening at: http://0.0.0.0:8000 (1710)
+2013-08-03 18:53:11 [1710] [INFO] Using worker: sync
+2013-08-03 18:53:11 [1713] [INFO] Booting worker with pid: 1811
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It&#39;s fair to note that attaching a volume from the host slightly weakens the LXC security advantages. The contained process can now write outside its container and this is a &lt;a href=&#34;https://www.owasp.org/index.php/Log_injection&#34;&gt;potential attack vector&lt;/a&gt; if the contained process is compromised.&lt;/p&gt;
+
+&lt;p&gt;Despite the documentation woes and a few minor headaches like figuring out logging, getting started with Docker was a lot of fun and I think it has a lot of potential. I&#39;ll be sharing more Docker stories here going forward.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

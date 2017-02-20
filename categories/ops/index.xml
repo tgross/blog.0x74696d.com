@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Ops on 0x74696d</title>
+    <link>http://0x74696d.com/categories/ops/index.xml</link>
+    <description>Recent content in Ops on 0x74696d</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <atom:link href="http://0x74696d.com/categories/ops/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Analytics on the Cheap</title>
+      <link>http://0x74696d.com/posts/analytics-on-the-cheap/</link>
+      <pubDate>Mon, 16 Mar 2015 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/analytics-on-the-cheap/</guid>
+      <description>
+
+&lt;p&gt;In November of 2013 I was at the AWS ReInvent conference, where they previewed their new service Kinesis. The long story short of this is that it&#39;s like a hosted Kafka. And the long story short of Kafka is that it&#39;s a way to ingest a whole lot of data in the short period of time so that you can process it in some kind of near-offline process later. The seemingly canonical example is something like log data. Loggly uses Kafka for this, I hear? The premise is that you have a stream of data from many clients, you want those clients to be able to treat the messages as close to fire-and-forget as possible (within the boundaries of TCP, if you&#39;re using that as the transport), you don&#39;t want to drop messages, and you want to be able to get the messages into the system you&#39;re using for analysis as soon as possible.&lt;/p&gt;
+
+&lt;p&gt;But I would argue that in most cases outside of things like Loggly, you don&#39;t have actionable data when you&#39;re doing analysis real-time, so you can do the processing part as a batch job. Which changes the operational economics of the system quite a bit. There&#39;s no point in putting up the capital for near-realtime analytics if you don&#39;t need them, and you&#39;d be surprised how close you can get and still keep things inexpensive.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-firehose-part-deux&#34;&gt;The Firehose, Part Deux&lt;/h2&gt;
+
+&lt;p&gt;In an earlier article I mentioned in passing that &lt;a href=&#34;http://www.dramafever.com/company/careers.html&#34;&gt;we&lt;/a&gt; at one point replaced a fairly complicated system using DynamoDB to ingest our analytics firehose. The solution we came to for that is what I want to talk about here.&lt;/p&gt;
+
+&lt;aside&gt;I should point out here that although I did a lot of the implementation work of the ingest side of this system, the initial inspiration was from my colleague Ry4an&#39;s &lt;a href=&#34;http://ry4an.org/unblog/post/amazon-s3-as-append-only-datastore/&#34;&gt;S3 as Append-Only Datastore&lt;/a&gt;.&lt;/aside&gt;
+
+&lt;p&gt;We&#39;re working under the following requirements:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Large swing in load throughout the day (which implies efficiencies to be had in stateless auto-scaling instances).&lt;/li&gt;
+&lt;li&gt;Response time to the client should be low-latency.&lt;/li&gt;
+&lt;li&gt;Need to geolocate the client&lt;/li&gt;
+&lt;li&gt;Need to authenticate the client (although we also handle anonymous clients)&lt;/li&gt;
+&lt;li&gt;Need to be able to take the same data set and reuse it in other analysis environments in the future&lt;/li&gt;
+&lt;li&gt;Might need to update the kinds of data we&#39;re collecting in the future&lt;/li&gt;
+&lt;li&gt;As cheap as possible&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The technique I&#39;m describing has one important constraint: messages have to be either idempotent or have a built-in ordering (ex. time series data), because there&#39;s no way for the ingest servers to handle the ordering of messages otherwise. You won&#39;t be able to come up with a &amp;quot;true&amp;quot; total ordering here either, but we&#39;re okay with that on a statistical level.&lt;/p&gt;
+
+&lt;p&gt;The basic workflow is this:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Incoming message passes through our CDN to pick up geolocation headers&lt;/li&gt;
+&lt;li&gt;Message has its session authenticated (this happens at our routing layer in Nginx/OpenResty)&lt;/li&gt;
+&lt;li&gt;Message is routed to an ingest server&lt;/li&gt;
+&lt;li&gt;Ingest server transforms message and headers into a single character-delimited querystring value&lt;/li&gt;
+&lt;li&gt;Ingest server makes a HTTP GET to a 0-byte file on S3 with that querystring&lt;/li&gt;
+&lt;li&gt;The bucket on S3 has S3 logging turned on.&lt;/li&gt;
+&lt;li&gt;We ingest the S3 logs directly into Redshift on a daily basis.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The first two layers aren&#39;t particularly interesting except that by the time we get to the analytics server we have a request that looks something like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Example request: user watched a segment of video&lt;/strong&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;POST /tick/ HTTP/1.1
+Host: https://api.example.com
+Content-Type: application/x-www-form-urlencoded
+Accept: application/json
+User-Agent: VideoPlayerUserAgent
+X-Akamai-Edgescape-Header: City=Splot,Country=Wales,Region=Europe
+X-User-Id: 1234567
+X-User-Type: Registered
+X-Consumer: InternalCodeForConsumerType
+
+event_guid=xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+event_type=watch
+video_type=video
+content_id=4
+start_timecode=60
+end_timecode=120
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In practice we have a dozen extra fields on there and some of the names are different for weird historical reasons. But the point is that we&#39;ve got this far with only ever hitting our session store once (if it&#39;s an authenticated session and if you&#39;re using a session store instead of signed/encrypted on-the-wire sessions) and making one hop thru Nginx.&lt;/p&gt;
+
+&lt;p&gt;Ok, so at this point we&#39;ve got a request and we need to ingest this pretty quickly. The original design had a whole bunch of Flask processes running under gevent. You need multiple processes per box because the GIL starts to get in the way even if you&#39;re mostly I/O bound. Last summer we moved this to Go and I&#39;m deploying less than 10% of the number of EC2 instances now.&lt;/p&gt;
+
+&lt;p&gt;The only thing our ingest server needs to do it to validate the message and then transform it into a querystring. For example, we make sure that the &lt;code&gt;content_id&lt;/code&gt;, &lt;code&gt;start_timecode&lt;/code&gt;, and &lt;code&gt;end_timecode&lt;/code&gt; are all integers, that the &lt;code&gt;event_type&lt;/code&gt; falls within a range of a few types, etc. Once we&#39;re done with that we transform the values of the fields into a single querystring parameter. Here&#39;s the catch: the order of the fields is immutable for all time. You can add fields by appending them and can remove fields by leaving the value out (but keeping the delimiters that mark it). But changing the order will break your old records.&lt;/p&gt;
+
+&lt;p&gt;So for our example we&#39;re going to have the fields in this order: event timestamp, event GUID, user id, user type, consumer, country, event type, video type, content ID, start, end. We make a signed GET to S3:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Example request to S3&lt;/strong&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;GET /tick HTTP/1.1
+Host: https://example.bucket.s3.amazonaws.com
+X-Amz-Authentication: xxxxx
+
+data=|2014-01-15T19:33:23|xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx|1234567|Registered|InternalCodeForConsumerType|Wales|watch|video|4|60|120|
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;(Notice that we start and stop with a pipe -- this will come up again later!)&lt;/p&gt;
+
+&lt;p&gt;In practice we use a short code for the various enums involved rather than writing out &amp;quot;InternalCodeForConsumerType&amp;quot; in the querystring. If the message fails to validate or, far less likely, the GET to S3 fails, we can either log this querystring for later reply or send it off to a queue for reprocessing later. If you don&#39;t have a lot of failed messages and having added latency between message arrival and analysis isn&#39;t a problem, just logging it out is probably cheaper. In our service we have few true errors but our validation is pretty strict (so we don&#39;t analyze a lot of garbage) and if a client has a buggy release then it&#39;ll send a flood of bad messages. So we sample validation errors and send those off to Sentry so the client developers can see them and fix their clients.&lt;/p&gt;
+
+&lt;p&gt;If you really care about latency of the initial request a lot, you can reduce S3 latency slightly by using multiple identical-to-your-application S3 keys. S3 suffers from hot-hashes -- although I&#39;ve never noticed it at our scale -- so you can hash the requests among &lt;em&gt;n&lt;/em&gt; keys in the same bucket and it won&#39;t matter to the final logging output.&lt;/p&gt;
+
+&lt;p&gt;Why sign the GET? Because we have the S3 bucket locked down so that only our ingest servers can make the GET. This prevents third-parties or incautious developers from messing around with our analytics data. Create an IAM user just for your ingest servers and use that AWS access key and secret key in your application to sign the request. Here&#39;s the IAM configuration you&#39;ll want for that user:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-json&#34; data-lang=&#34;json&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;quot;Version&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;2012-10-17&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;quot;Statement&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;quot;Effect&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;Allow&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;quot;Action&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+        &lt;span class=&#34;s2&#34;&gt;&amp;quot;s3:GetObject&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;p&#34;&gt;],&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;quot;Resource&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+        &lt;span class=&#34;s2&#34;&gt;&amp;quot;arn:aws:s3:::example.bucket/tick&amp;quot;&lt;/span&gt;
+      &lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Within an hour or so each GET shows up in the logs for the S3 bucket wherever we&#39;re sending the logs for our S3 &lt;code&gt;example.bucket&lt;/code&gt; (for example, &lt;code&gt;example.bucket.logs&lt;/code&gt;). At this point your possibilities for analysis are broad. If you have a small amount of data and just want to dick around with grep/awk, you can do that. If you have millions of messages a minute and need to pipe it to Redshift, you can do that. I&#39;ll get to that in a moment but let&#39;s have a short aside about operational costs of this system at this point.&lt;/p&gt;
+
+&lt;h2 id=&#34;how-cheap-is-it&#34;&gt;How Cheap Is It?&lt;/h2&gt;
+
+&lt;p&gt;So at this point you&#39;ve got only 2 moving parts: the ingest web server and the S3 logging. The web server only has to be as beefy as the validation you do. In our case we&#39;re not hitting a database or doing any complicated operations; everything we&#39;re doing is just to make sure we don&#39;t write garbage data and to take note of problems (99% of the time this is from a new version of a client that&#39;s failing to meet spec).&lt;/p&gt;
+
+&lt;p&gt;How many instances you&#39;ll need is going to directly depend on the load you need to serve and your server&#39;s ability to handle concurrent connections. Python, even with gevent, is probably not ideal for this at large volumes but it&#39;s very quick to put together if you&#39;re just starting out. Let&#39;s assume our inbound request and our processed S3 message are both ~200B. Assuming we&#39;re using EC2 medium I/O instances like the new c4.large, we can put 10k messages/second in the pipe without even saturating the network connection. If you&#39;re running Flask, chances are your ingest server application will crap out first, so don&#39;t use that if you have 10k+ req/second. Use Go or Erlang or Java (yuck) or something. But our current Go application barely notices this kind of traffic. Once we did some very basic TCP and ulimits tweaking, we&#39;re only running as many instances as we do to support our internal standards for redundancy.&lt;/p&gt;
+
+&lt;p&gt;Our S3 bucket with the 0 byte file &lt;code&gt;tick&lt;/code&gt; costs us only the cost of the S3 GETS. As of this writing that&#39;s $0.004 per 10k requests. This is all within-AWS, so there&#39;s no additional charge for data transferred (which would be very small anyways).&lt;/p&gt;
+
+&lt;p&gt;Our ~200B logging message takes us space in S3, so we&#39;ll be spending about $0.0006 in storage per 10k messages (up to the first 10 billion or so, when they get slightly cheaper). If we want, we can rotate the logs off to AWS Glacier after a few months and save a couple bucks that way.&lt;/p&gt;
+
+&lt;p&gt;At the end of the day, the design we have here now has a unit cost (per event captured) less than 1% of the original design of the application.&lt;/p&gt;
+
+&lt;h2 id=&#34;slurping-up-the-data&#34;&gt;Slurping Up the Data&lt;/h2&gt;
+
+&lt;p&gt;Doing any kind of analysis at this point probably means we need to ingest the data into a different format. I dunno about you, but sort, uniq, grep, awk get a little tiresome once we start working with hundreds of files with billions of rows each. At our scale we could probably just barely get away with a beefy MySQL instance (we&#39;ve standardized on MySQL), but we decided to use AWS Redshift instead and have been pretty happy with it. One of the nice features it has is for this kind of ingest is that you can copy directly from s3.&lt;/p&gt;
+
+&lt;p&gt;The S3 log files are named for the hour in which they were created. Our quick-and-dirty way to deal with this for a daily roll-up is to create a new table for each day&#39;s raw rows (we do lots of post-processing in another step to figure out unique sessions, separate ads from video plays, etc.). We keep the raw tables for a while so we create one for each day, but if you don&#39;t want to do that you can just throw out the daily raw tables once you&#39;ve post-processed them. As long as you keep the original logs in S3/Glacier (12 9&#39;s durability) you can always go back and re-process if there&#39;s a new kind of analysis you want to do. If we continue the example from above our raw table might look something like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-sql&#34; data-lang=&#34;sql&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;CREATE&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;TABLE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;raw_s3_rows&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;left_margin&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;VARCHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;600&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;text32k&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;event_time&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;TIMESTAMP&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;delta&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;SORTKEY&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;event_guid&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;45&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;raw&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;DISTKEY&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;user_id&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT4&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;user_type&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT2&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;consumer&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;40&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bytedict&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;country&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bytedict&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;event_type&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;20&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bytedict&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;video_type&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;10&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bytedict&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;content_id&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT4&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT4&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly16&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT4&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly16&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;right_margin&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;VARCHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;200&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;text255&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Note the two weird bits. The &lt;code&gt;left_margin&lt;/code&gt; field lets us cut off everything we see left of the first delimiter in the log line, and the &lt;code&gt;right_margin&lt;/code&gt; does the same at the end. That&#39;s why we started our querystring parameter with a pipe earlier. We don&#39;t have a lot of control over the logging format that S3 uses, so this should give us a guarantee that we know where the start and end of our data are. Obviously this will break big-time if you allow unauthenticated GETs to the S3 key you&#39;re using for logging because any asshole on the web can come along and stuff evil in there.&lt;/p&gt;
+
+&lt;p&gt;Now we can load in the raw S3 logs:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-sql&#34; data-lang=&#34;sql&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;COPY&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;raw_s3_rows&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;FROM&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;s3://example.bucket.logs/log-$DATESTAMP&amp;#39;&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;CREDENTIALS&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;aws_access_key_id=&amp;lt;ACCESSKEY&amp;gt;;aws_secret_access_key=&amp;lt;SECRETKEY&amp;gt;&amp;#39;&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;DELIMITER&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;|&amp;#39;&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;TIMEFORMAT&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;AS&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;YYYY-MM-DD-HH-MI-SS&amp;#39;&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;EMPTYASNULL&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;BLANKSASNULL&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;MAXERROR&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;AS&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Of course you&#39;ll want to automate this in some way to remove the &lt;code&gt;$DATESTAMP&lt;/code&gt; bit and have that be the hourly log names. We bail out if we get a lot of errors in the loading process, but because of the kind of data we&#39;re dealing with we&#39;re okay if there are a few bad messages (in practice we catch this at the validation stage so if we&#39;re seeing errors it&#39;s because we did something dumb like added a field without also updating the &lt;code&gt;CREATE TABLE&lt;/code&gt; script).&lt;/p&gt;
+
+&lt;p&gt;The important thing to notice here is that although we&#39;re doing a daily roll-up of the S3 logs, your ability to get the data faster is limited only by two things: how fast redshift can hoover-up the data from S3, and how good AWS&#39;s &amp;quot;best effort SLA&amp;quot; is on getting the logs into the S3 bucket (it&#39;s not bad... you could probably get away with getting logs within 2-3 hours without being worried about missing data).&lt;/p&gt;
+
+&lt;h2 id=&#34;events-as-audit-trail&#34;&gt;Events as Audit Trail&lt;/h2&gt;
+
+&lt;p&gt;Even not counting the analysis part, there&#39;s one more nice bit about this setup which is that it&#39;s modular and reusable across applications. We can imagine a poor-mans version of this for a static web site. Instead of signing the GET, a piece of Javascript on the page makes the GET (or a resource is loaded remotely like the classic 1x1 transparent tracking pixel). You can&#39;t validate the input or sign the request if you do this, which is probably dangerous, so don&#39;t go &#39;round telling your clients I said you should do this. But it&#39;s &amp;quot;infinitely&amp;quot; scalable -- if reddit decides to hit your blog your web server won&#39;t fall over serving analytics tracking.&lt;/p&gt;
+
+&lt;p&gt;But the really nice thing here is that these log events are just a bunch of files when you&#39;re done. The lines of the log can serve as an immutable event source -- so long as you only ever read from them. You can back them up to cold storage, use them in different data stores, treat them as your audit log, whatever you need.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

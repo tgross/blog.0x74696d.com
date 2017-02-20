@@ -1,6 +1,7 @@
 ---
 categories:
-- ops, AWS
+- ops
+- AWS
 date: 2015-03-16T00:00:00Z
 title: Analytics on the Cheap
 slug: analytics-on-the-cheap

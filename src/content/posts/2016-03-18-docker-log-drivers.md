@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/docker-log-drivers
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2016-03-18T00:00:00Z
 title: Production Docker logs on Triton
 slug: docker-log-drivers

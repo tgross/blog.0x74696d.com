@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/secrets-management-in-the-autopilotpattern
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2017-01-26T00:00:00Z
 title: Secrets Management in the Autopilot Pattern
 slug: secrets-management-in-the-autopilotpattern

@@ -1,6 +1,7 @@
 ---
 categories:
-- Django, performance
+- Django
+- performance
 date: 2013-05-19T00:00:00Z
 title: Django Database Anti-Patterns
 slug: django-db-antipatterns

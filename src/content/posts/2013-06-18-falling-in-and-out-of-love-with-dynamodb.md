@@ -1,6 +1,7 @@
 ---
 categories:
-- talks, AWS
+- talks
+- AWS
 date: 2013-06-18T00:00:00Z
 title: Falling In And Out Of Love with DynamoDB [talk]
 slug: falling-in-and-out-of-love-with-dynamodb

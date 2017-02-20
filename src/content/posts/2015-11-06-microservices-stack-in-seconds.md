@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/how-to-dockerize-a-complete-application
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2015-11-06T00:00:00Z
 title: Deploy a microservices stack in seconds
 slug: microservices-stack-in-seconds

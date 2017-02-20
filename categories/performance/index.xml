@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Performance on 0x74696d</title>
+    <link>http://0x74696d.com/categories/performance/index.xml</link>
+    <description>Recent content in Performance on 0x74696d</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <atom:link href="http://0x74696d.com/categories/performance/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Blog Diet</title>
+      <link>http://0x74696d.com/posts/blog-diet/</link>
+      <pubDate>Sat, 02 Jan 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/blog-diet/</guid>
+      <description>
+
+&lt;p&gt;It&#39;s a new year and so why not take the opportunity to revisit my site and make a few improvements? I&#39;ve had a few people mention in the past that they&#39;ve had some readability issues with some of the design choices (particularly on Linux). And as I&#39;ve added more content I&#39;ve found a few little layout quirks that I&#39;m not 100% happy with. Let&#39;s dive right in.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-spec&#34;&gt;The Spec&lt;/h2&gt;
+
+&lt;p&gt;The major design criteria are:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Keep page weight low (or lower!).&lt;/li&gt;
+&lt;li&gt;Make the page more mobile-friendly.&lt;/li&gt;
+&lt;li&gt;Improve the font weights for better accessibility.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&#34;the-audit&#34;&gt;The Audit&lt;/h2&gt;
+
+&lt;p&gt;Partially inspired by Maciej Cegowski&#39;s &lt;a href=&#34;http://idlewords.com/talks/website_obesity.htm&#34;&gt;The Website Obesity Crisis&lt;/a&gt;, I first decided to look into reducing page weight. Fortunately the original design was pretty good in this respect. The home page weighed in at 101KB, most of which were the Google web fonts. My &lt;a href=&#34;http://0x74696d.com/posts/analytics-on-the-cheap&#34;&gt;Analytics on the Cheap&lt;/a&gt; was 184KB, most of the extra load coming from loading the Twitter div. An image-heavy post like &lt;a href=&#34;posts/falling-in-and-out-of-love-with-dynamodb-part-ii/&#34;&gt;Falling In and Out of Love With DynamoDB, Part II&lt;/a&gt; was still only 315KB. So there is some room for improvement here but not a lot.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/images/20160102/waterfall-before.png&#34; alt=&#34;Homepage waterfall diagram, before&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;I took a pass with Google developer tool&#39;s Audit feature and it noted that because I was on an HTTP/1.1 connection that I might want to combine the multiple CSS files. This is optimized for free on HTTP2, but because I&#39;m hosting the blog on Github pages I don&#39;t have control over the server. I also noted that &lt;code&gt;pygments.css&lt;/code&gt; is being loaded even on pages where I&#39;m never going to have code snippets. There are an awful lot of unused CSS rules on the page too, so we can trim some garbage there. The tool also mentioned that there are no far-future cache headers applied to the assets, but again that&#39;s going to be a function of hosting on Github pages (and/or their Fastly CDN configuration). Anything we can do here is going to be a micro-optimization, but what the hell let&#39;s do it anyways.&lt;/p&gt;
+
+&lt;p&gt;The font weights around the menu needed some work, as did the typography on the &lt;a href=&#34;http://0x74696d.com/community.html&#34;&gt;community&lt;/a&gt; page.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/images/20160102/menu-before.png&#34; alt=&#34;Menu, before&#34; /&gt;
+&lt;img src=&#34;http://0x74696d.com/images/20160102/community-before.png&#34; alt=&#34;List of talks, before&#34; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;the-improvements&#34;&gt;The Improvements&lt;/h2&gt;
+
+&lt;p&gt;Although I&#39;m a big fan of &lt;a href=&#34;http://getskeleton.com&#34;&gt;Skeleton&lt;/a&gt; it&#39;s way more than I actually need for this project. There are no forms, buttons, heroes, complex grids, etc. So instead I&#39;m keeping the same basic CSS that I had but just tweaking it to remove cruft.&lt;/p&gt;
+
+&lt;p&gt;I&#39;ve moved the &lt;code&gt;mobile.css&lt;/code&gt; into the &lt;code&gt;base.css&lt;/code&gt; and used a media query. I originally thought that &lt;code&gt;link media=&amp;quot;only screen and (max-device-width: 480px)&amp;quot;&lt;/code&gt; prevented the element from loading, but that turns out not to be true for what should have been obvious reasons -- if we had a &lt;code&gt;max-width&lt;/code&gt; criteria it would force downloading new CSS if someone resized their browser! I checked the page on my older Android tablet and realized that I want to expand the media query to cover smaller tablets as well, so I&#39;ve bumped that up to &lt;code&gt;768px&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;I previously failed to notice that the CSS I stole from I-don&#39;t-remember-where caused the menu headers (&amp;quot;posts&amp;quot;, &amp;quot;projects&amp;quot;, &amp;quot;community&amp;quot;, etc.) to be hidden on mobile, so that&#39;s a quick fix. I also noticed that it did that wretched thing where it intentionally broke zooming. Sorry, fixed now!&lt;/p&gt;
+
+&lt;p&gt;The biggest change stylistically was removing the Lato web font that I was loading from Google. Getting rid of that dropped most of the extraneous page weight. I&#39;m not a professional designer and that&#39;s not the focus of the blog, so I don&#39;t really care that much about &amp;quot;pixel perfect&amp;quot; design. Rather the messing around trying to find the perfect font and doubling the size of the page, I&#39;m just going to leave it up to the reader&#39;s machine and browser and &lt;a href=&#34;http://www.smashingmagazine.com/2015/11/using-system-ui-fonts-practical-guide/&#34;&gt;use their system fonts&lt;/a&gt;. The results look good on the five different devices I was able to check. They&#39;re all a bit different of course, but better designers than me picked out those fonts on those platforms so let&#39;s trust them.&lt;/p&gt;
+
+&lt;h2 id=&#34;and-done&#34;&gt;And... Done!&lt;/h2&gt;
+
+&lt;p&gt;I&#39;m pretty happy with the results of just a couple hours of work. There is only one third-party request left on the site (the Twitter bug), and the page is a quarter the size. More importantly, it&#39;s more legible on a wider range of devices.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/images/20160102/waterfall-after.png&#34; alt=&#34;Homepage waterfall diagram, after&#34; /&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Django Database Anti-Patterns</title>
+      <link>http://0x74696d.com/posts/django-db-antipatterns/</link>
+      <pubDate>Sun, 19 May 2013 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/django-db-antipatterns/</guid>
+      <description>
+
+&lt;p&gt;At work our core application is a big Django project that&#39;s been developed over the course of a couple of years.  At the scale at which we&#39;re operating, we&#39;re finding lots of areas where we&#39;ve had to tweak or replace out-of-the-box components with more performant alternatives.  One of the areas that&#39;s a constant source of pain for me is the Django ORM.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;Disclaimer: I really do like Django.  It&#39;s a great tool for getting a site up and running fast. When combined with the typical third-party modules (ex. django-registration, south, etc.), you have that Python-style &#34;batteries included&#34; feel.  But this is a case where a powerful tool makes it easy to cut your finger off.&lt;/aside&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Django makes a lot of design choices that make sense in isolation but end up combining into some bad behavior in real production sites.  I&#39;m not going to waste any time second-guessing the authors of Django, but I&#39;ll focus on how to work-around or otherwise avoid the painful stuff.&lt;/p&gt;
+
+&lt;h2 id=&#34;select-related&#34;&gt;select_related&lt;/h2&gt;
+
+&lt;p&gt;One of the nastiest gotchas in Django is how easy it is to get a &lt;code&gt;1+n SELECTs&lt;/code&gt; situation. The docs are pretty clear on how to avoid it in view code, but the way that Django&#39;s templating system works makes it really easy to suddenly add site-crippling numbers of additional DB queries on a page &lt;em&gt;with no change to the backend code&lt;/em&gt;.  Observe.&lt;/p&gt;
+
+&lt;p&gt;We&#39;re using the models from the &lt;code&gt;books&lt;/code&gt; app from the &lt;a href=&#34;https://github.com/jacobian/djangobook.com/blob/master/chapter10.rst&#34;&gt;Djangobook&lt;/a&gt;.  I&#39;ve pre-populated my database with with some initial data and I&#39;m running the DB locally with &lt;code&gt;sqlite3&lt;/code&gt;.  Follow along with &lt;a href=&#34;https://github.com/tgross/tgross.github.io/tree/master/_code/django-db-antipatterns&#34;&gt;this example code&lt;/a&gt; if you&#39;d like. Here&#39;s our minimum &lt;code&gt;views.py&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;get_books_by_date&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;request&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;
+
+    &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dateutil&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parser&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dateutil&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parser&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Book&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;objects&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;filter&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pub_date__gte&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                                &lt;span class=&#34;n&#34;&gt;pub_date__lte&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;order_by&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;pub_date&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;render&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;request&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                  &lt;span class=&#34;s1&#34;&gt;&amp;#39;template.html&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                  &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;books&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;start&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;end&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;And a minimum template to go with it:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-django&#34; data-lang=&#34;django&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;&amp;lt;html&amp;gt;&amp;lt;body&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;&amp;lt;h1&amp;gt;Books&amp;lt;/h1&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;Published between &lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{start|date:&amp;#39;Y M d&amp;#39;&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}} and &lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{end|date:&amp;#39;Y M d&amp;#39;&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}}&lt;/span&gt;
+
+&lt;span class=&#34;x&#34;&gt;&amp;lt;table&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;{% for book in books &amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;%}&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;  &amp;lt;tr&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{book.title&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}}: &lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{book.pub_date&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}}&amp;lt;/tr&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;{% endfor &amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;%}&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;&amp;lt;/table&amp;gt;&lt;/span&gt;
+
+&lt;span class=&#34;x&#34;&gt;&amp;lt;/body&amp;gt;&amp;lt;/html&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;If we hit this in a test and check the number of queries, there&#39;s no surprises.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;test_get_books_by_date&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;bp&#34;&gt;self&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;
+    &lt;span class=&#34;sd&#34;&gt;&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+&lt;span class=&#34;sd&#34;&gt;    Given a range of dates strings, return books published between&lt;/span&gt;
+&lt;span class=&#34;sd&#34;&gt;    those dates (inclusive).&lt;/span&gt;
+&lt;span class=&#34;sd&#34;&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;with&lt;/span&gt; &lt;span class=&#34;bp&#34;&gt;self&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;settings&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;DEBUG&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;bp&#34;&gt;True&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;request&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;RequestFactory&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;get&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;response&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;get_books_by_date&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;request&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;2013-05-16&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;2013-05-31&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+        &lt;span class=&#34;k&#34;&gt;print&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;len&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;connection&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;queries&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+        &lt;span class=&#34;k&#34;&gt;print&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;connection&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;queries&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We get:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;1
+[{&#39;time&#39;: &#39;0.000&#39;,
+&#39;sql&#39;: u&#39;SELECT &amp;quot;books_book&amp;quot;.&amp;quot;id&amp;quot;, &amp;quot;books_book&amp;quot;.&amp;quot;title&amp;quot;,
+&amp;quot;books_book&amp;quot;.&amp;quot;publisher_id&amp;quot;, &amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; FROM
+&amp;quot;books_book&amp;quot; WHERE (&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; &amp;gt;= 2013-05-16
+AND &amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; &amp;lt;= 2013-05-31 ) ORDER BY
+&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; ASC&#39;}]
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;One predictable &lt;code&gt;SELECT&lt;/code&gt; statement made. Now let&#39;s do the same thing but with this template:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-django&#34; data-lang=&#34;django&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;&amp;lt;html&amp;gt;&amp;lt;body&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;&amp;lt;h1&amp;gt;Books&amp;lt;/h1&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;Published between &lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{start|date:&amp;#39;Y M d&amp;#39;&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}} and &lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{end|date:&amp;#39;Y M d&amp;#39;&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}}&lt;/span&gt;
+
+&lt;span class=&#34;x&#34;&gt;&amp;lt;table&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;{% for book in books &amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;%}&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;  &amp;lt;tr&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{book.title&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}}: &lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{book.publisher&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}}, &lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{book.pub_date&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}}&amp;lt;/tr&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;{% endfor &amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;%}&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;&amp;lt;/table&amp;gt;&lt;/span&gt;
+
+&lt;span class=&#34;x&#34;&gt;&amp;lt;/body&amp;gt;&amp;lt;/html&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Now we get:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;14
+[{&#39;time&#39;: &#39;0.000&#39;, &#39;sql&#39;: u&#39;SELECT &amp;quot;books_book&amp;quot;.&amp;quot;id&amp;quot;,
+&amp;quot;books_book&amp;quot;.&amp;quot;title&amp;quot;, &amp;quot;books_book&amp;quot;.&amp;quot;publisher_id&amp;quot;,
+&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; FROM &amp;quot;books_book&amp;quot; WHERE
+(&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; &amp;gt;= 2013-05-16  AND
+&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; &amp;lt;= 2013-05-31 ) ORDER BY
+&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; ASC&#39;},
+{&#39;time&#39;: &#39;0.000&#39;, &#39;sql&#39;: u&#39;SELECT &amp;quot;books_publisher&amp;quot;.&amp;quot;id&amp;quot;,
+&amp;quot;books_publisher&amp;quot;.&amp;quot;name&amp;quot;, &amp;quot;books_publisher&amp;quot;.&amp;quot;address&amp;quot;,
+&amp;quot;books_publisher&amp;quot;.&amp;quot;city&amp;quot;, &amp;quot;books_publisher&amp;quot;.&amp;quot;state&amp;quot;,
+&amp;quot;books_publisher&amp;quot;.&amp;quot;country&amp;quot;, &amp;quot;books_publisher&amp;quot;.&amp;quot;website&amp;quot;
+FROM &amp;quot;books_publisher&amp;quot; WHERE &amp;quot;books_publisher&amp;quot;.&amp;quot;id&amp;quot; = 1 &#39;},
+...
+
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;And on and on, for a total of 13 &lt;code&gt;SELECT&lt;/code&gt;s on Publisher, one for each of the 13 rows we pulled for Book (and then joined in Python).  Do the math on how much of your response time budget this takes up in your environment, but it&#39;s nearly 30% of mine and we haven&#39;t done anything except fetch a small set of rows yet. Of course the excellent Django documents point out this problem and that the solution is to use &lt;code&gt;select_related&lt;/code&gt; so that our view looks like:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;get_books_by_date&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;request&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dateutil&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parser&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dateutil&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parser&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Book&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;objects&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;filter&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pub_date__gte&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;pub_date__lte&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                        &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;select_related&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;publisher&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                        &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;order_by&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;pub_date&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;render&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;request&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;template.html&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                  &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;books&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;start&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;end&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;And this gives us:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;1
+[{&#39;time&#39;: &#39;0.000&#39;, &#39;sql&#39;: u&#39;SELECT &amp;quot;books_book&amp;quot;.&amp;quot;id&amp;quot;,
+&amp;quot;books_book&amp;quot;.&amp;quot;title&amp;quot;, &amp;quot;books_book&amp;quot;.&amp;quot;publisher_id&amp;quot;,
+&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot;, &amp;quot;books_publisher&amp;quot;.&amp;quot;id&amp;quot;,
+&amp;quot;books_publisher&amp;quot;.&amp;quot;name&amp;quot;, &amp;quot;books_publisher&amp;quot;.&amp;quot;address&amp;quot;,
+&amp;quot;books_publisher&amp;quot;.&amp;quot;city&amp;quot;, &amp;quot;books_publisher&amp;quot;.&amp;quot;state&amp;quot;,
+&amp;quot;books_publisher&amp;quot;.&amp;quot;country&amp;quot;, &amp;quot;books_publisher&amp;quot;.&amp;quot;website&amp;quot;
+FROM &amp;quot;books_book&amp;quot; INNER JOIN &amp;quot;books_publisher&amp;quot; ON
+(&amp;quot;books_book&amp;quot;.&amp;quot;publisher_id&amp;quot; = &amp;quot;books_publisher&amp;quot;.&amp;quot;id&amp;quot;)
+WHERE (&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; &amp;gt;= 2013-05-16  AND
+&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; &amp;lt;= 2013-05-31 ) ORDER BY
+&amp;quot;books_book&amp;quot;.&amp;quot;pub_date&amp;quot; ASC&#39;}]
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We have a &lt;code&gt;JOIN&lt;/code&gt;, of course, but not a nasty &lt;code&gt;1+n&lt;/code&gt; query.&lt;/p&gt;
+
+&lt;h2 id=&#34;so-what-s-the-problem&#34;&gt;So what&#39;s the problem?&lt;/h2&gt;
+
+&lt;p&gt;We&#39;re supposed to be working with an &amp;quot;MVT&amp;quot; system.  In a non-trivial application, this query would probably be in a ModelManager method.  Which means when the front-end designer adds a reference to one of our foreign key attributes in the template, our &lt;code&gt;models.py&lt;/code&gt; file has to change (breaking encapsulation). And unless you factor out a version of the manager method without the &lt;code&gt;select_related&lt;/code&gt; you&#39;re now performing a &lt;code&gt;JOIN&lt;/code&gt; and &lt;code&gt;SELECT&lt;/code&gt;ing all the extra fields &lt;em&gt;everywhere&lt;/em&gt; the method is called and not just in this one view. The notion expressed in the Django docs that you can have the templating work being done by web designers who aren&#39;t versed in Python or the ORM just doesn&#39;t hold up. This is a bug farm for performance-related defects.&lt;/p&gt;
+
+&lt;p&gt;&lt;img style=&#34;margin-left: 15px;&#34; alt=&#34;Entire post in one image&#34; src=&#34;http://0x74696d.com/images/20130519/DjangoAntiPatternsSummary.png&#34;&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;testing-an-aside&#34;&gt;Testing (an aside)&lt;/h2&gt;
+
+&lt;p&gt;If you haven&#39;t already seen the &lt;code&gt;connection.queries&lt;/code&gt; call before, it&#39;s awfully handy for debugging this sort of thing.  Django provides a bunch of tools to use for query tuning in either the Django shell or your unit tests.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Check &lt;code&gt;django.db.connection.queries&lt;/code&gt; to see what queries a test case has executed.&lt;/li&gt;
+&lt;li&gt;Check the &lt;code&gt;query&lt;/code&gt; attribute of Queryset to get the SQL executed by a query.&lt;/li&gt;
+&lt;li&gt;Check &lt;code&gt;_state.db&lt;/code&gt; attribute of an object in a QuerySet to verify multiple DB routing behavior (ex. if you&#39;re using a read slave).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Using &lt;code&gt;connection.queries&lt;/code&gt; requires that you are in DEBUG mode, so if you&#39;re running this in your tests you&#39;ll need to use a context manager to &lt;a href=&#34;https://docs.djangoproject.com/en/dev/topics/testing/overview/#overriding-settings&#34;&gt;override your settings&lt;/a&gt;. Also, you&#39;ll want to make sure you&#39;ve done a &lt;code&gt;db.reset_queries()&lt;/code&gt; in your &lt;code&gt;setUp&lt;/code&gt; method between tests.&lt;/p&gt;
+
+&lt;h2 id=&#34;deferred-attributes&#34;&gt;Deferred attributes&lt;/h2&gt;
+
+&lt;p&gt;If you have tables with text fields or lots of columns, you&#39;ll probably start looking at some point at using the &lt;code&gt;defer&lt;/code&gt; and &lt;code&gt;only&lt;/code&gt; methods on querysets. The difference in the SQL generated is that the query &lt;code&gt;SELECT&lt;/code&gt;s only those columns you&#39;re asking for. But this runs into the same problem as not using &lt;code&gt;select_related&lt;/code&gt;.  Code somewhere else entirely can be modified (perhaps on a different day and by a designer rather than an engineer) and now create a flurry of additional queries.&lt;/p&gt;
+
+&lt;p&gt;Now in all fairness the Django documentation calls this out as &amp;quot;advanced usage&amp;quot; and warns against just this problem, but using this feature imposes an additional testing burden above and beyond that of a simple &lt;code&gt;SELECT&lt;/code&gt; query. If we were using something like an OBDC connection, we&#39;d get an error early in development even with minimal testing.&lt;/p&gt;
+
+&lt;h2 id=&#34;many-to-many-relationships&#34;&gt;Many-to-Many Relationships&lt;/h2&gt;
+
+&lt;p&gt;When you have a ManyToMany field, you&#39;ll find yourself needing to use &lt;code&gt;prefetch_related&lt;/code&gt; for most of the same reasons as above.  I&#39;ve seen this sort of thing lots.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-django&#34; data-lang=&#34;django&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;&amp;lt;html&amp;gt;&amp;lt;body&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;&amp;lt;h1&amp;gt;Books&amp;lt;/h1&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;Published between &lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{start|date:&amp;#39;Y M d&amp;#39;&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}} and &lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{end|date:&amp;#39;Y M d&amp;#39;&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;}}&lt;/span&gt;
+
+&lt;span class=&#34;x&#34;&gt;&amp;lt;table&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;{% for book in books &amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;%}&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;  &amp;lt;tr&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;{{book.title}} by&lt;/span&gt;
+&lt;span class=&#34;s2&#34;&gt;    {{ &amp;quot;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;author&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;book.authors.all&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;}}%}&lt;/span&gt;
+&lt;span class=&#34;s2&#34;&gt;      {{&amp;quot;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;author.name&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;}}}}&lt;/span&gt;
+&lt;span class=&#34;s2&#34;&gt;    {{ &amp;quot;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;endfor&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;}}%}&lt;/span&gt;
+&lt;span class=&#34;s2&#34;&gt;    {{&amp;quot;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;book.publisher&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;}}}},&lt;/span&gt;
+&lt;span class=&#34;s2&#34;&gt;    {{&amp;quot;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;{{&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;book.pub_date&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;quot;}}}}&amp;lt;/tr&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;s2&#34;&gt;    {{ &amp;quot;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;endfor&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;}}&lt;/span&gt;&lt;span class=&#34;x&#34;&gt;%}&lt;/span&gt;
+&lt;span class=&#34;x&#34;&gt;&amp;lt;/table&amp;gt;&lt;/span&gt;
+
+&lt;span class=&#34;x&#34;&gt;&amp;lt;/body&amp;gt; &amp;lt;/html&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;I&#39;ll spare you more SQL output, but using this template with the &lt;code&gt;select_related&lt;/code&gt; on Publisher but not a &lt;code&gt;prefetch_related&lt;/code&gt; on Author results in 14 &lt;code&gt;SELECT&lt;/code&gt;s with lots of &lt;code&gt;JOIN&lt;/code&gt;s.  So we have to change our view again.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;get_books_by_date&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;request&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dateutil&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parser&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dateutil&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parser&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Book&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;objects&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;filter&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pub_date__gte&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;pub_date__lte&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                        &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;select_related&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;publisher&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                        &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;prefetch_related&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;authors&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                        &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;order_by&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;pub_date&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;render&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;request&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;template.html&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                 &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;books&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;start&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;end&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This will knock us down to 2 &lt;code&gt;SELECTS&lt;/code&gt;, one of which uses an &lt;code&gt;IN&lt;/code&gt; parameter.  The performance on that may not be great either, but it probably beats separate &lt;code&gt;SELECT&lt;/code&gt;s for each row.  Keep in mind when you do this that you&#39;re performing a &lt;code&gt;JOIN&lt;/code&gt;-equivalent in Python, so you&#39;ll want to be aware of how what kind of memory hit you&#39;re taking for this operation.&lt;/p&gt;
+
+&lt;h2 id=&#34;caching&#34;&gt;Caching&lt;/h2&gt;
+
+&lt;p&gt;QuerySets are evaluated lazily, and this has a couple of implications for caching.  First, the database isn&#39;t hit until you evaluate the queryset in some way -- iterating, slicing with a step, calling &lt;code&gt;len&lt;/code&gt; or &lt;code&gt;list&lt;/code&gt; on it, pickling it, etc.  Then it grabs the first 100 rows and will instantiate them as models as they are accessed.  If you are using &lt;code&gt;memcached&lt;/code&gt; to cache whole querysets, you can easily hit the 1MB slab limit if you are caching a large queryset.  If you go over the limit of your slab size, you&#39;ll always get a cache miss, have to fetch the whole queryset, and then get an invalid cache set; you&#39;ve just made your application perform worse by caching! This means that this sort of thing can be fine when you&#39;re working with small datasets but can get out of hand quickly:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;get_books_by_date&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;request&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;cache_key&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;booksbydate.{}.{}&amp;#39;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;format&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;cache&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;get&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cache_key&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;not&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dateutil&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parser&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dateutil&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parser&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Book&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;objects&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;filter&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pub_date__gte&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;pub_date__lte&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                            &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;select_related&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;publisher&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                            &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;prefetch_related&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;authors&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                            &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;order_by&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;pub_date&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;cache&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;set&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cache_key&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;60&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;60&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;render&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;request&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;template.html&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                 &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;books&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;books&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;start&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;end&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Although if you&#39;re not using Paginator on that large queryset, you should probably do that first; your users might rarely go past the first few pages of results anyways and therefore caching the long tail might be worthless.&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;django-cache-machine&lt;/code&gt; has an interesting approach to this which is to cache only the models that have actually been evaluated.  So when the CachingQuerySet is hit later, it gets a partially-cached queryset out of cache until it runs out of rows to evaluate, and then does a sliced query back into the database to get the rest you need.  Caching querysets is probably not the best performing approach (&lt;code&gt;django-cache-machine&lt;/code&gt; creates a &lt;em&gt;lot&lt;/em&gt; of cache requests) but so far it&#39;s the only approach I&#39;ve seen to cache invalidation that works well on sites with a good deal of write activity.&lt;/p&gt;
+
+&lt;h2 id=&#34;anti-patterns-and-solutions&#34;&gt;Anti-patterns and Solutions&lt;/h2&gt;
+
+&lt;p&gt;The title of this post is probably a slight misnomer.  All the above covers are just some bad technique or failure to read the documentation when taken in isolation.  The anti-patterns are ones in the development process that can get you into trouble:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Having designers work on templates without knowledge of the underlying view code.&lt;/li&gt;
+&lt;li&gt;Having work done on templates treated as unimportant &amp;quot;front-end stuff&amp;quot; that doesn&#39;t need code review.&lt;/li&gt;
+&lt;li&gt;Adding attribute access on related objects without checking the view or model manager code.&lt;/li&gt;
+&lt;li&gt;Caching querysets without knowing how much data you might be putting in there.&lt;/li&gt;
+&lt;li&gt;Writing tests for Model collections with only one fixture row for that Model.&lt;/li&gt;
+&lt;li&gt;Writing tests for ModelManager methods that don&#39;t include a check on the number of queries and/or cache hits made.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;It&#39;s pretty obvious why Django works this way.  There&#39;s nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns -- a rich source for defects unless you know what to look for.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;I&#39;m giving a lightning talk based on this post at PhillyPUG&#39;s meetup on May 21, 2013. My slides can be found at http://0x74696d.com/slides/django-db-antipatterns.html&lt;/aside&gt;
+&lt;/blockquote&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

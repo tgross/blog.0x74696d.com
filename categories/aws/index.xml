@@ -9,6 +9,173 @@
     <atom:link href="http://0x74696d.com/categories/aws/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
+      <title>Analytics on the Cheap</title>
+      <link>http://0x74696d.com/posts/analytics-on-the-cheap/</link>
+      <pubDate>Mon, 16 Mar 2015 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/analytics-on-the-cheap/</guid>
+      <description>
+
+&lt;p&gt;In November of 2013 I was at the AWS ReInvent conference, where they previewed their new service Kinesis. The long story short of this is that it&#39;s like a hosted Kafka. And the long story short of Kafka is that it&#39;s a way to ingest a whole lot of data in the short period of time so that you can process it in some kind of near-offline process later. The seemingly canonical example is something like log data. Loggly uses Kafka for this, I hear? The premise is that you have a stream of data from many clients, you want those clients to be able to treat the messages as close to fire-and-forget as possible (within the boundaries of TCP, if you&#39;re using that as the transport), you don&#39;t want to drop messages, and you want to be able to get the messages into the system you&#39;re using for analysis as soon as possible.&lt;/p&gt;
+
+&lt;p&gt;But I would argue that in most cases outside of things like Loggly, you don&#39;t have actionable data when you&#39;re doing analysis real-time, so you can do the processing part as a batch job. Which changes the operational economics of the system quite a bit. There&#39;s no point in putting up the capital for near-realtime analytics if you don&#39;t need them, and you&#39;d be surprised how close you can get and still keep things inexpensive.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-firehose-part-deux&#34;&gt;The Firehose, Part Deux&lt;/h2&gt;
+
+&lt;p&gt;In an earlier article I mentioned in passing that &lt;a href=&#34;http://www.dramafever.com/company/careers.html&#34;&gt;we&lt;/a&gt; at one point replaced a fairly complicated system using DynamoDB to ingest our analytics firehose. The solution we came to for that is what I want to talk about here.&lt;/p&gt;
+
+&lt;aside&gt;I should point out here that although I did a lot of the implementation work of the ingest side of this system, the initial inspiration was from my colleague Ry4an&#39;s &lt;a href=&#34;http://ry4an.org/unblog/post/amazon-s3-as-append-only-datastore/&#34;&gt;S3 as Append-Only Datastore&lt;/a&gt;.&lt;/aside&gt;
+
+&lt;p&gt;We&#39;re working under the following requirements:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Large swing in load throughout the day (which implies efficiencies to be had in stateless auto-scaling instances).&lt;/li&gt;
+&lt;li&gt;Response time to the client should be low-latency.&lt;/li&gt;
+&lt;li&gt;Need to geolocate the client&lt;/li&gt;
+&lt;li&gt;Need to authenticate the client (although we also handle anonymous clients)&lt;/li&gt;
+&lt;li&gt;Need to be able to take the same data set and reuse it in other analysis environments in the future&lt;/li&gt;
+&lt;li&gt;Might need to update the kinds of data we&#39;re collecting in the future&lt;/li&gt;
+&lt;li&gt;As cheap as possible&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The technique I&#39;m describing has one important constraint: messages have to be either idempotent or have a built-in ordering (ex. time series data), because there&#39;s no way for the ingest servers to handle the ordering of messages otherwise. You won&#39;t be able to come up with a &amp;quot;true&amp;quot; total ordering here either, but we&#39;re okay with that on a statistical level.&lt;/p&gt;
+
+&lt;p&gt;The basic workflow is this:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Incoming message passes through our CDN to pick up geolocation headers&lt;/li&gt;
+&lt;li&gt;Message has its session authenticated (this happens at our routing layer in Nginx/OpenResty)&lt;/li&gt;
+&lt;li&gt;Message is routed to an ingest server&lt;/li&gt;
+&lt;li&gt;Ingest server transforms message and headers into a single character-delimited querystring value&lt;/li&gt;
+&lt;li&gt;Ingest server makes a HTTP GET to a 0-byte file on S3 with that querystring&lt;/li&gt;
+&lt;li&gt;The bucket on S3 has S3 logging turned on.&lt;/li&gt;
+&lt;li&gt;We ingest the S3 logs directly into Redshift on a daily basis.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The first two layers aren&#39;t particularly interesting except that by the time we get to the analytics server we have a request that looks something like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Example request: user watched a segment of video&lt;/strong&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;POST /tick/ HTTP/1.1
+Host: https://api.example.com
+Content-Type: application/x-www-form-urlencoded
+Accept: application/json
+User-Agent: VideoPlayerUserAgent
+X-Akamai-Edgescape-Header: City=Splot,Country=Wales,Region=Europe
+X-User-Id: 1234567
+X-User-Type: Registered
+X-Consumer: InternalCodeForConsumerType
+
+event_guid=xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+event_type=watch
+video_type=video
+content_id=4
+start_timecode=60
+end_timecode=120
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In practice we have a dozen extra fields on there and some of the names are different for weird historical reasons. But the point is that we&#39;ve got this far with only ever hitting our session store once (if it&#39;s an authenticated session and if you&#39;re using a session store instead of signed/encrypted on-the-wire sessions) and making one hop thru Nginx.&lt;/p&gt;
+
+&lt;p&gt;Ok, so at this point we&#39;ve got a request and we need to ingest this pretty quickly. The original design had a whole bunch of Flask processes running under gevent. You need multiple processes per box because the GIL starts to get in the way even if you&#39;re mostly I/O bound. Last summer we moved this to Go and I&#39;m deploying less than 10% of the number of EC2 instances now.&lt;/p&gt;
+
+&lt;p&gt;The only thing our ingest server needs to do it to validate the message and then transform it into a querystring. For example, we make sure that the &lt;code&gt;content_id&lt;/code&gt;, &lt;code&gt;start_timecode&lt;/code&gt;, and &lt;code&gt;end_timecode&lt;/code&gt; are all integers, that the &lt;code&gt;event_type&lt;/code&gt; falls within a range of a few types, etc. Once we&#39;re done with that we transform the values of the fields into a single querystring parameter. Here&#39;s the catch: the order of the fields is immutable for all time. You can add fields by appending them and can remove fields by leaving the value out (but keeping the delimiters that mark it). But changing the order will break your old records.&lt;/p&gt;
+
+&lt;p&gt;So for our example we&#39;re going to have the fields in this order: event timestamp, event GUID, user id, user type, consumer, country, event type, video type, content ID, start, end. We make a signed GET to S3:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Example request to S3&lt;/strong&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;GET /tick HTTP/1.1
+Host: https://example.bucket.s3.amazonaws.com
+X-Amz-Authentication: xxxxx
+
+data=|2014-01-15T19:33:23|xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx|1234567|Registered|InternalCodeForConsumerType|Wales|watch|video|4|60|120|
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;(Notice that we start and stop with a pipe -- this will come up again later!)&lt;/p&gt;
+
+&lt;p&gt;In practice we use a short code for the various enums involved rather than writing out &amp;quot;InternalCodeForConsumerType&amp;quot; in the querystring. If the message fails to validate or, far less likely, the GET to S3 fails, we can either log this querystring for later reply or send it off to a queue for reprocessing later. If you don&#39;t have a lot of failed messages and having added latency between message arrival and analysis isn&#39;t a problem, just logging it out is probably cheaper. In our service we have few true errors but our validation is pretty strict (so we don&#39;t analyze a lot of garbage) and if a client has a buggy release then it&#39;ll send a flood of bad messages. So we sample validation errors and send those off to Sentry so the client developers can see them and fix their clients.&lt;/p&gt;
+
+&lt;p&gt;If you really care about latency of the initial request a lot, you can reduce S3 latency slightly by using multiple identical-to-your-application S3 keys. S3 suffers from hot-hashes -- although I&#39;ve never noticed it at our scale -- so you can hash the requests among &lt;em&gt;n&lt;/em&gt; keys in the same bucket and it won&#39;t matter to the final logging output.&lt;/p&gt;
+
+&lt;p&gt;Why sign the GET? Because we have the S3 bucket locked down so that only our ingest servers can make the GET. This prevents third-parties or incautious developers from messing around with our analytics data. Create an IAM user just for your ingest servers and use that AWS access key and secret key in your application to sign the request. Here&#39;s the IAM configuration you&#39;ll want for that user:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-json&#34; data-lang=&#34;json&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;quot;Version&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;2012-10-17&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;quot;Statement&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;quot;Effect&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;quot;Allow&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;quot;Action&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+        &lt;span class=&#34;s2&#34;&gt;&amp;quot;s3:GetObject&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;p&#34;&gt;],&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;quot;Resource&amp;quot;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+        &lt;span class=&#34;s2&#34;&gt;&amp;quot;arn:aws:s3:::example.bucket/tick&amp;quot;&lt;/span&gt;
+      &lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Within an hour or so each GET shows up in the logs for the S3 bucket wherever we&#39;re sending the logs for our S3 &lt;code&gt;example.bucket&lt;/code&gt; (for example, &lt;code&gt;example.bucket.logs&lt;/code&gt;). At this point your possibilities for analysis are broad. If you have a small amount of data and just want to dick around with grep/awk, you can do that. If you have millions of messages a minute and need to pipe it to Redshift, you can do that. I&#39;ll get to that in a moment but let&#39;s have a short aside about operational costs of this system at this point.&lt;/p&gt;
+
+&lt;h2 id=&#34;how-cheap-is-it&#34;&gt;How Cheap Is It?&lt;/h2&gt;
+
+&lt;p&gt;So at this point you&#39;ve got only 2 moving parts: the ingest web server and the S3 logging. The web server only has to be as beefy as the validation you do. In our case we&#39;re not hitting a database or doing any complicated operations; everything we&#39;re doing is just to make sure we don&#39;t write garbage data and to take note of problems (99% of the time this is from a new version of a client that&#39;s failing to meet spec).&lt;/p&gt;
+
+&lt;p&gt;How many instances you&#39;ll need is going to directly depend on the load you need to serve and your server&#39;s ability to handle concurrent connections. Python, even with gevent, is probably not ideal for this at large volumes but it&#39;s very quick to put together if you&#39;re just starting out. Let&#39;s assume our inbound request and our processed S3 message are both ~200B. Assuming we&#39;re using EC2 medium I/O instances like the new c4.large, we can put 10k messages/second in the pipe without even saturating the network connection. If you&#39;re running Flask, chances are your ingest server application will crap out first, so don&#39;t use that if you have 10k+ req/second. Use Go or Erlang or Java (yuck) or something. But our current Go application barely notices this kind of traffic. Once we did some very basic TCP and ulimits tweaking, we&#39;re only running as many instances as we do to support our internal standards for redundancy.&lt;/p&gt;
+
+&lt;p&gt;Our S3 bucket with the 0 byte file &lt;code&gt;tick&lt;/code&gt; costs us only the cost of the S3 GETS. As of this writing that&#39;s $0.004 per 10k requests. This is all within-AWS, so there&#39;s no additional charge for data transferred (which would be very small anyways).&lt;/p&gt;
+
+&lt;p&gt;Our ~200B logging message takes us space in S3, so we&#39;ll be spending about $0.0006 in storage per 10k messages (up to the first 10 billion or so, when they get slightly cheaper). If we want, we can rotate the logs off to AWS Glacier after a few months and save a couple bucks that way.&lt;/p&gt;
+
+&lt;p&gt;At the end of the day, the design we have here now has a unit cost (per event captured) less than 1% of the original design of the application.&lt;/p&gt;
+
+&lt;h2 id=&#34;slurping-up-the-data&#34;&gt;Slurping Up the Data&lt;/h2&gt;
+
+&lt;p&gt;Doing any kind of analysis at this point probably means we need to ingest the data into a different format. I dunno about you, but sort, uniq, grep, awk get a little tiresome once we start working with hundreds of files with billions of rows each. At our scale we could probably just barely get away with a beefy MySQL instance (we&#39;ve standardized on MySQL), but we decided to use AWS Redshift instead and have been pretty happy with it. One of the nice features it has is for this kind of ingest is that you can copy directly from s3.&lt;/p&gt;
+
+&lt;p&gt;The S3 log files are named for the hour in which they were created. Our quick-and-dirty way to deal with this for a daily roll-up is to create a new table for each day&#39;s raw rows (we do lots of post-processing in another step to figure out unique sessions, separate ads from video plays, etc.). We keep the raw tables for a while so we create one for each day, but if you don&#39;t want to do that you can just throw out the daily raw tables once you&#39;ve post-processed them. As long as you keep the original logs in S3/Glacier (12 9&#39;s durability) you can always go back and re-process if there&#39;s a new kind of analysis you want to do. If we continue the example from above our raw table might look something like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-sql&#34; data-lang=&#34;sql&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;CREATE&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;TABLE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;raw_s3_rows&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;left_margin&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;VARCHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;600&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;text32k&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;event_time&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;TIMESTAMP&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;delta&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;SORTKEY&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;event_guid&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;45&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;raw&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;DISTKEY&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;user_id&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT4&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;user_type&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT2&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;consumer&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;40&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bytedict&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;country&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bytedict&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;event_type&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;20&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bytedict&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;video_type&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;CHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;10&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bytedict&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;content_id&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT4&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT4&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly16&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;INT4&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mostly16&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;right_margin&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;VARCHAR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;200&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ENCODE&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;text255&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Note the two weird bits. The &lt;code&gt;left_margin&lt;/code&gt; field lets us cut off everything we see left of the first delimiter in the log line, and the &lt;code&gt;right_margin&lt;/code&gt; does the same at the end. That&#39;s why we started our querystring parameter with a pipe earlier. We don&#39;t have a lot of control over the logging format that S3 uses, so this should give us a guarantee that we know where the start and end of our data are. Obviously this will break big-time if you allow unauthenticated GETs to the S3 key you&#39;re using for logging because any asshole on the web can come along and stuff evil in there.&lt;/p&gt;
+
+&lt;p&gt;Now we can load in the raw S3 logs:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-sql&#34; data-lang=&#34;sql&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;COPY&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;raw_s3_rows&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;FROM&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;s3://example.bucket.logs/log-$DATESTAMP&amp;#39;&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;CREDENTIALS&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;aws_access_key_id=&amp;lt;ACCESSKEY&amp;gt;;aws_secret_access_key=&amp;lt;SECRETKEY&amp;gt;&amp;#39;&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;DELIMITER&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;|&amp;#39;&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;TIMEFORMAT&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;AS&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;YYYY-MM-DD-HH-MI-SS&amp;#39;&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;EMPTYASNULL&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;BLANKSASNULL&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;MAXERROR&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;AS&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Of course you&#39;ll want to automate this in some way to remove the &lt;code&gt;$DATESTAMP&lt;/code&gt; bit and have that be the hourly log names. We bail out if we get a lot of errors in the loading process, but because of the kind of data we&#39;re dealing with we&#39;re okay if there are a few bad messages (in practice we catch this at the validation stage so if we&#39;re seeing errors it&#39;s because we did something dumb like added a field without also updating the &lt;code&gt;CREATE TABLE&lt;/code&gt; script).&lt;/p&gt;
+
+&lt;p&gt;The important thing to notice here is that although we&#39;re doing a daily roll-up of the S3 logs, your ability to get the data faster is limited only by two things: how fast redshift can hoover-up the data from S3, and how good AWS&#39;s &amp;quot;best effort SLA&amp;quot; is on getting the logs into the S3 bucket (it&#39;s not bad... you could probably get away with getting logs within 2-3 hours without being worried about missing data).&lt;/p&gt;
+
+&lt;h2 id=&#34;events-as-audit-trail&#34;&gt;Events as Audit Trail&lt;/h2&gt;
+
+&lt;p&gt;Even not counting the analysis part, there&#39;s one more nice bit about this setup which is that it&#39;s modular and reusable across applications. We can imagine a poor-mans version of this for a static web site. Instead of signing the GET, a piece of Javascript on the page makes the GET (or a resource is loaded remotely like the classic 1x1 transparent tracking pixel). You can&#39;t validate the input or sign the request if you do this, which is probably dangerous, so don&#39;t go &#39;round telling your clients I said you should do this. But it&#39;s &amp;quot;infinitely&amp;quot; scalable -- if reddit decides to hit your blog your web server won&#39;t fall over serving analytics tracking.&lt;/p&gt;
+
+&lt;p&gt;But the really nice thing here is that these log events are just a bunch of files when you&#39;re done. The lines of the log can serve as an immutable event source -- so long as you only ever read from them. You can back them up to cold storage, use them in different data stores, treat them as your audit log, whatever you need.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
       <title>Tag All The Things!</title>
       <link>http://0x74696d.com/posts/tag-all-the-things/</link>
       <pubDate>Sat, 12 Oct 2013 00:00:00 +0000</pubDate>
@@ -199,6 +366,305 @@ update-ssh
 
 &lt;blockquote&gt;
 &lt;aside&gt;Download the code from this post &lt;a href=&#34;https://github.com/tgross/tgross.github.io/tree/master/_code/tag-all-the-things.py&#34;&gt;here&lt;/a&gt;&lt;/aside&gt;
+&lt;/blockquote&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Falling In And Out Of Love with DynamoDB, Part II</title>
+      <link>http://0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb-part-ii/</link>
+      <pubDate>Thu, 11 Jul 2013 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb-part-ii/</guid>
+      <description>
+
+&lt;p&gt;Amazon&#39;s DynamoDB provides high concurrent throughput, availability across multiple AWS data centers, and the convenience of pay-as-you go pricing. All this is great, but key design for DynamoDB results in some unexpected challenges. &lt;a href=&#34;http://www.dramafever.com&#34;&gt;We&lt;/a&gt; have built a number of production systems at this point using DynamoDB and as such have a bit of a love/hate relationship with the product.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;In my &lt;a href=&#34;{% post_url 2013-06-18-falling-in-and-out-of-love-with-dynamodb %}&#34;&gt;last post&lt;/a&gt; I put up my slides from a talk by this same title. But sharing slides for a talk online without video isn&#39;t all that useful, so this is an attempt to distill the essence of a few of my points in the talk to something more comprehensible.&lt;/aside&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&#34;schema-less-ish&#34;&gt;Schema-less-ish&lt;/h2&gt;
+
+&lt;p&gt;DynamoDB is schema-less, but the design of your keys has a big impact on application design, throughput performance, and cost. Table rows are referenced by primary key: either a hash key or a hash key and range key. Range keys are sorted but -- this is the big catch -- they are sorted only within a given hash key&#39;s bucket. Hash key queries are exact, whereas range key queries can be conditional; you can ask for the range key portion to be &amp;quot;starts with&amp;quot; or &amp;quot;greater than&amp;quot;.  If you have a hash-range key want to use the API and not spin up map-reduce (effectively, for anything soft real-time), you need to query the hash key and range key together.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/dynamo-hashrange.png&#34; alt=&#34;range key sorting&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;For the example schema above, I can do a query for all items where &lt;code&gt;hash == 1&lt;/code&gt;, or all items where &lt;code&gt;hash == 1&lt;/code&gt; and &lt;code&gt;range &amp;gt; b&lt;/code&gt;.  But I can&#39;t make an API query for all items where &lt;code&gt;range &amp;gt; b&lt;/code&gt;.  For that I need to do a very expensive table scan or send it off to map-reduce.&lt;/p&gt;
+
+&lt;p&gt;Our fan/follow system uses DynamoDB&#39;s weird key structure to its advantage. &lt;em&gt;Full disclosure: someone on our team smarter than me came up with this.&lt;/em&gt; This feature lets us create relationships between arbitrary entities on our site. So a user can become a &amp;quot;fan&amp;quot; of an actor or a series or &amp;quot;follow&amp;quot; another user (under the hood this is the same data structure). In other words, we&#39;re looking to create a graph database.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/graph.png&#34; alt=&#34;graph database&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;For this, we use the following key schema:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hash key                 |   range key
+-------------------------------------------------------------
+content_type.entity_id   |   FAN_OF.content_type.entity_id
+content_type.entity_id   |   FANNED_BY.content_type.entity_id
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;For each relationship we make two writes; one in each direction of the graph. Note that the range keys are all strings, which means having a delimiter and type coercion of integer IDs. Using the API to query this is stupid-easy. Say I want to know which actors a given user is a fan of. Using the &lt;code&gt;boto&lt;/code&gt; library it&#39;s something like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;results&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;table&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;query&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hash_key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;user_id&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                      &lt;span class=&#34;n&#34;&gt;range_key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BEGINS_WITH&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;FAN_OF.Actor.&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Or I can run it backwards, and find out which users have fanned a given actor:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;results&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;table&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;query&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hash_key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;actor_id&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                      &lt;span class=&#34;n&#34;&gt;range_key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BEGINS_WITH&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;FANNED_BY.User.&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;For this sort of thing DynamoDB is awesome. The use case matches the structural quirks perfectly, and the pay-as-you-go pricing is great for what was at the time an unproven feature.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-firehose&#34;&gt;The Firehose&lt;/h2&gt;
+
+&lt;p&gt;We started running into real trouble when we wanted to use DynamoDB for time series data. I&#39;m not saying DynamoDB is unsuited for time series data, but the gotchas start to multiply rapidly. Our use case here was our analytics &amp;quot;firehose&amp;quot;; a ping that each of our video player clients sends back every minute containing a bunch of data we need for metrics, revenue-sharing data, etc. In other words, business critical and high volume. Originally all this data was going into a giant append-only MySQL table, but with something like 70% of all our requests resulting in writes to this table the performance was getting to be terrible as we scaled-up.  We could have sharded the MySQL database, of course. But an eventually-consistent lock-free database that supported widely-parallel writes seemed like an ideal use case for DynamoDB.&lt;/p&gt;
+
+&lt;p&gt;A naive approach to the key schema went like this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hash key        | range key   |  attributes
+---------------------------------------------------
+series.episode  | timestamp   |  session_id, etc.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So if we needed data for a given series and episode, we can query and then slice on the range. But if you want a whole month&#39;s worth of data for, say, cutting your monthly revenue-sharing checks to content licensors, you&#39;re going to run an EMR job. And there are two additional problems.  The first is that the time it takes to run that EMR job will increase over time as the number of properties grow. I&#39;ll get to the second problem in a moment.&lt;/p&gt;
+
+&lt;p&gt;When we took a second crack at the design for this, we ended up having this conversation a lot:&lt;/p&gt;
+
+&lt;blockquote&gt;
+&#34;Hey, you know in MongoDB you can...&#34;&lt;br/&gt;&#34;Nope, hierarchical keys, remember?&#34;
+&lt;/blockquote&gt;
+
+&lt;p&gt;or this one:&lt;/p&gt;
+
+&lt;blockquote&gt;
+&#34;Well in Redis you can...&#34;&lt;br/&gt;&#34;Nope, hierarchical keys, remember?&#34;
+&lt;/blockquote&gt;
+
+&lt;p&gt;So this was the second attempt / dirty hack:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hash key  | range key   |  attributes
+------------------------------------------------------------
+day       | timestamp   |  session_id, series, episode, etc.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;You still end up having to do a scan with EMR, but only over the data from a given day. Then you can aggregate data for series and episodes based on the attributes. You&#39;ll also need to roll-up tables as you go to reduce the amount of processing.  This is a bad hack, because you end up with write throughput that looks like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/thruput-badhashkey.png&#34; alt=&#34;cloudwatch with bad throughput&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;That&#39;s right, the throughput is a tenth of what we provisioned. This is where the abstraction of the managed service starts to leak. When you provision throughput, Amazon is spinning up &lt;code&gt;n&lt;/code&gt; instances of whatever the underlying processes are. Your provisioned throughput is distributed among these instances.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/dynamotalk-keydistribution-bad.png&#34; alt=&#34;bad key distribution&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Rows are written to the instances based on the hash key, not the combined hash+range key. Duh, it&#39;s a hash, right?  Which means in the schema above, we have a hot hash key, and with a hot key, throughput will be &lt;code&gt;(provisioned throughput / however many instances Amazon has provisioned)&lt;/code&gt;. The number of instances is undocumented and abstracted from you but I&#39;ve been able to estimate there are roughly 10 instances running when write throughput ranges between 200-500.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/dynamotalk-keydistribution-good.png&#34; alt=&#34;good key distribution&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Avoiding hot hash keys is key to DynamoDB performance.  Because the throughput is divided by the number of instances, you end up with not just reduce throughput when you&#39;re writing to a single hash but &lt;em&gt;diminishing returns&lt;/em&gt; on the throughput you provision. This was also the second problem with using series/episode as a hash key.  There&#39;s plenty of key space given the size of our library, but too many hot writes because the latest episodes tend to be the most popular.&lt;/p&gt;
+
+&lt;p&gt;Another thing to keep in mind here is that writes are at least 5x as expensive as reads. A unit of read capacity gets you 1 consistent read up to 4KB (or 2 eventually consistent reads), whereas the write unit is for 1KB writes. This doesn&#39;t include secondary indexes, which add another increment in cost for each index. So writes can be significantly more expensive.&lt;/p&gt;
+
+&lt;p&gt;Key design impacts throughput for both reads and writes, and the size of rows and number of secondary indexes impacts the ratio of writes vs reads. And because provisioning for DynamoDB is pay-as-you-go, this means &lt;em&gt;there is a direct relationship between key schema design and operational cost.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;time-series-data&#34;&gt;Time Series Data&lt;/h2&gt;
+
+&lt;p&gt;It is possible to do time-series data in the hash key, but only barely. You can add a random token to the end of timestamp that provides enough active key space to avoid a hot hash key. Then when you process the job in map-reduce, you remove that token.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hash key                  | range key    |  attributes
+-----------------------------------------------------------------
+timestamp + random token  | session_id   |  series, episode, etc.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;A two-ASCII-character token is enough to give you plenty of key space. Note that this makes it impossible to make API-based queries, because you&#39;ll need to make thousands of queries per timestamp you want to grab. You can &lt;em&gt;only&lt;/em&gt; query this schema with map-reduce.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;I had a chance to talk to some of the DynamoDB team recently about this approach and it&#39;s pretty clear this is a wrong-headed plan of attack they would probably not recommend. But at the time secondary indexes weren&#39;t available and in this use case we didn&#39;t need to query via the API. So we ran with this for a while despite some serious warts.&lt;/aside&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;This design makes the writes simple and reduces the cost of doing ingest, but adds operational complications. In order to reduce the time it takes to do post-processing, you&#39;re going to want to roll-off data that you&#39;ve processed by rotating tables. For us this meant doing a monthly rotation of tables, but the time it took to do a month&#39;s worth of data was impractically long and we wanted to eventually be able to shrink the processing window down so that our management team could use this for actionable BI (i.e. no more than 24 hours old).&lt;/p&gt;
+
+&lt;p&gt;You are &lt;em&gt;much&lt;/em&gt; better off using a secondary index on an attribute which is a timestamp. Your row-writes will double in cost, but it&#39;ll be worth the greatly reduced complication and cost of your post-processing in EMR.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;We ultimately replaced this entire system with a fun hack using a handful of evented Flask servers making 0-byte GETs (with appended query-strings) against S3 and ingesting S3 logs into Redshift. This reduced costs to a fraction of what they were but I&#39;m going to leave that discussion for another time and an upcoming jointly-written post with one of our senior developers.&lt;/aside&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&#34;throttling&#34;&gt;Throttling&lt;/h2&gt;
+
+&lt;p&gt;One of the other problems we ran into with DynamoDB is dealing with throttling. Estimating the required provisioned throughput was pretty easy, but the load is also spiky. Our content team might post a new episode of a popular series and then announce it via social channels in the early evening, for example, and this will result in a sharp increase in new streams as those notifications arrive.&lt;/p&gt;
+
+&lt;p&gt;At the time we started this analytic ingest project, DynamoDB would throttle you fairly quickly if you went over provisioning. What&#39;s worse, the monitoring in Cloudwatch has poor resolution (minimum of 5 minutes average intervals), which means you could conceivably be throttled without it showing up in your alarms system until it&#39;s too late. If you are using a blocking backend (ex. Django), you&#39;re going to block the web thread/process if you are throttled. Amazon has provided a bit more leeway in throttling than they used to, but this only reduces the problem. Cloudwatch metrics for DynamoDB currently lag by 10-15 minutes, although at least the Cloudwatch monitor uses the same units as your provisioning, which wasn&#39;t the case when we started out.&lt;/p&gt;
+
+&lt;p&gt;If your application allows for eventual consistency as our analytics ingest project did, you can avoid throttling problems by making your writes asynchronous. Our pipeline took the incoming pings, pre-processed them, placed them into a queue (we use SQS for this, but RabbitMQ is another good option), and then pulled the messages off the queue with a worker that makes the writes. If we have load spikes or a failure in the workers, we can safely allow messages to accumulate in the queue. Once the problem has abated, we can always spin up extra worker capacity as needed to burn down the queue.&lt;/p&gt;
+
+&lt;h2 id=&#34;semi-homemade-autoscaling&#34;&gt;Semi-Homemade Autoscaling&lt;/h2&gt;
+
+&lt;p&gt;Amazon doesn&#39;t provide an autoscaling API for DynamoDB. The API for provisioning has a couple of important quirks. You can only increase the provisioning by up to +100% per API call, and another API request to increase will fail until the provisioning change has been completed (presumably this is because Amazon is spinning up DynamoDB instances). You can decrease the provisioning down to 1 read/write unit with a single call, but you are allowed only 2 decreases in provisioning per table per day.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/slides/images/20130618/daily_nginx_requests.png&#34; alt=&#34;Nginx requests, intentionally unitless&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We have a large daily swing in load because &amp;quot;prime time TV&amp;quot; still exists on the web if you have a predominantly North American audience. Because this is a predictable swing in load, we have a cron job that fires off increases and decreases in provisioning. The job fires every 15 minutes. Starting in the early AM it checks if the current throughput is within 80% of provisioned throughput and if so steps up in 20% increments over the course of the day. Using &lt;code&gt;boto&lt;/code&gt; it&#39;s something like the code below.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ANALYTICS&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;analytics_table&amp;#39;&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;PROVISIONED&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;ProvisionedThroughput&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;READ_CAP&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;ReadCapacityUnits&amp;#39;&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;WRITE_CAP&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;WriteCapacityUnits&amp;#39;&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;# fill in your connection details here.&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# Gotta love that consistent connection API, boto&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;ddb&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;boto&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;connect_dynamodb&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;cw&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;boto&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ec2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cloudwatch&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CloudWatchConnection&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+
+&lt;span class=&#34;n&#34;&gt;metric_c&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;cw&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;list_metrics&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                           &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;TableName&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ANALYTICS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+                           &lt;span class=&#34;s1&#34;&gt;&amp;#39;ConsumedWriteCapacity&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                           &lt;span class=&#34;s1&#34;&gt;&amp;#39;AWS/DynamoDB&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;consumed&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;metric&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;query&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;Sum&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;unit&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;Count&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                        &lt;span class=&#34;n&#34;&gt;period&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;300&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;][&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;Sum&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;datetime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;datetime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;now&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hour&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;6&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;metric_p&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;cw&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;list_metrics&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                               &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;TableName&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ANALYTICS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+                               &lt;span class=&#34;s1&#34;&gt;&amp;#39;ProvisionedWriteCapacity&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                               &lt;span class=&#34;s1&#34;&gt;&amp;#39;AWS/DynamoDB&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;provisioned&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;metric_p&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;query&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;Sum&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;unit&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;Count&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                                 &lt;span class=&#34;n&#34;&gt;period&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;300&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;][&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;Sum&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+
+    &lt;span class=&#34;n&#34;&gt;ratio&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;consumed&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;/&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;provisioned&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ratio&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;80&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;provset&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{}&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;provset&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;READ_CAP&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ddb&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;describe_table&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ANALYTICS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                                              &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;Table&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; \
+                                              &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;PROVISIONED&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;][&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;READ_CAP&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;provset&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;WRITE_CAP&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ddb&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;describe_table&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ANALYTICS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; \
+                                              &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;Table&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; \
+                                              &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;PROVISIONED&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;][&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;WRITE_CAP&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;provset&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pMetric&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;threshold&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;mf&#34;&gt;1.2&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;table&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ddb&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;get_table&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ANALYTICS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;ddb&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;update_throughput&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;table&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                              &lt;span class=&#34;n&#34;&gt;provset&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;READ_CAP&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;],&lt;/span&gt;
+                              &lt;span class=&#34;n&#34;&gt;provset&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;WRITE_CAP&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;])&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;I&#39;m eliding a bunch of setup and error-handling code -- check the &lt;code&gt;boto&lt;/code&gt; docs. We have a similar branch of code that is hit when &lt;code&gt;now&lt;/code&gt; is in the wee hours of the morning. This branch checks whether the currently used throughput is below a threshold value and steps down our provisioning. Rather than keeping track of state (so we don&#39;t use up our 2 decreases), this branch checks the value of the provisioning against a hard-coded value before making the API call.&lt;/p&gt;
+
+&lt;p&gt;The very minor risk here is that if we were to somehow have a sudden rush of traffic at 4AM we would get throttled quite a bit, but the SQS queue protects us from this being a serious problem. This solution works for our predictable and relatively smoothly-changing load, but your mileage may vary.&lt;/p&gt;
+
+&lt;h2 id=&#34;is-dynamodb-the-right-tool-for-the-job&#34;&gt;Is DynamoDB the right tool for the job?&lt;/h2&gt;
+
+&lt;p&gt;Between this post, the &lt;a href=&#34;http://0x74796d.com/slides/falling-in-and-out-of-love-with-dynamodb.html&#34;&gt;slides from the talk&lt;/a&gt;, and the earlier discussion of &lt;a href=&#34;{% post_url 2013-06-05-dynamodb-batch-uploads %}&#34;&gt;batch writing&lt;/a&gt;, we&#39;ve gone over a lot of the interesting properties and gotchas for working with DynamoDB. Some takeaways from my experiences:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Poor key design == cost &amp;amp; pain&lt;/li&gt;
+&lt;li&gt;Batch write with high concurrency to improve throughput&lt;/li&gt;
+&lt;li&gt;Use estimation and active monitoring to reduce costs&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To figure out if DynamoDB is the right tool for your project, you&#39;ll need to look at these three items. And if you&#39;re tired of this topic, for my next post we&#39;ve leave DynamoDB behind for a while.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Falling In And Out Of Love with DynamoDB [talk]</title>
+      <link>http://0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb/</link>
+      <pubDate>Tue, 18 Jun 2013 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb/</guid>
+      <description>&lt;p&gt;On Tuesday night I gave a talk on my experiences using Amazon&#39;s DynamoDB.  &lt;a href=&#34;http://0x74696d.com/slides/falling-in-and-out-of-love-with-dynamodb.html&#34;&gt;Here&lt;/a&gt; are the slides for my talk.&lt;/p&gt;
+
+&lt;p&gt;PhillyDB and Philly AWS hosted the event, and there were some great lightning talks.  Thanks to Michael Reichner and Aaron Feng for putting this together.  Aaron is trying to get Philly AWS running regularly again, so if you live or work in the Philadelphia area you should definitely join the &lt;a href=&#34;https://groups.google.com/forum/?fromgroups#!forum/phillyaws&#34;&gt;Google Group&lt;/a&gt; and come to meetings.  And give a talk!&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>DynamoDB Batch Uploads</title>
+      <link>http://0x74696d.com/posts/dynamodb-batch-uploads/</link>
+      <pubDate>Wed, 05 Jun 2013 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/dynamodb-batch-uploads/</guid>
+      <description>&lt;p&gt;I work with a moderately large AWS deployment, and this includes a few applications that are using Amazon&#39;s DynamoDB. One of the many many quirks of working with DynamoDB is that it&#39;s optimized towards highly parallel operations. Ordinarily this is exactly what you want, but if you ran into the situation I did over the weekend not so much.&lt;/p&gt;
+
+&lt;p&gt;I had a modestly-sized data subset of user video-watching habits -- on the order of 10s of millions of rows -- that had to be transfered from a MySQL instance on RDS to DynamoDB. Obviously when going from a relational store to a non-relational one, there also needed to be a transformation of that data. The data had to be duplicated to three different tables because of an idiosyncratic schema optimized towards fast reads. (Actually, more like idiomatic -- I&#39;m speaking at &lt;a href=&#34;http://www.meetup.com/phillydb/&#34;&gt;PhillyDB&lt;/a&gt; this month on DynamoDB if you&#39;re interested in learning more about DynamoDB schema design, operations, etc.) And due to what was honestly some poor decision-making on my part, I needed it done in a hurry.&lt;/p&gt;
+
+&lt;p&gt;I already had code that would be writing new records to the table later down the road when the system went to production, so I figured I&#39;d just make a query against RDS, page the results in chunks of a couple hundred, do the transformations, and then use the &lt;a href=&#34;http://boto.readthedocs.org/en/latest/dynamodb_tut.html&#34;&gt;boto&lt;/a&gt;-based code to do the uploads. No problem, right?  Except that of course when I tried that I was maxing out at about 100 writes/second, which was going to take way more time than I had. I wanted at least 1000/sec, and more if I wanted to make it to beer o&#39;clock before the weekend was over.&lt;/p&gt;
+
+&lt;p&gt;At this point I checked that I hadn&#39;t made a bone-headed key distribution mistake that would throttle me down to a tenth of my provisioned throughput, and I switched to the &lt;code&gt;batch_write&lt;/code&gt; API (this I should have done in the first place, but I was going for laziness) and fiddled with my query page size.  I could still only get up to about 200 writes/second this way.&lt;/p&gt;
+
+&lt;p&gt;Time to get hacky.&lt;/p&gt;
+
+&lt;p&gt;The first step was to take the query and data transformation out of the loop and avoid doing the work on a constrained-in-every-way EC2 instance. I grabbed the RDS table with &lt;code&gt;mysqldump&lt;/code&gt; and brought it to my laptop.  Armed with &lt;code&gt;sed&lt;/code&gt;, &lt;code&gt;cut&lt;/code&gt;, and &lt;code&gt;sort&lt;/code&gt;, I managed to get the table into the shape I wanted it after about an hour, resulting in three big ol&#39; CSV files something like the one below.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;user,    series, episode, timestamp, moddt
+1234567, 123,    1,       60,        2013-06-05T10:00:00
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Timestamp in this case is position within the video. And DynamoDB only takes strings and numbers, so there&#39;s no good way to dates represented which is how you end up with ISO-format date strings.&lt;/p&gt;
+
+&lt;p&gt;Next I needed to be able to generate a lot of simultaneous parallel requests in order to hit the throughput I wanted. I have a production system using &lt;code&gt;gevent&lt;/code&gt; that can process 1000+ writes/sec to DynamoDB per core before it has its coffee in the morning, but it&#39;s specialized for its task and again, I was in a hurry. And even with that system I&#39;d previously ran into throughput problems due to GIL contention, so multiprocessing was the way to go.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;nn&#34;&gt;csv&lt;/span&gt;
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;nn&#34;&gt;boto&lt;/span&gt;
+&lt;span class=&#34;kn&#34;&gt;from&lt;/span&gt; &lt;span class=&#34;nn&#34;&gt;multiprocessing&lt;/span&gt; &lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Pool&lt;/span&gt;
+
+
+&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;write_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;filename&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;
+   &lt;span class=&#34;sd&#34;&gt;&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+&lt;span class=&#34;sd&#34;&gt;   This will be called by __main__ for each process in our Pool.&lt;/span&gt;
+&lt;span class=&#34;sd&#34;&gt;   Error handling and logging of results elided.&lt;/span&gt;
+&lt;span class=&#34;sd&#34;&gt;   Don&amp;#39;t write production code like this!&lt;/span&gt;
+&lt;span class=&#34;sd&#34;&gt;   &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+   &lt;span class=&#34;n&#34;&gt;conn&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;boto&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;connect_dynamodb&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;aws_access_key_id&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;MY_ID&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+                         &lt;span class=&#34;n&#34;&gt;aws_secret_access_key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;MY_SECRET&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+   &lt;span class=&#34;n&#34;&gt;table&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;conn&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;get_table&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;my_table_name&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+
+   &lt;span class=&#34;k&#34;&gt;with&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;open&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;filename&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;rb&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;as&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+      &lt;span class=&#34;n&#34;&gt;reader&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;csv&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;reader&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+      &lt;span class=&#34;n&#34;&gt;items&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;
+      &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;row&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;reader&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;dyn_row&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;table&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;new_item&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hash_key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;{}&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;format&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;row&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]),&lt;/span&gt;
+                                  &lt;span class=&#34;n&#34;&gt;attrs&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;series&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;row&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;],&lt;/span&gt;
+                                           &lt;span class=&#34;s1&#34;&gt;&amp;#39;episode&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;row&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;],&lt;/span&gt;
+                                           &lt;span class=&#34;s1&#34;&gt;&amp;#39;timestamp&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;row&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;],&lt;/span&gt;
+                                           &lt;span class=&#34;s1&#34;&gt;&amp;#39;moddt&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;row&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;})&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;items&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;append&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;dyn_row&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Now, you could stop here and just &lt;code&gt;batch_write&lt;/code&gt; things up to DynamoDB and that will work if you&#39;re writing a couple thousand rows. But it should be obvious we&#39;re going to blow up memory on our laptop if we try that.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;      &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;len&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;items&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;25&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;batch_list&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;conn&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;new_batch_write_list&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;batch_list&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;add_batch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;table&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;items&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;response&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;conn&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;batch_write_item&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;batch_list&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;items&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Okay, so we&#39;ll treat our list as a queue, and when it gets to the maximum size we can push in a single batch write, we&#39;ll push that up. But I buried the problem with this when I elided the error handling -- if the write is throttled by DynamoDB, you&#39;ll be silently dropping writes because &lt;code&gt;boto&lt;/code&gt; doesn&#39;t raise an exception. So let&#39;s try that part again.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;      &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;len&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;items&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;25&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;batch_items&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;items&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[:&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;25&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;batch_list&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;conn&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;new_batch_write_list&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;batch_list&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;add_batch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;table&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;batch_items&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+         &lt;span class=&#34;n&#34;&gt;response&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;conn&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;batch_write_item&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;batch_list&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+         &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;not&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;response&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;UnprocessedItems&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]:&lt;/span&gt;
+            &lt;span class=&#34;n&#34;&gt;items&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;items&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;25&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:]&lt;/span&gt;
+         &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+            &lt;span class=&#34;n&#34;&gt;unprocessed&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+                           &lt;span class=&#34;n&#34;&gt;ui&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;PutRequest&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;][&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;Item&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;][&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;user&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+                           &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ui&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;in&lt;/span&gt;
+                           &lt;span class=&#34;n&#34;&gt;response&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;UnprocessedItems&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;][&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;my_table_name&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+                           &lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+            &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;item&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;batch_items&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+               &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;item&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;user&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;not&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;unprocessed&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+                  &lt;span class=&#34;n&#34;&gt;items&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;remove&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;item&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;On every &lt;code&gt;batch_write&lt;/code&gt; request we take out what we&#39;ve successfully written and retry everything else in the next pass. Yes, we&#39;re doing a &lt;em&gt;lot&lt;/em&gt; of allocation with the list, but there&#39;s a reason for it. We&#39;re almost certain to get throttled by DynamoDB in a batch upload unless we massively over-provision.  This function minimizes the number of requests we make while constraining the length of the list. I modeled this and throttling would have to reach consistent double-digit percentages of unprocessed writes before we&#39;d see significant loss of throughput or runaway memory usage.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;vm&#34;&gt;__name__&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;__main__&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;files&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;xaao&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;xabf&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;xabw&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;pool&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Pool&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;processes&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;len&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;files&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;pool&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;write_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;files&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Last we use our multiprocessing pool to split the job over a large number of processes. I used &lt;code&gt;split -a 3 -l 300000&lt;/code&gt; to split my big CSVs into a couple hundred files. With no shared memory between the processes, I can use the non-thread-safe code above without worry. This let me crank through all the input files within a few hours and I was ready for beer o&#39;clock.&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;aside&gt;Download this example code &lt;a href=&#34;https://github.com/tgross/tgross.github.io/tree/master/_code/dynamodb-batch-uploads&#34;&gt;here&lt;/a&gt;&lt;/aside&gt;
 &lt;/blockquote&gt;
 </description>
     </item>

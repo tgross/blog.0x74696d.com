@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/dbaas-simplicity-no-lock-in
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2016-02-22T00:00:00Z
 title: MySQL on Autopilot
 tweet: Running MySql on autopilot

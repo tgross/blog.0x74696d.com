@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Meta on 0x74696d</title>
+    <link>http://0x74696d.com/categories/meta/index.xml</link>
+    <description>Recent content in Meta on 0x74696d</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <atom:link href="http://0x74696d.com/categories/meta/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Blog Diet</title>
+      <link>http://0x74696d.com/posts/blog-diet/</link>
+      <pubDate>Sat, 02 Jan 2016 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/blog-diet/</guid>
+      <description>
+
+&lt;p&gt;It&#39;s a new year and so why not take the opportunity to revisit my site and make a few improvements? I&#39;ve had a few people mention in the past that they&#39;ve had some readability issues with some of the design choices (particularly on Linux). And as I&#39;ve added more content I&#39;ve found a few little layout quirks that I&#39;m not 100% happy with. Let&#39;s dive right in.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-spec&#34;&gt;The Spec&lt;/h2&gt;
+
+&lt;p&gt;The major design criteria are:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Keep page weight low (or lower!).&lt;/li&gt;
+&lt;li&gt;Make the page more mobile-friendly.&lt;/li&gt;
+&lt;li&gt;Improve the font weights for better accessibility.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&#34;the-audit&#34;&gt;The Audit&lt;/h2&gt;
+
+&lt;p&gt;Partially inspired by Maciej Cegowski&#39;s &lt;a href=&#34;http://idlewords.com/talks/website_obesity.htm&#34;&gt;The Website Obesity Crisis&lt;/a&gt;, I first decided to look into reducing page weight. Fortunately the original design was pretty good in this respect. The home page weighed in at 101KB, most of which were the Google web fonts. My &lt;a href=&#34;http://0x74696d.com/posts/analytics-on-the-cheap&#34;&gt;Analytics on the Cheap&lt;/a&gt; was 184KB, most of the extra load coming from loading the Twitter div. An image-heavy post like &lt;a href=&#34;posts/falling-in-and-out-of-love-with-dynamodb-part-ii/&#34;&gt;Falling In and Out of Love With DynamoDB, Part II&lt;/a&gt; was still only 315KB. So there is some room for improvement here but not a lot.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/images/20160102/waterfall-before.png&#34; alt=&#34;Homepage waterfall diagram, before&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;I took a pass with Google developer tool&#39;s Audit feature and it noted that because I was on an HTTP/1.1 connection that I might want to combine the multiple CSS files. This is optimized for free on HTTP2, but because I&#39;m hosting the blog on Github pages I don&#39;t have control over the server. I also noted that &lt;code&gt;pygments.css&lt;/code&gt; is being loaded even on pages where I&#39;m never going to have code snippets. There are an awful lot of unused CSS rules on the page too, so we can trim some garbage there. The tool also mentioned that there are no far-future cache headers applied to the assets, but again that&#39;s going to be a function of hosting on Github pages (and/or their Fastly CDN configuration). Anything we can do here is going to be a micro-optimization, but what the hell let&#39;s do it anyways.&lt;/p&gt;
+
+&lt;p&gt;The font weights around the menu needed some work, as did the typography on the &lt;a href=&#34;http://0x74696d.com/community.html&#34;&gt;community&lt;/a&gt; page.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/images/20160102/menu-before.png&#34; alt=&#34;Menu, before&#34; /&gt;
+&lt;img src=&#34;http://0x74696d.com/images/20160102/community-before.png&#34; alt=&#34;List of talks, before&#34; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;the-improvements&#34;&gt;The Improvements&lt;/h2&gt;
+
+&lt;p&gt;Although I&#39;m a big fan of &lt;a href=&#34;http://getskeleton.com&#34;&gt;Skeleton&lt;/a&gt; it&#39;s way more than I actually need for this project. There are no forms, buttons, heroes, complex grids, etc. So instead I&#39;m keeping the same basic CSS that I had but just tweaking it to remove cruft.&lt;/p&gt;
+
+&lt;p&gt;I&#39;ve moved the &lt;code&gt;mobile.css&lt;/code&gt; into the &lt;code&gt;base.css&lt;/code&gt; and used a media query. I originally thought that &lt;code&gt;link media=&amp;quot;only screen and (max-device-width: 480px)&amp;quot;&lt;/code&gt; prevented the element from loading, but that turns out not to be true for what should have been obvious reasons -- if we had a &lt;code&gt;max-width&lt;/code&gt; criteria it would force downloading new CSS if someone resized their browser! I checked the page on my older Android tablet and realized that I want to expand the media query to cover smaller tablets as well, so I&#39;ve bumped that up to &lt;code&gt;768px&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;I previously failed to notice that the CSS I stole from I-don&#39;t-remember-where caused the menu headers (&amp;quot;posts&amp;quot;, &amp;quot;projects&amp;quot;, &amp;quot;community&amp;quot;, etc.) to be hidden on mobile, so that&#39;s a quick fix. I also noticed that it did that wretched thing where it intentionally broke zooming. Sorry, fixed now!&lt;/p&gt;
+
+&lt;p&gt;The biggest change stylistically was removing the Lato web font that I was loading from Google. Getting rid of that dropped most of the extraneous page weight. I&#39;m not a professional designer and that&#39;s not the focus of the blog, so I don&#39;t really care that much about &amp;quot;pixel perfect&amp;quot; design. Rather the messing around trying to find the perfect font and doubling the size of the page, I&#39;m just going to leave it up to the reader&#39;s machine and browser and &lt;a href=&#34;http://www.smashingmagazine.com/2015/11/using-system-ui-fonts-practical-guide/&#34;&gt;use their system fonts&lt;/a&gt;. The results look good on the five different devices I was able to check. They&#39;re all a bit different of course, but better designers than me picked out those fonts on those platforms so let&#39;s trust them.&lt;/p&gt;
+
+&lt;h2 id=&#34;and-done&#34;&gt;And... Done!&lt;/h2&gt;
+
+&lt;p&gt;I&#39;m pretty happy with the results of just a couple hours of work. There is only one third-party request left on the site (the Twitter bug), and the page is a quarter the size. More importantly, it&#39;s more legible on a wider range of devices.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://0x74696d.com/images/20160102/waterfall-after.png&#34; alt=&#34;Homepage waterfall diagram, after&#34; /&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Hey, new blog!</title>
+      <link>http://0x74696d.com/posts/newblog/</link>
+      <pubDate>Sun, 12 May 2013 00:00:00 +0000</pubDate>
+      
+      <guid>http://0x74696d.com/posts/newblog/</guid>
+      <description>&lt;p&gt;This is my blog.  More to the point, it&#39;s &lt;em&gt;my&lt;/em&gt; blog, which means that the opinions here are mine and not those of my employer, co-workers, spouse, etc.  I&#39;m going to attempt to post once a week, updating on Sundays or thereabouts.&lt;/p&gt;
+
+&lt;p&gt;This blog is currently deployed on Github Pages.  At the time of this writing it&#39;s a MVB (Minimum Viable Blog).  The CSS is still a bit of a mess from where I ripped off &lt;a href=&#34;http://carlosbecker.com/posts/up-a-jekyll-theme/&#34;&gt;better designers&lt;/a&gt; than me, particularly on Android.  And I don&#39;t have Google Analytics or any of those sorts of things one expects to find when one goes digging through the page source.  But you can read posts and get in touch with me from here.&lt;/p&gt;
+
+&lt;p&gt;For the time being I&#39;m eschewing a commenting system. If you&#39;d like to comment on the things you read here, feel free to post on Twitter or the appropriate Github issues page.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

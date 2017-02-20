@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/applications-on-autopilot
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2016-03-03T00:00:00Z
 title: Implementing the autopilot pattern
 tweet: Run your applications on autopilot

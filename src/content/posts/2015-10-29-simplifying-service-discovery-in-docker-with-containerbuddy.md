@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/introducing-containerbuddy
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2015-10-29T00:00:00Z
 title: Simplifying service discovery in Docker with Containerbuddy
 slug: simplifying-service-discovery-in-docker-with-containerbuddy

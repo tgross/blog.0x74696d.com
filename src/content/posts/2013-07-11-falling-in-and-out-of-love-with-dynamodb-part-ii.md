@@ -1,6 +1,7 @@
 ---
 categories:
-- AWS, DynamoDB
+- AWS
+- DynamoDB
 date: 2013-07-11T00:00:00Z
 title: Falling In And Out Of Love with DynamoDB, Part II
 slug: falling-in-and-out-of-love-with-dynamodb-part-ii

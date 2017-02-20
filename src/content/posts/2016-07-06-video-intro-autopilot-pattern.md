@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/video-autopilot-pattern
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2016-07-06T00:00:00Z
 title: Video - Introduction to the Autopilot Pattern
 slug: video-intro-autopilot-pattern

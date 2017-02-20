@@ -1,6 +1,7 @@
 ---
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2015-10-30T00:00:00Z
 title: Container-Native Architecture [talk]
 slug: container-native-architecture-talk

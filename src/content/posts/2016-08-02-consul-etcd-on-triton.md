@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/consul-etcd-on-triton
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2016-08-02T00:00:00Z
 title: Consul and etcd in the Autopilot Pattern
 slug: consul-etcd-on-triton

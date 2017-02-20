@@ -1,6 +1,7 @@
 ---
 categories:
-- AWS, DynamoDB
+- AWS
+- DynamoDB
 date: 2013-06-05T00:00:00Z
 title: DynamoDB Batch Uploads
 slug: dynamodb-batch-uploads

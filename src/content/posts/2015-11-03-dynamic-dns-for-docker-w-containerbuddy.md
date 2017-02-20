@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/automatic-dns-updates-with-containerbuddy
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2015-11-03T00:00:00Z
 title: Automatic DNS Updates w/ Containerbuddy
 slug: dynamic-dns-for-docker-w-containerbuddy

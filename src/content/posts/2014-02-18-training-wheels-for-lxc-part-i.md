@@ -1,6 +1,7 @@
 ---
 categories:
-- talks, Docker
+- talks
+- Docker
 date: 2014-02-18T00:00:00Z
 title: 'Docker: Training Wheels For LXC, Part I [talk]'
 slug: training-wheels-for-lxc-part-i

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Docker on 0x74696d</title>
-    <link>http://0x74696d.com/categories/docker/index.xml</link>
-    <description>Recent content in Docker on 0x74696d</description>
+    <title>Joyent on 0x74696d</title>
+    <link>http://0x74696d.com/categories/joyent/index.xml</link>
+    <description>Recent content in Joyent on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <atom:link href="http://0x74696d.com/categories/docker/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://0x74696d.com/categories/joyent/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
       <title>Secrets Management in the Autopilot Pattern</title>
@@ -175,42 +175,6 @@
       <description>&lt;p&gt;Container-native applications have new responsibilities for discovery. But no one wants to rewrite all our current applications! So what do we do about it?&lt;/p&gt;
 
 &lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/introducing-containerbuddy&#34;&gt;Continue reading this article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Running a host-local Docker Registry</title>
-      <link>http://0x74696d.com/posts/host-local-docker-registry/</link>
-      <pubDate>Mon, 06 Jul 2015 00:00:00 +0000</pubDate>
-      
-      <guid>http://0x74696d.com/posts/host-local-docker-registry/</guid>
-      <description>&lt;p&gt;One of the options for running a private Docker registry is to run your own with the Docker Registry daemon. When &lt;a href=&#34;http://www.dramafever.com&#34;&gt;we&lt;/a&gt; started using Docker this was our approach from the beginning. At the time the Docker Registry was a Python app running on &lt;code&gt;gunicorn&lt;/code&gt;; the new version is written in Go. A nice feature is that one can use S3 as the backing store, which &lt;em&gt;almost&lt;/em&gt; makes the registry a proxy to S3.&lt;/p&gt;
-
-&lt;p&gt;But we ran into a pretty serious problem with it early on in terms of scalability. If we had to scale up a bunch of queue workers all at once to take on additional load in the application, we could overload the EC2 instance the Docker Registry was running on pretty trivially -- if nothing else then with network I/O limitations. We could have probably gotten away with scaling up the box a lot, but this would leave a scary SPOF in our system and make moot the reliability of S3.&lt;/p&gt;
-
-&lt;p&gt;Instead we have the registry daemon as a host-local service backed by S3. So that means we have a container running the registry on the host, and we have a CNAME like &lt;code&gt;docker-local.example.com&lt;/code&gt; that points to it. When a service starts it just does &lt;code&gt;docker pull docker-local.example.com:5000/my-service:tag&lt;/code&gt;, and the Docker Registry backend retrieves the image layers from S3. The IAM role given to the production nodes has read-only access to the S3 bucket and can never push to it.&lt;/p&gt;
-
-&lt;p&gt;We use Jenkins to build and ship the containers. My colleagues &lt;a href=&#34;https://www.youtube.com/watch?v=8fcDZB-QMRA&#34;&gt;Bridget and Peter&lt;/a&gt; talked about this in depth at this year&#39;s ChefConf. And one of our team&#39;s alumni &lt;a href=&#34;https://www.youtube.com/watch?v=yU0QhhS-XzI&#34;&gt;Jeff&lt;/a&gt; talked about GrubHub&#39;s implementation of a very similar setup at Dockercon a couple weeks ago. Our Jenkins server has the same host-local Docker Registry setup, but has IAM permissions to write to the S3 bucket. As the sole node allowed to write to S3, we avoid any possibility of data races on the backing store. (If you need multiple writers you&#39;ll want to shard which repositories they write to by namespace.)&lt;/p&gt;
-
-&lt;p&gt;With this setup, network I/O throughput on start is limited only by the host that requires a new image and whatever S3 can give us. This lets us scale up nodes as fast as AWS can give them to us without worrying about the registry as a point of failure.&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Docker: Training Wheels For LXC, Part I [talk]</title>
-      <link>http://0x74696d.com/posts/training-wheels-for-lxc-part-i/</link>
-      <pubDate>Tue, 18 Feb 2014 00:00:00 +0000</pubDate>
-      
-      <guid>http://0x74696d.com/posts/training-wheels-for-lxc-part-i/</guid>
-      <description>&lt;blockquote&gt;
-&lt;aside&gt;Welcome &lt;a href=&#34;http://sysadvent.blogspot.com/2014/12/day-1-docker-in-production-reality-not.html&#34;&gt;sysadvent readers!&lt;/a&gt; You&#39;ll almost certainly note that I never got around to writing a Part II of this post or expanding on other Docker-related topics on this blog. I&#39;ve been busy working away pretty solidly with not a ton of time for blogging or tweeting. But if you&#39;re interested in more DevOps goodness be sure to follow @bridgetkromhout and stay tuned here for new material over the next few months. Thanks for reading!&lt;/aside&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Tonight I&#39;m giving a talk on how Docker is really just a wrapper on LXC, and when it might be better to use LXC along with your favorite configuration management tools instead of Docker. &lt;a href=&#34;http://0x74696d.com/slides/training-wheels-for-lxc/slides.html&#34;&gt;Here&lt;/a&gt; are the slides for my talk.&lt;/p&gt;
-
-&lt;p&gt;I&#39;ll have a longer blog post and a deep dive into the code for this in the next week or two.&lt;/p&gt;
-
-&lt;p&gt;PhillyDevOps is hosting the event, and I&#39;m looking forward to Chris Couples&#39; talk on &amp;quot;DevOps for Small Shops&amp;quot;. Thanks to Dave Konopka and Hector Castroy for putting the event together. They regularly recruit great speakers on a range of devops topics, so if that&#39;s the sort of thing that interests you join the &lt;a href=&#34;http://www.meetup.com/PhillyDevOps/&#34;&gt;meetup&lt;/a&gt;. Come to a meeting and give a talk or have a beer with me afterwards!&lt;/p&gt;
 </description>
     </item>
     

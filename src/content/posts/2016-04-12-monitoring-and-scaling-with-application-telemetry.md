@@ -1,7 +1,8 @@
 ---
 canonical: https://www.joyent.com/blog/containerpilot-telemetry
 categories:
-- Joyent, Docker
+- Joyent
+- Docker
 date: 2016-04-12T00:00:00Z
 title: Monitoring and scaling with ContainerPilot telemetry
 slug: monitoring-and-scaling-with-application-telemetry

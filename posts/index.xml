@@ -129,7 +129,7 @@ model name      : Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz
 $ go test -v -run NULL -benchmem -bench .
 BenchmarkSavakiSnowflakeGen-4       5000000      373 ns/op
 BenchmarkSnowflakeGen-4             5000000      263 ns/op
-BenchmarkTwitterSnowflakeGen-4     10000000      217 ns/op
+BenchmarkTwitterSnowflakeGen-4     10000000      247 ns/op
 PASS
 ok      _/go/snowflake       6.228s
 &lt;/code&gt;&lt;/pre&gt;

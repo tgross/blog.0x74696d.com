@@ -136,6 +136,7 @@ h3 {
       border: 0px;
   }
   .content pre {
+      overflow: auto;
       padding: 10px 20px;
       margin: 0 10px;
       background-color: #efefef;

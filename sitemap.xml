@@ -148,53 +148,12 @@
   </url>
   
   <url>
-    <loc>http://0x74696d.com/categories/aws/</loc>
-    <lastmod>2015-03-16T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/</loc>
-    <priority>0</priority>
-  </url>
-  
-  <url>
     <loc>http://0x74696d.com/community/</loc>
     <priority>0</priority>
   </url>
   
   <url>
     <loc>http://0x74696d.com/community/</loc>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/django/</loc>
-    <lastmod>2013-05-19T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/docker/</loc>
-    <lastmod>2017-01-26T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/dynamodb/</loc>
-    <lastmod>2013-07-11T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/golang/</loc>
-    <lastmod>2015-03-04T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/joyent/</loc>
-    <lastmod>2017-01-26T00:00:00+00:00</lastmod>
-    <priority>0</priority>
   </url>
   
   <url>
@@ -203,44 +162,8 @@
   </url>
   
   <url>
-    <loc>http://0x74696d.com/categories/meta/</loc>
-    <lastmod>2016-01-02T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/ops/</loc>
-    <lastmod>2015-03-16T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/performance/</loc>
-    <lastmod>2016-01-02T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
     <loc>http://0x74696d.com/posts/</loc>
     <lastmod>2017-01-26T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/rust/</loc>
-    <lastmod>2016-03-19T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/security/</loc>
-    <lastmod>2013-07-17T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>http://0x74696d.com/categories/talks/</loc>
-    <lastmod>2014-02-18T00:00:00+00:00</lastmod>
     <priority>0</priority>
   </url>
   

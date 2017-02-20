@@ -15,4 +15,6 @@ params:
   twitter: "0x74696d"
   description: "T-Minus 15.193792102158E+9 years until the universe closes!"
 
+taxonomies:
+  category:
 ...

@@ -9,7 +9,7 @@ slug: falling-in-and-out-of-love-with-dynamodb-part-ii
 
 Amazon's DynamoDB provides high concurrent throughput, availability across multiple AWS data centers, and the convenience of pay-as-you go pricing. All this is great, but key design for DynamoDB results in some unexpected challenges. [We](http://www.dramafever.com) have built a number of production systems at this point using DynamoDB and as such have a bit of a love/hate relationship with the product.
 
-><aside>In my <a href="{% post_url 2013-06-18-falling-in-and-out-of-love-with-dynamodb %}">last post</a> I put up my slides from a talk by this same title. But sharing slides for a talk online without video isn't all that useful, so this is an attempt to distill the essence of a few of my points in the talk to something more comprehensible.</aside>
+><aside>In my <a href="/posts/falling-in-and-out-of-love-with-dynamodb/">last post</a> I put up my slides from a talk by this same title. But sharing slides for a talk online without video isn't all that useful, so this is an attempt to distill the essence of a few of my points in the talk to something more comprehensible.</aside>
 
 
 Schema-less-ish

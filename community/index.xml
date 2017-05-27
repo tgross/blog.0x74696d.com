@@ -7,12 +7,12 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <atom:link href="http://0x74696d.com/community/index.xml" rel="self" type="application/rss+xml" />
-    
+
     <item>
       <title>Community</title>
       <link>http://0x74696d.com/community/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
+
       <guid>http://0x74696d.com/community/</guid>
       <description>
 
@@ -21,6 +21,34 @@
 &lt;h2 id=&#34;talks-podcasts-panels-and-workshops&#34;&gt;Talks, podcasts, panels, and workshops&lt;/h2&gt;
 
 &lt;ul class=&#34;listing&#34;&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://conferences.oreilly.com/velocity/vl-ca/public/schedule/detail/59274&#34;&gt;Software Defined Culture (upcoming)&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Velocity San Jose | 2017 May
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://www.arresteddevops.com/made-up-words/&#34;&gt;Let&amp;#39;s Do the DevOps Again [podcast]&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Arrested DevOps | 2017 May
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;https://gotochgo.com/2017/sessions/43&#34;&gt;Software Defined Culture&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  GOTO Chicago | 2017 May
+  &lt;/span&gt;
+&lt;/li&gt;
+
+&lt;li&gt;&lt;i&gt;
+  &lt;a href=&#34;http://2017.phillyemergingtech.com/session/building-for-operability-stateful-applications-in-containers-with-the-autopilot-pattern/&#34;&gt;Building for Operability&lt;/a&gt;&lt;/i&gt;
+  &lt;span&gt;
+  Philly ETE | 2017 Apr
+  &lt;/span&gt;
+&lt;/li&gt;
 
 &lt;li&gt;&lt;i&gt;
   &lt;a href=&#34;http://dynamicinfradays.org/events/2016-nyc/programme.html#observability&#34;&gt;Observability in the Containerized World [workshop]&lt;/a&gt;&lt;/i&gt;
@@ -257,6 +285,6 @@
 &lt;/p&gt;
 </description>
     </item>
-    
+
   </channel>
 </rss>

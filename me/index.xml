@@ -2,11 +2,13 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Mes on 0x74696d</title>
-    <link>http://0x74696d.com/me/index.xml</link>
+    <link>http://0x74696d.com/me/</link>
     <description>Recent content in Mes on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <atom:link href="http://0x74696d.com/me/index.xml" rel="self" type="application/rss+xml" />
+    
+	<atom:link href="http://0x74696d.com/me/index.xml" rel="self" type="application/rss+xml" />
+    
     
     <item>
       <title>Tim Gross</title>
@@ -14,35 +16,8 @@
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>http://0x74696d.com/me/</guid>
-      <description>
-
-&lt;p&gt;&lt;img class=&#34;about-avatar&#34; src=&#34;http://0x74696d.com/images/avatar.png&#34; title=&#34;Tim Gross&#34; alt=&#34;avatar&#34; /&gt;&lt;/p&gt;
-
-&lt;p&gt;I&#39;m a technologist, operations engineer, product developer, and solver-of-problems-with-duct-tape. My previous career in high-assurance architecture has driven me to develop an operations mindset for robust and observable technology. I have a proven nose for hunting down and eliminating technical debt and process inefficiencies in organizations of all shapes and sizes. This is my blog.&lt;/p&gt;
-
-&lt;p&gt;I started my working life as an architect &amp;mdash; buildings, not software. I designed and oversaw construction of life safety critical infrastructure: power systems and post-9/11 site hardening for the telecom industry, biosafety laboratories for deadly disease research, and clean room manufacturing and hazardous materials handling facilities for the pharmaceutical industry. But in an industry which like many others is being eaten by software, I quickly fell into a technical role as an expert in developing tools for estimation and CAD automation, as well as information-rich 3D modeling (also known as Building Information Modeling or BIM). I&#39;ve turned my skills in designing secure and safe architectural environments into an inspiration to focus on building rock-solid information systems.&lt;/p&gt;
-
-&lt;p&gt;Currently I&#39;m a product manager at &lt;a href=&#34;https://www.joyent.com/&#34;&gt;Joyent&lt;/a&gt; where my work is focused on application blueprints for the &lt;a href=&#34;http://autopilotpattern.io&#34;&gt;Autopilot Pattern&lt;/a&gt; and leading the development of &lt;a href=&#34;https://www.joyent.com/containerpilot&#34;&gt;ContainerPilot&lt;/a&gt;. I develop, write about, and talk about projects that demonstrate the best practices for container-native deployments on Joyent&#39;s Triton platform. Triton is a Docker API wrapping Joyent&#39;s existing bare-metal containerization technology built on Solaris zones, and it&#39;s pretty awesome so you should give it a try.&lt;/p&gt;
-
-&lt;p&gt;Before I joined Joyent, I managed the operations team and the software infrastructure for &lt;a href=&#34;http://www.dramafever.com/company/careers.html&#34;&gt;DramaFever&lt;/a&gt;. We ran a large scale microservices architecture on AWS for millions of users. I built our scrappy team of operations engineers from scratch (as well as our IT team). My team had responsibility over builds and deployments, site reliability engineering, performance monitoring and improvements, and developing our video transcoding and analytics ingest pipelines. The work I led at DramaFever was featured as a case study in the O&#39;Reilly book &lt;a href=&#34;http://shop.oreilly.com/product/0636920039846.do&#34;&gt;&lt;em&gt;Effective DevOps&lt;/em&gt;&lt;/a&gt;, by Jennifer Davis and Katherine Daniels.&lt;/p&gt;
-
-&lt;p&gt;When it comes to writing software, I work mostly with Python and Go and have professional experience with C# and AutoLisp. I have some training in security design and pen-testing, and like to crack open some shell code now-and-then to keep my skills sharp. I&#39;ve dabbled in C, Erlang, Node.js, and Rust, and have a strong interest in learning more about language internals and low-level systems programming.&lt;/p&gt;
-
-&lt;h2 id=&#34;license-and-disclaimer&#34;&gt;License and Disclaimer&lt;/h2&gt;
-
-&lt;p&gt;The code of this blog and all code content is &lt;a href=&#34;https://github.com/tgross/tgross.github.io/blob/master/LICENSE&#34;&gt;MIT&lt;/a&gt; licensed, except where a given piece of code is attributed to another author and has a different license.
-The original written prose and images in this repo are licensed under &lt;a href=&#34;http://creativecommons.org/licenses/by-sa/3.0/deed.en_US&#34;&gt;Creative Common Attribution 3.0 Unported License&lt;/a&gt;.
-All opinions expressed are solely my own and not those of my employer. This blog is in no way endorsed by any third-party.&lt;/p&gt;
-
-&lt;h2 id=&#34;contact&#34;&gt;Contact&lt;/h2&gt;
-
-&lt;p&gt;Public conversations in Twitter or Github are great, but feel free to send me an email if you need to reach me privately.&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;mailto:tim+blog@0x74696d.com&#34;&gt;tim+blog@0x74696d.com&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;If you are sending me anything of a confidential nature, please use PGP encryption.  Sending my personal data in the clear is a good way to avoid having to do business with me in the future.
-PGP public key: &lt;a href=&#34;http://0x74696d.com/6F725947.asc&#34;&gt;6F725947&lt;/a&gt;&lt;/p&gt;
-</description>
+      <description>I&#39;m a technologist, operations engineer, product developer, and solver-of-problems-with-duct-tape. My previous career in high-assurance architecture has driven me to develop an operations mindset for robust and observable technology. I have a proven nose for hunting down and eliminating technical debt and process inefficiencies in organizations of all shapes and sizes. This is my blog.
+I started my working life as an architect &amp;mdash; buildings, not software. I designed and oversaw construction of life safety critical infrastructure: power systems and post-9/11 site hardening for the telecom industry, biosafety laboratories for deadly disease research, and clean room manufacturing and hazardous materials handling facilities for the pharmaceutical industry.</description>
     </item>
     
   </channel>

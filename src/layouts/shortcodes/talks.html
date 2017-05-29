@@ -1,0 +1,11 @@
+<ul class="listing">
+{{ range sort $.Site.Data.talks "date" "desc" }}
+<li><i>
+  {{ if isset . "link" }}<a href="{{ .link }}">{{ .title }}</a>{{ else }}{{ .title }}{{ end }}</i>
+  <span>
+  {{ if isset . "where_link" }}<a href="{{ .where_link }}">{{ .where }}</a>{{ else }}{{ .where }}{{ end }} | {{ dateFormat "2006 Jan" .date }}
+  </span>
+</li>
+{{ end }}
+</ul>
+<br/>

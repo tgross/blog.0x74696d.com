@@ -23,7 +23,7 @@ One version was a straight port of Twitter's Scala code which looked OK but obvi
 
 So I implemented my own version, where the server listens on a channel for millisecond ticks and resets the sequence ID counter. In theory this would avoid a lot of calls to get the time but would involve an extra mutex per millisecond-long cycle. Because I'm paranoid I wanted to make sure I wasn't missing some profound performance regression in dumping the original Twitter design.
 
-I took the library that was the closest direct implementation of Twitter's design, [`sdming/gosnow`](https://github.com/sdming/gosnow), and ported it to use the same API as my own, and also took a slightly different approach, Matt Ho's [`savaki/snowflake`](https://github.com/savaki/snowflake), and gave it the same treatment. After writing a bunch of test code to make sure all three implementations were correct in behavior, I put them all through the same benchmark (each with different names of course):
+I also took the library that was the closest direct implementation of Twitter's design, [`sdming/gosnow`](https://github.com/sdming/gosnow), and ported it to use the same API as my own, and also took a slightly different approach, Matt Ho's [`savaki/snowflake`](https://github.com/savaki/snowflake), and gave it the same treatment. After writing a bunch of test code to make sure all three implementations were correct in behavior, I put them all through the same benchmark (each with different names of course):
 
 ``` go
 var result Snowflake // avoids compiler optimizing-away output
@@ -84,6 +84,8 @@ ok      _/go/snowflake       4.430s
 ```
 
 *Wat?*
+
+> Ok, for some reason when this post was first shared on Twitter a bunch of dumbasses who didn't bother to read the article decided to heap snark upon it because "hurr hurr I ran my software under virtualization and it was slower." That's not the interesting thing here! The interesting thing, which I'm sure I don't have to spell out to you because you've read this far, is that one implementation performed only a tiny bit worse while the other implementations performed much much worse.
 
 Here's where we go off the rails a bit. The first thing I did, which wasn't all that necessary, was to run the benchmark in other environments to make sure I hadn't made some strange mistake.  There's no allocation in any of the algorithms, so from here on out I'll elide the `-benchmem` data.
 

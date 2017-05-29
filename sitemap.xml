@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
     <loc>http://0x74696d.com/posts/be-careful-what-you-benchmark/</loc>
@@ -144,6 +145,11 @@
   <url>
     <loc>http://0x74696d.com/posts/newblog/</loc>
     <lastmod>2013-05-12T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://0x74696d.com/</loc>
+    <priority>0</priority>
   </url>
   
   <url>

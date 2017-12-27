@@ -10,7 +10,7 @@
     {{ $paginator := .Paginate (where .Data.Pages "Section" "posts") }}
     {{ range sort $paginator.Pages }}
     <li>
-      <span>{{ .Date.Format "January 2, 2006" }}</span> <a href="{{ .Permalink }}">{{ .Title }}</a>
+      <span>{{ .Date.Format "January 2, 2006" }}</span> <a href="{{ .RelPermalink }}">{{ .Title }}</a>
     </li>
     {{ end }}
   </ul>

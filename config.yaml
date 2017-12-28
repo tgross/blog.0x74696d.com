@@ -5,6 +5,7 @@ title: "0x74696d"
 publishDir: "build"
 PygmentsCodeFences: true
 pygmentsuseclasses: true
+rssLimit: 20
 
 blackfriday:
   smartypants: false

@@ -9,23 +9,22 @@ Philly has a great tech scene. I regularly attend the Philly DevOps group, I mak
 
 I occasionally get it into my head to stand up and talk in front of other people, and some of those talks will eventually make their way into this blog.
 
-{{< talks >}}
+<div>{{< talks >}}</div>
 
 ## Podcasts and Panels
 
 Sometimes other people want to talk to me for some reason, and then we record it.
 
-{{< panels >}}
+<div>{{< panels >}}</div>
 
 ## Workshops
 
 Here are some public workshops I've done.
 
-{{< workshops >}}
-
+<div>{{< workshops >}}</div>
 
 ## Open source contributions
 
 Behold some of my very small contributions to the world below, and realize that you definitely can do better and should start working on some open source projects if you aren't already.  I'd like to start contributing to some larger or more important projects, so stay tuned here or in future blog postings to see what kind of comically-bad PRs I send the way of your favorite FOSS project.
 
-{{< contribs >}}
+<div>{{< contribs >}}</div>

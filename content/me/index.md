@@ -3,7 +3,7 @@ type: page
 title: "Tim Gross"
 ---
 
-<img class="about-avatar" src="/images/avatar.png" title="Tim Gross" alt="avatar" />
+<div><img class="about-avatar" src="/images/avatar.png" title="Tim Gross" alt="avatar" /></div>
 
 I'm a technologist, operations engineer, product developer, and solver-of-problems-with-duct-tape. My previous career in high-assurance architecture has driven me to develop an operations mindset for robust and observable technology. I have a proven nose for hunting down and eliminating technical debt and process inefficiencies in organizations of all shapes and sizes. This is my blog.
 

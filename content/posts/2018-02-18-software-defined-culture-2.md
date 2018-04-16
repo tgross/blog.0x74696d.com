@@ -23,7 +23,7 @@ If you'd like to read the rest of the series:
 
 For purposes of this section, I'm talking about operability as the ability for teams to deploy and operate their software well. Ideally this should be in some kind of self-service way, where developers don't need to go through some other team ("operators") to deploy software.
 
-One of the notional frameworks that has popped up around this in the last few years is GIFFE ("Google Infrastructure for Everyone Else"). This notion has largely reified itself in the last year especially in Kubernetes and the hodge-podge of vaguely related projects under the banner of the Cloud Native Computing Foundation (CNCF).
+One of the notional frameworks that has popped up around this in the last few years is GIFEE ("Google Infrastructure for Everyone Else"). This notion has largely reified itself in the last year especially in Kubernetes and the hodge-podge of vaguely related projects under the banner of the Cloud Native Computing Foundation (CNCF).
 
 But "Google does it this way, so should we" suggests that you have similar problems to Google. Spoiler alert: this is unlikely to be the case. I've talked with teams at some of the largest retailers in the world and discovered giant e-commerce properties fitting in the equivalent of a handful of racks. Your startup (and mine!) is a tiny fraction of the scale, so why would we expect the solutions to be the same?
 

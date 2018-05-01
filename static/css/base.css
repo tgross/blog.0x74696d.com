@@ -28,6 +28,8 @@ li {
   }
   .header a:hover, .header a:hover b { color: #307EA9; }
 
+/* note: Android 4 has a font-size bug so we need the px fallback
+that otherwise we would only need for IE8 */
 .name a {
     font-size: 50px;
     font-size: 2.778rem;
@@ -87,7 +89,6 @@ h1 {
     padding: 15px 30px 15px 23px;
     border-left: 7px solid #eee;
     font-family: Monaco, 'Droid Sans Mono', Consolas, Tahoma, monospace;
-
     font-weight: 400;
     color: #444;
 }
@@ -99,7 +100,6 @@ h2 {
     font-size: 20px;
     font-size: 1.111rem;
     font-family: Monaco, 'Droid Sans Mono', Consolas, Tahoma, monospace;
-
     font-weight: 400;
     color: #444;
 }
@@ -107,11 +107,9 @@ h2 {
 h3 {
     margin: 50px -30px 20px -27px;
     padding: 15px 30px;
-    border-left: 3px solid #eee;
-    font-size: 16px;
+    font-size: 18px;
     font-family: Monaco, 'Droid Sans Mono', Consolas, Tahoma, monospace;
-
-    font-size: 0.889rem;
+    font-size: 1rem;
     font-weight: 400;
     color: #444;
 }

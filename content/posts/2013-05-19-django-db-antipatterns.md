@@ -18,7 +18,7 @@ select_related
 
 One of the nastiest gotchas in Django is how easy it is to get a `1+n SELECTs` situation. The docs are pretty clear on how to avoid it in view code, but the way that Django's templating system works makes it really easy to suddenly add site-crippling numbers of additional DB queries on a page _with no change to the backend code_.  Observe.
 
-We're using the models from the `books` app from the [Djangobook](https://github.com/jacobian/djangobook.com/blob/master/chapter10.rst).  I've pre-populated my database with with some initial data and I'm running the DB locally with `sqlite3`.  Follow along with [this example code](https://github.com/tgross/tgross.github.io/tree/master/_code/django-db-antipatterns) if you'd like. Here's our minimum `views.py`:
+We're using the models from the `books` app from the [Djangobook](https://github.com/jacobian/djangobook.com/blob/master/chapter10.rst).  I've pre-populated my database with with some initial data and I'm running the DB locally with `sqlite3`.  Follow along with [this example code](https://github.com/tgross/blog.0x74696d.com/tree/trunk/static/_code/django-db-antipatterns) if you'd like. Here's our minimum `views.py`:
 
 ``` python
 def get_books_by_date(request, start, end):

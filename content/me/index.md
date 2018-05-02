@@ -5,7 +5,7 @@ title: "Tim Gross"
 
 <div><img class="about-avatar" src="/images/avatar.png" title="Tim Gross" alt="avatar" /></div>
 
-I'm Tim Gross. I'm a operations engineer, technical manager, software developer, developer advocate, product developer, and general solver-of-problems-with-duct-tape. I have a proven nose for making software more robust and observable, hunting down technical debt, and reducing systems complexity in organizations of all shapes and sizes.
+I'm Tim Gross. I'm an operations engineer, technical manager, software developer, developer advocate, product developer, and general solver-of-problems-with-duct-tape. I have a proven nose for making software more robust and observable, hunting down technical debt, and reducing systems complexity in organizations of all shapes and sizes.
 
 Once upon a time, I designed and oversaw construction of life safety critical infrastructure: power systems and post-9/11 site hardening for the telecom industry, biosafety laboratories for deadly disease research, and clean room manufacturing and hazardous materials handling facilities for the pharmaceutical industry. But software is eating the world, and I found myself becoming an expert in developing software for estimation and CAD automation, as well as information-rich 3D modeling (also known as Building Information Modeling or BIM). So I turned my skills for designing secure and safe architectural environments into an inspiration to focus on building rock-solid information systems.
 

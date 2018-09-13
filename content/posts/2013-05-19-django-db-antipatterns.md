@@ -248,4 +248,4 @@ The title of this post is probably a slight misnomer.  All the above covers are 
 
 It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns -- a rich source for defects unless you know what to look for.
 
-><aside>I'm giving a lightning talk based on this post at PhillyPUG's meetup on May 21, 2013. My slides can be found at http://0x74696d.com/slides/django-db-antipatterns.html</aside>
+><aside>I'm giving a lightning talk based on this post at PhillyPUG's meetup on May 21, 2013. My slides can be found at https://blog.0x74696d.com/slides/django-db-antipatterns.html</aside>

@@ -15,10 +15,10 @@ Second, some disclaimers. I'm going to quote a few people in these posts, but no
 
 If you'd like to skip ahead to the rest of the series:
 
-1. [Part 1: Build for Reliability](../software-defined-culture-1-reliability)
-2. [Part 2: Build for Operability](../software-defined-culture-2-operability)
-3. [Part 3: Build for Observability](../software-defined-culture-3-observability)
-4. [Part 4: Build for Responsibility](../software-defined-culture-4-responsibility)
+1. [Part 1: Build for Reliability]({{< ref "2018-02-18-software-defined-culture-1.md" >}})
+2. [Part 2: Build for Operability]({{< ref "2018-02-18-software-defined-culture-2.md" >}})
+3. [Part 3: Build for Observability]({{< ref "2018-02-18-software-defined-culture-3.md" >}})
+4. [Part 4: Build for Responsibility]({{< ref "2018-02-18-software-defined-culture-4.md" >}})
 
 
 ## Shipping the Org Chart
@@ -59,7 +59,7 @@ Culture influences tools but we can clearly see that tools can influence culture
 
 If we know our technical choices can influence our culture, how can we make technical choices that will reinforce the values that we want in our organizations? I've come up with four guidelines for technical decision making which I'm going to grandiosely call the "4 principles of software defined culture." The remaining posts in this series will hit on each of these:
 
-1. [Part 1: Build for Reliability](../software-defined-culture-1-reliability)
-2. [Part 2: Build for Operability](../software-defined-culture-2-operability)
-3. [Part 3: Build for Observability](../software-defined-culture-3-observability)
-4. [Part 4: Build for Responsibility](../software-defined-culture-4-responsibility)
+1. [Part 1: Build for Reliability]({{< ref "2018-02-18-software-defined-culture-1.md" >}})
+2. [Part 2: Build for Operability]({{< ref "2018-02-18-software-defined-culture-2.md" >}})
+3. [Part 3: Build for Observability]({{< ref "2018-02-18-software-defined-culture-3.md" >}})
+4. [Part 4: Build for Responsibility]({{< ref "2018-02-18-software-defined-culture-4.md" >}})

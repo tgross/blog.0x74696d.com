@@ -7,9 +7,9 @@ title: Falling In And Out Of Love with DynamoDB, Part II
 slug: falling-in-and-out-of-love-with-dynamodb-part-ii
 ---
 
-Amazon's DynamoDB provides high concurrent throughput, availability across multiple AWS data centers, and the convenience of pay-as-you go pricing. All this is great, but key design for DynamoDB results in some unexpected challenges. [We](http://www.dramafever.com) have built a number of production systems at this point using DynamoDB and as such have a bit of a love/hate relationship with the product.
+Amazon's DynamoDB provides high concurrent throughput, availability across multiple AWS data centers, and the convenience of pay-as-you go pricing. All this is great, but key design for DynamoDB results in some unexpected challenges. [We](https://www.dramafever.com) have built a number of production systems at this point using DynamoDB and as such have a bit of a love/hate relationship with the product.
 
-><aside>In my <a href="/posts/falling-in-and-out-of-love-with-dynamodb/">last post</a> I put up my slides from a talk by this same title. But sharing slides for a talk online without video isn't all that useful, so this is an attempt to distill the essence of a few of my points in the talk to something more comprehensible.</aside>
+><aside>In my <a href="{{< ref "2013-06-18-falling-in-and-out-of-love-with-dynamodb.md" >}}">last post</a> I put up my slides from a talk by this same title. But sharing slides for a talk online without video isn't all that useful, so this is an attempt to distill the essence of a few of my points in the talk to something more comprehensible.</aside>
 
 
 Schema-less-ish
@@ -17,13 +17,13 @@ Schema-less-ish
 
 DynamoDB is schema-less, but the design of your keys has a big impact on application design, throughput performance, and cost. Table rows are referenced by primary key: either a hash key or a hash key and range key. Range keys are sorted but -- this is the big catch -- they are sorted only within a given hash key's bucket. Hash key queries are exact, whereas range key queries can be conditional; you can ask for the range key portion to be "starts with" or "greater than".  If you have a hash-range key want to use the API and not spin up map-reduce (effectively, for anything soft real-time), you need to query the hash key and range key together.
 
-![range key sorting](http://0x74696d.com/slides/images/20130618/dynamo-hashrange.png)
+![range key sorting](/slides/images/20130618/dynamo-hashrange.png)
 
 For the example schema above, I can do a query for all items where `hash == 1`, or all items where `hash == 1` and `range > b`.  But I can't make an API query for all items where `range > b`.  For that I need to do a very expensive table scan or send it off to map-reduce.
 
 Our fan/follow system uses DynamoDB's weird key structure to its advantage. *Full disclosure: someone on our team smarter than me came up with this.* This feature lets us create relationships between arbitrary entities on our site. So a user can become a "fan" of an actor or a series or "follow" another user (under the hood this is the same data structure). In other words, we're looking to create a graph database.
 
-![graph database](http://0x74696d.com/slides/images/20130618/graph.png)
+![graph database](/slides/images/20130618/graph.png)
 
 For this, we use the following key schema:
 
@@ -84,15 +84,15 @@ So this was the second attempt / dirty hack:
 
 You still end up having to do a scan with EMR, but only over the data from a given day. Then you can aggregate data for series and episodes based on the attributes. You'll also need to roll-up tables as you go to reduce the amount of processing.  This is a bad hack, because you end up with write throughput that looks like this:
 
-![cloudwatch with bad throughput](http://0x74696d.com/slides/images/20130618/thruput-badhashkey.png)
+![cloudwatch with bad throughput](/slides/images/20130618/thruput-badhashkey.png)
 
 That's right, the throughput is a tenth of what we provisioned. This is where the abstraction of the managed service starts to leak. When you provision throughput, Amazon is spinning up `n` instances of whatever the underlying processes are. Your provisioned throughput is distributed among these instances.
 
-![bad key distribution](http://0x74696d.com/slides/images/20130618/dynamotalk-keydistribution-bad.png)
+![bad key distribution](/slides/images/20130618/dynamotalk-keydistribution-bad.png)
 
 Rows are written to the instances based on the hash key, not the combined hash+range key. Duh, it's a hash, right?  Which means in the schema above, we have a hot hash key, and with a hot key, throughput will be `(provisioned throughput / however many instances Amazon has provisioned)`. The number of instances is undocumented and abstracted from you but I've been able to estimate there are roughly 10 instances running when write throughput ranges between 200-500.
 
-![good key distribution](http://0x74696d.com/slides/images/20130618/dynamotalk-keydistribution-good.png)
+![good key distribution](/slides/images/20130618/dynamotalk-keydistribution-good.png)
 
 Avoiding hot hash keys is key to DynamoDB performance.  Because the throughput is divided by the number of instances, you end up with not just reduce throughput when you're writing to a single hash but *diminishing returns* on the throughput you provision. This was also the second problem with using series/episode as a hash key.  There's plenty of key space given the size of our library, but too many hot writes because the latest episodes tend to be the most popular.
 
@@ -134,7 +134,7 @@ Semi-Homemade Autoscaling
 
 Amazon doesn't provide an autoscaling API for DynamoDB. The API for provisioning has a couple of important quirks. You can only increase the provisioning by up to +100% per API call, and another API request to increase will fail until the provisioning change has been completed (presumably this is because Amazon is spinning up DynamoDB instances). You can decrease the provisioning down to 1 read/write unit with a single call, but you are allowed only 2 decreases in provisioning per table per day.
 
-![Nginx requests, intentionally unitless](http://0x74696d.com/slides/images/20130618/daily_nginx_requests.png)
+![Nginx requests, intentionally unitless](/slides/images/20130618/daily_nginx_requests.png)
 
 We have a large daily swing in load because "prime time TV" still exists on the web if you have a predominantly North American audience. Because this is a predictable swing in load, we have a cron job that fires off increases and decreases in provisioning. The job fires every 15 minutes. Starting in the early AM it checks if the current throughput is within 80% of provisioned throughput and if so steps up in 20% increments over the course of the day. Using `boto` it's something like the code below.
 
@@ -188,7 +188,7 @@ The very minor risk here is that if we were to somehow have a sudden rush of tra
 Is DynamoDB the right tool for the job?
 ----
 
-Between this post, the [slides from the talk](http://0x74796d.com/slides/falling-in-and-out-of-love-with-dynamodb.html), and the earlier discussion of [batch writing]({% post_url 2013-06-05-dynamodb-batch-uploads %}), we've gone over a lot of the interesting properties and gotchas for working with DynamoDB. Some takeaways from my experiences:
+Between this post, the [slides from the talk](/slides/falling-in-and-out-of-love-with-dynamodb.html), and the earlier discussion of [batch writing]({{< ref "2013-06-05-dynamodb-batch-uploads.md" >}}), we've gone over a lot of the interesting properties and gotchas for working with DynamoDB. Some takeaways from my experiences:
 
 - Poor key design == cost & pain
 - Batch write with high concurrency to improve throughput

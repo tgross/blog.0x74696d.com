@@ -11,7 +11,7 @@ I've been playing around with Rust a bit lately and needed to build something wi
 
 ## Project outline
 
-The other nice thing I got to try out here is how to build a sensible project structure for a project that might mix open source and private code. Cargo has some very minimal expectations about the source code directory, but doesn't dictate much past that. So unlike that *other* language [(*ahem*)](http://0x74696d.com/posts/go-get-considered-harmful) Rust is pretty chill about letting you decide what works for your project and organization. How this reflects on the culture of those two languages is left as an exercise for the reader.
+The other nice thing I got to try out here is how to build a sensible project structure for a project that might mix open source and private code. Cargo has some very minimal expectations about the source code directory, but doesn't dictate much past that. So unlike that *other* language [(*ahem*)]({{< ref "2015-03-04-go-get-considered-harmful.md" >}}) Rust is pretty chill about letting you decide what works for your project and organization. How this reflects on the culture of those two languages is left as an exercise for the reader.
 
 
 ```

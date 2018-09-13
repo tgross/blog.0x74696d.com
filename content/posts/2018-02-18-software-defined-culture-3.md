@@ -11,11 +11,11 @@ This five-part series of posts covers a talk titled _Software Defined Culture_ t
 
 If you'd like to read the rest of the series:
 
-0. [Part 0: Software Defined Culture](../software-defined-culture)
-1. [Part 1: Build for Reliability](../software-defined-culture-1-reliability)
-2. [Part 2: Build for Operability](../software-defined-culture-2-operability)
+0. [Part 0: Software Defined Culture]({{< ref "2018-02-18-software-defined-culture-0.md" >}})
+1. [Part 1: Build for Reliability]({{< ref "2018-02-18-software-defined-culture-1.md" >}})
+2. [Part 2: Build for Operability]({{< ref "2018-02-18-software-defined-culture-2.md" >}})
 3. Part 3: Build for Observability
-4. [Part 4: Build for Responsibility](../software-defined-culture-4-responsibility)
+4. [Part 4: Build for Responsibility]({{< ref "2018-02-18-software-defined-culture-4.md" >}})
 
 ---
 
@@ -88,8 +88,8 @@ Making decisions that keep observability as a first class citizen aren't just im
 
 If you'd like to read the rest of the series:
 
-0. [Part 0: Software Defined Culture](../software-defined-culture)
-1. [Part 1: Build for Reliability](../software-defined-culture-1-reliability)
-2. [Part 2: Build for Operability](../software-defined-culture-2-operability)
+0. [Part 0: Software Defined Culture]({{< ref "2018-02-18-software-defined-culture-0.md" >}})
+1. [Part 1: Build for Reliability]({{< ref "2018-02-18-software-defined-culture-1.md" >}})
+2. [Part 2: Build for Operability]({{< ref "2018-02-18-software-defined-culture-2.md" >}})
 3. Part 3: Build for Observability
-4. [Part 4: Build for Responsibility](../software-defined-culture-4-responsibility)
+4. [Part 4: Build for Responsibility]({{< ref "2018-02-18-software-defined-culture-4.md" >}})

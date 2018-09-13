@@ -16,6 +16,6 @@ On October 29th I gave a talk on container-native architecture at [ContainerDays
 > Tim will explore the story of a real-world large scale production microservices deployment of Docker, and the challenges faced in both design and operations of migrating this kind of multi-faceted application to a container-native architecture.
 
 
-You can find my slides [here](http://0x74696d.com/talk-containerdays-nyc-2015/#/). I experimented with `reveal.js` for these, so use `<space`> to advance and `s` to get the speaker's notes.
+You can find my slides [here](http://tgross.github.io/talk-containerdays-nyc-2015/#/). I experimented with `reveal.js` for these, so use `<space`> to advance and `s` to get the speaker's notes.
 
 You can watch the talk on [YouTube](https://www.youtube.com/watch?v=08BuE6xyRnc).

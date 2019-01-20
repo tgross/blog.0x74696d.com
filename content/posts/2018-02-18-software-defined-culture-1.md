@@ -27,7 +27,7 @@ This is going to burn out your team. People don't like getting paged. They want 
 
 So given that we want to build for reliability, how do we get there? Far smarter people than me have given this serious detailed treatment, but from a high level view there are some obvious rough guidelines.
 
-### No More Resume Driven Development
+## No More Resume Driven Development
 
 Bleeding-edge technology is broken all. the. time. It's great that your engineers want to learn about Elixir or Vue JS or AerospikeDB. They should do that on their own time, or at least in your internal systems and dev tooling. Don't #YOLO that shit into production!
 
@@ -39,7 +39,7 @@ This sort of thing creates a vicious cycle. There are certain people within our 
 
 Lack of reliability biases your organization against experienced hires. If you've been through a couple of cycles of burnout already (aside: that's super fucked up that this is even a thing), you're going to see a stack of shiny new tech in a job posting and immediately toss it out, because you know there's no way you want to live through that again. It also biases your organization against older folks in general, who will tend to have families at home &mdash; particularly women as they still manage a disproportionate share of household duties. They don't want to be up all night helping you debug MongoDB because you decided to switch to the new storage engine after only a couple of days of testing.
 
-### Choose Boring Tech
+## Choose Boring Tech
 
 We should have a strong bias towards [choosing boring technology](http://mcfunley.com/choose-boring-technology). You have a limited amount of time and energy to pour into innovation. That energy should be spent on the things that will have the biggest positive impact for your organization's mission.
 

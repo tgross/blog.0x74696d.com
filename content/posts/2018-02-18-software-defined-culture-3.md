@@ -33,7 +33,7 @@ But that's not all. In his [_Open Letter to Monitoring/Alerting Companies_](http
 
 That is, the tools that we're building should be collaborative. Don't simply create dashboards showing the metrics associated with your previous outage. Select tools that allow you to debug _in situ_ like DTrace and eBPF, and let you write code that can be committed and shared as part of the learning process. Select tools like [Honeycomb](https://honeycomb.io/), that allow you to iteratively build queries of events emitted by your system, which you can then share as playbooks for your next incident.
 
-### Observability as a First-Class Requirement.
+## Observability as a First-Class Requirement.
 
 I once had responsibility for a Windows Distributed File System Replication (DFSR) cluster. In case you're not familiar, this is block storage distributed over the WAN (what could _possibly_ go wrong?). This was many years ago before I'd won my production battle scars, so when we selected the system we didn't really take into consideration how we could observe its operation. When our users started reporting bizarre file locking behavior (_gasp who could've thought!?_), we realized that DFSR had no way to tell us what it was doing. The best we could get out of it was a report that said "here's how much bandwidth I've saving in compression," which was not very helpful. We went through the 5 Stages of Observability Grief:
 
@@ -48,7 +48,7 @@ I built our own monitoring tooling based on Window Management Instrumentation (W
 What does this charming origin story have to do with culture? Because we didn't have a strong culture of observability as a first-class requirement, we ended up burning a lot of time and energy in building our own tooling. Taking ownership of our observability empowered us to make better technical decisions in the future. It's also a cautionary tale for culture; if you're an organization that has a hard time in taking ownership of its own tooling, you may lose team members to organizations that don't.
 
 
-### Debugability
+## Debugability
 
 The decisions you can make to improve observability take place at every level of the stack, from deployment platform choices all the way down to build flags.
 
@@ -60,7 +60,7 @@ If you're stripping your production binaries or passing `--fomit-frame-pointer` 
 
 If you're looking at those flame graphs and saying "no one in my organization even knows how to do that", you should probably hire someone who does. And if you're looking to "level up" your development skills as an intermediate developer, you would be well-served by learning how to profile at this level.
 
-### Platform Choices
+## Platform Choices
 
 If you deploy onto a platform where you don't have root and can't even do something like start a debugger, run `perf`, or generate a flame graph? Well, I'm not telling you that you should never use Google App Engine or Heroku or Elastic Beanstalk, but you should definitely understand what you're giving up.
 
@@ -76,7 +76,7 @@ This isn't an intractable situation. If you think a language has a lot of other 
 
 ![DTrace golang](/images/20180218/dtrace-golang.png)
 
-### Culture of Observability
+## Culture of Observability
 
 Simply having access to good tooling for observability doesn't get you much in the way of culture change. You have to use that tooling! If you only make a point of using your ability to observe your system when things are going very wrong, you won't have built up the skills to use them well. Moreover, as Charity Majors points out in [_Building Badass Engineers and Badass Teams_](https://honeycomb.io/blog/2016/10/part-5/5-building-badass-engineers-and-badass-teams/):
 

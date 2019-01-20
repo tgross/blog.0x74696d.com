@@ -30,7 +30,7 @@ But "Google does it this way, so should we" suggests that you have similar probl
 Orchestrators like Kubernetes are designed to handle a wide diversity of organizational requirements, and this is reflected in a huge amount of choice (the diversity of networking plugins alone!) that becomes incumbent upon the operators to handle. Cindy Sridharan's [excellent blog post](https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896
 ) from last summer dives into the choices her organization made around Kubernetes versus a less complex scheduler like Nomad.
 
-### Who's Complexity?
+## Who's Complexity?
 
 Most engineers are familiar with the concept of essential vs incidental complexity, but perhaps less commonly understood is how the "essentialness" of complexity is deeply tied to ones perspective. _The complexity of Kubernetes is essential complexity from the perspective of Kubernetes-the-project, but it is incidental complexity from the perspective of your organization._
 
@@ -40,7 +40,7 @@ Whether this trend has been exacerbated by the large number of VC-backed infrast
 
 If the application behavior has been abstracted away from its environment, this means the application developer can't understand the real-world behavior of their application without running it on the platform either. It's a reincarnation of RPC by remote function call; the application developer can't really treat the infrastructure like an abstraction. The application developer can't really pretend that a database cluster is sitting at localhost when there are application-specific semantics to how it behaves when replication degrades. This just leads to "works on my machine" and we're back to the same problem we were trying to solve with all our new fancy orchestration tools in the first place!
 
-### Self-Operating Applications
+## Self-Operating Applications
 
 What's the alternative? While I was at Joyent I worked on a project called [ContainerPilot](https://github.com/joyent/containerpilot), along with design patterns that we collectively called the Autopilot Pattern. The concept of the Autopilot Pattern was that the application should be responsible for its own lifecycle as much as possible. Once deployed by a (minimal) orchestration platform, applications can find the service discovery database, gossip their configuration, elect leaders, and trigger events in their own lifecycle. ContainerPilot was envisioned as a container init system that would help bridge the gap to these behaviors for legacy applications. The Joyent folks have continued on with the project after my departure, but I've seen it at work successfully at large enterprise retailers and startups alike.
 

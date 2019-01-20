@@ -23,7 +23,7 @@ If you'd like to read the rest of the series:
 
 This has been the section of the talk where I definitely lost some of the audience. In fairness, you were warned at the beginning that we were going to talk about culture and that it can be tricky. So if you've been following along so far and don't think I'm totally crazy yet... hold on to your butts!
 
-### Every Tool Comes With a Community
+## Every Tool Comes With a Community
 
 All our technical choices implicitly make us a part of the community of users of the tools we choose. Some of those communities have been intentionally and thoughtfully designed around making sure that everyone can participate in the community. The Rust language community is an amazing example of this. From the very beginning of their organization, they realized that the technical community would be stronger when everyone takes responsibility towards making it inclusive. From their [Code of Conduct](https://www.rust-lang.org/en-US/conduct.html):
 
@@ -37,7 +37,7 @@ When you choose a language where the original developers defend their language d
 
 When we choose a technology for our organization, it determines what communities we'll be a part of. It determines who we'll hire. If your organization's mission is to build amazing compiler tools, then you might want to hire people who know that "a monad is a monoid in the category of endofunctor" (not me!). But if you're making line-of-business CRUD web apps that mostly serialize rows in and out of a database, you might not want to choose Haskell. Not because of any technical constraints, but because the community of developers you'll have access to are going to be bored out of their minds writing line-of-business CRUD web apps.
 
-### Community Doesn't Stop With Your Team
+## Community Doesn't Stop With Your Team
 
 Our technical communities are only one part of building with responsibility in mind. There is also the larger community &mdash; our culture at large. The culture impact of our technical choices reflect our biases and they reflect our blind spots. When Google and Facebook demand the legal names of users, it's because they're not considering the risks that political activists, abuse victims, or trans persons would be taking by giving this information up. When a media website pushes down 10MB of crummy ads to go along with 100 words of news content, it's because they're not considering the impact this has on working class users with low-end limited data plans, who can't afford the stuff in those crummy ads anyways.
 
@@ -47,7 +47,7 @@ When I gave this talk, I asked the audience to stop and reflect on what they wer
 
 I then ask how many people work for organizations that are hiring. In a packed room of hundreds of people, virtually every hand goes up. If you think you're making the world worse, the market conditions in our industry are such that you don't have to continue to participate in that. Find somewhere that doesn't make the world worse.
 
-### Professional Ethics
+## Professional Ethics
 
 The software industry doesn't have a professional licensing body. That's probably the right call, at least for now. There's so much variation in what we do &mdash; the people who write web apps and the people who build embedded systems for airplanes are only barely in the same profession. But other industries do have licensing bodies, and I think we can learn a thing or two from our siblings in other professions.
 

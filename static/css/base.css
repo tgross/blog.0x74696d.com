@@ -1,9 +1,20 @@
-html { font-size: 112.5%; } /* 18px */
+html { font-size: 100%; }
+
+/* merriweather-regular - latin */
+@font-face {
+  font-family: 'Merriweather';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Merriweather Regular'), local('Merriweather-Regular'),
+       url('../fonts/merriweather-v19-latin-regular.woff2') format('woff2'),
+       url('../fonts/merriweather-v19-latin-regular.woff') format('woff'), /* slightly older */
+       url('../fonts/merriweather-v19-latin-regular.ttf') format('truetype'); /* mobile */
+}
 
 body {
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Open Sans","Gill Sans MT","Gill Sans",Corbel,Arial,sans-serif;
+    font-family: Merriweather, Georgia, serif;
     color: #404040;
 }
 
@@ -115,7 +126,7 @@ h3 {
 }
 
 .container {
-    width: 840px;
+    width: 768px;
     margin: 0 auto;
 }
 
@@ -145,6 +156,9 @@ h3 {
       padding: 10px 20px;
       margin: 0 10px;
       background-color: #efefef;
+  }
+  .content p code {
+      font-weight: 600;
   }
 
 .error i {
@@ -266,8 +280,6 @@ body {
   }
 
 .content p {
-    font-size: 16px;
-    font-size: 0.889rem;
     margin: 15px 0;
 }
 .content li {

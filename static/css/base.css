@@ -178,9 +178,14 @@ h3 {
 
 /* the footer block */
 .meta {
-    margin: 75px -30px 25px -30px;
-    padding: 60px 0;
+    margin: 0px -30px 25px -30px;
     border-top: 1px solid #eee;
+    color: #eee;
+    text-align: center;
+}
+.meta .blocks {
+    display: inline-block;
+    padding: 60px 0;
     color: #eee;
     text-align: center;
 }
@@ -200,7 +205,7 @@ h3 {
     vertical-align: top;
     text-align: center;
     line-height: 20px;
-    width: 150px;
+    width: 100px;
     padding: 0 10px;
   }
   .meta .block div {
@@ -208,6 +213,26 @@ h3 {
     font-size: 12px;
     font-size: 0.667rem;
   }
+  .meta .disclaimer {
+      display: inline-block;
+      padding: 10px 0;
+      vertical-align: top;
+      line-height: 20px;
+      width: 300px;
+      color: #555;
+      font-size: 12px;
+      font-size: 0.667rem;
+      text-align: left;
+  }
+  .meta .disclaimer a {
+      color: #307EA9;
+      font-size: 12px;
+      font-size: 0.667rem;
+      text-decoration: none;
+      transition: color 0.25s ease-in;
+      -webkit-transition: color 0.25s ease-in;
+  }
+
 
 .listing {
     margin: 25px 0;

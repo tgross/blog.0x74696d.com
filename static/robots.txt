@@ -1,9 +1,10 @@
 User-agent: *
+Disallow: /.git
 Disallow: /src
 Disallow: /CNAME
-Disallow: /LICENSE
-Disallow: /*.asc
-Disallow: /makefile
-Disallow: /zohoverify
+Disallow: /_code
 Disallow: /css
-Disallow: /.git
+Disallow: /fonts
+Disallow: /me
+Disallow: /_redirects
+Disallow: /zohoverify

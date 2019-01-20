@@ -71,6 +71,7 @@ that otherwise we would only need for IE8 */
   .pager a, .pager b {
       color: #444;
       text-transform: uppercase;
+      font-family: Monaco, 'Droid Sans Mono', Consolas, Tahoma, monospace;
       text-decoration: none;
       transition: color 0.25s ease-in;
       -webkit-transition: color 0.25s ease-in;

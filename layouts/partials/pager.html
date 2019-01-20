@@ -2,11 +2,11 @@
   <div class="container">
     <ul>
       <li>
-        <a href="{{ if .Paginator.HasNext }}{{ .Paginator.Next.URL }}{{ else }}#{{ end }}">Older</a>
+        <a href="{{ if .Paginator.HasNext }}{{ .Paginator.Next.URL }}{{ else }}#{{ end }}">&lt; Older</a>
       </li>
       <li>
         <span>
-        <a href="{{ if .Paginator.HasPrev }}{{ .Paginator.Prev.URL }}{{ else }}#{{ end }}">Newer</a>
+        <a href="{{ if .Paginator.HasPrev }}{{ .Paginator.Prev.URL }}{{ else }}#{{ end }}">Newer &gt;</a>
         </span>
       </li>
     </ul>

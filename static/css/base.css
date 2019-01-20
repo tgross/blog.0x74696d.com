@@ -213,6 +213,9 @@ h3 {
     margin: 25px 0;
     padding: 0;
 }
+  .listing a {
+      text-decoration: none;
+  }
   .listing li {
       list-style-type: none;
       padding: 7px 5px;

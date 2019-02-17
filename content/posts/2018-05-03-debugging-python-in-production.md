@@ -24,6 +24,8 @@ The tools I'll discuss below do require some one-time up-front work, but the pay
 
 The Docker Hub has a [Python image](https://store.docker.com/images/python) in its library. We need to slightly modify that build and make sure it's part of our continuous integration system. The source for the Dockerfiles is [on GitHub](https://github.com/docker-library/python/tree/master). We only care about Python 3.6 and above.
 
+<aside>Addendum (Feb 2019): I submitted a pull request to the Docker library (<a href="https://github.com/docker-library/python/pull/366">PR #366</a>) for compiling in <code>usdt</code> hooks. The change was benchmarked using Python's own benchmarking suite. Although many of the benchmarks don't show a significant difference between <code>--with-dtrace</code> and not, <strong>26 of the 60 tests show a 5%-17% performance hit</strong>, even without an active trace. This is probably not the approach you want. For live profiling in production you might instead want to check out <a href="https://github.com/benfred/py-spy"><code>py-spy</code></a></aside>
+
 Python is written in C, and like many C applications under Unix it's built via Autotools. A `configure` step takes a Makefile template and some parameters, and generates a Makefile that we call `make` on to build the software. We want to alter the parameters that the Docker build is using to add debugging symbols (the `--with-pydebug` flag) and tracepoints (the `--with-dtrace` flag). So for example as of this writing, we'd be adding these flags to the template used for the `docker/python:3.6-slim` version [here](https://github.com/docker-library/python/blob/ba5711fb564133bf9c8b870b431682a4db427219/Dockerfile-slim.template#L61-L67). We also need to include the installation of `systemtap-sdt-dev`.
 
 
@@ -239,6 +241,8 @@ The Linux kernel includes a sandboxed bytecode interpreter that was originally c
 See also the [bpf(2) man page](http://man7.org/linux/man-pages/man2/bpf.2.html)
 
 The BCC toolkit comes with a ton of useful example tools. Want to sniff SSL traffic before the OpenSSL library encrypts it? Try [`sslsniff.py`](https://github.com/iovisor/bcc/blob/master/tools/sslsniff.py). Want to figure out your DNS lookup latency? Try [`gethostlatency.py`](https://github.com/iovisor/bcc/blob/master/tools/gethostlatency.py). Want to monitor I/O of your disks? Try [`biotop.py`](https://github.com/iovisor/bcc/blob/master/tools/biotop.py). Brendan Gregg has a great diagram of where all the various tools appears here: http://www.brendangregg.com/Perf/linux_observability_tools.png
+
+<aside>Addendum (Feb 2019): see my addendum above about <code>usdt</code> hooks in Python and check out <a href="https://github.com/benfred/py-spy"><code>py-spy</code></a> instead!</aside>
 
 In addition to being written in Python, BCC ships with a tools that are useful for instrumenting Python applications. If you have ever tried to profile a Python application you may have tried [`cProfile`](https://docs.python.org/3.6/library/profile.html). But it has a performance impact on the application and you can't add it to a running production application after the fact. Instead you can use the [`ucalls.py`](https://github.com/iovisor/bcc/blob/master/tools/lib/ucalls.py) library (or its handy [`pythoncalls`](https://github.com/iovisor/bcc/blob/master/tools/pythoncalls.sh) wrapper). This hooks the usdt endpoints that we made sure our Python interpreter had when we built it earlier with the `--with-dtrace` flag. Here we use it on a Django application that makes calculations via `numpy`:
 

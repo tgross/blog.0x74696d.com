@@ -17,7 +17,7 @@ The conversation goes something like this:
 
 > Me: "Even if we don't autoscale, run on spot instances, or ever update the host, the host can randomly fail at any time."
 
-> Them: "Yes, but that's less often so it's ok. Throughput is ok if it happens rarely."
+> Them: "Yes, but that's less often so it's ok. Throughput is ok if failure happens rarely."
 
 > Me: "But you have a bug if the tasks can't be safely retried."
 

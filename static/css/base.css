@@ -149,7 +149,6 @@ h3 {
   }
   .content img, .content video {
       max-width: 770px;
-      margin: 10px 30px;
       border: 0px;
   }
   .content pre {
@@ -277,6 +276,12 @@ aside {
 blockquote {
     color: #000;
     font-style: italic;
+}
+
+blockquote cite {
+    color: #404040;
+    font-size: 16px;
+    font-size: 0.888rem;
 }
 
 ::selection {

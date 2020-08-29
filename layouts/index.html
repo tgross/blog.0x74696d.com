@@ -7,7 +7,7 @@
 
 <section class="container content">
   <ul class="listing">
-    {{ $paginator := .Paginate (where .Data.Pages "Section" "posts") }}
+    {{ $paginator := .Paginate (where .Site.RegularPages "Type" "in" site.Params.mainSections) }}
     {{ range sort $paginator.Pages }}
     <li>
       <span>{{ .Date.Format "January 2, 2006" }}</span> <a href="{{ .RelPermalink }}">{{ .Title }}</a>

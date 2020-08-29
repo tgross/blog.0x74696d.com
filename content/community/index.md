@@ -5,16 +5,12 @@ title: "Community"
 
 ## Talks
 
-<div>{{< talks >}}</div>
+{{< talks >}}
 
 ## Podcasts and Panels
 
-<div>{{< panels >}}</div>
+{{< panels >}}
 
 ## Workshops
 
-<div>{{< workshops >}}</div>
-
-## Open source contributions
-
-<div>{{< contribs >}}</div>
+{{< workshops >}}

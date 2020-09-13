@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | git-send-email</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>git-send-email</h1>
+  <section class="byline">August 29, 2020</section>
+  <p>Recently <em>The Register</em> <a href="https://www.theregister.com/2020/08/25/linux_kernel_email/">published an
+interview</a>
+with Microsoft's Sarah Novotny where she claimed that the Linux kernel
+project's reliance on plain-text email was a barrier to entry for new
+kernel developers.</p>
+<p>Predictably a bunch of folks showed up on Twitter to heap abuse and
+gatekeep people's email clients, and just as predictably a lot of
+well-meaning folks took the opposing side that because those people
+were jerks, that Novotny was right. So I want to talk about both why
+the structure of these kinds of arguments is such a disaster and why I
+agree with Novotny's stated goals but think that she doesn't have much
+of a solution to the problem.</p>
+<h2 id="misaligned-goals">Misaligned Goals</h2>
+<p>Let's address the jerks first because they're the least interesting
+bit. Novotny's stated goals as Microsoft's representative to the Linux
+Foundation board are to ensure the long term survival of the Linux
+kernel project and in particular to ensure there's a flow of new
+maintainers to the project. It should follow without question that for
+there to be new maintainers, there needs to be a flow of new
+contributors who eventually become experience contributors who can
+take over from the old maintainers as they literally age-out of
+working on the kernel full time. I can't think of any possible
+good-faith argument against this goal, because it's rooted in the
+reality that kernel developers are mortal.</p>
+<p>I'm also going to put some words into Novotny's mouth here (in a
+friendly sense) and suggest that in referring &quot;developers who have
+grown up in the last five or ten years&quot; she's also looking to expand
+the <em>demographics</em> of the kernel project contributors. That's a worthy
+goal!</p>
+<p>But whether or not she intended to imply that, I suspect that many of
+the gatekeeping types <em>think</em> she implied it. This is what sets up the
+Twitter shitposting, because you have a very noisy group of people who
+long-ago staked ground that they want tech to be the domain of cranky
+white cis dudes (optionally with beards) and will jump at the
+opportunity to fight about it. I find these people super frustrating
+both because they're awful and because they suck all the air out of
+the room from what could otherwise be adult conversations about the
+best tactics. Unfortunately a lot of very smart and empathetic people
+that I like get suckered into engaging in that conversation. You can't
+reach these people, only freeze them out. (And hope that eventually
+they'll do some work on themselves and be ready to join a culture that
+is happy to embrace them again, but I'm admittedly cynical about
+that.)</p>
+<h2 id="not-disinterested">Not Disinterested</h2>
+<p>The second set of arguments you can have here is that Novotny is not a
+disinterested party. She works for Microsoft, and previously worked at
+Google. Both of these organizations have reputations for open source
+malfeasance and those reputations are going to be reflected onto
+anything she says.</p>
+<p>If you read the interview carefully, you'll find that Novotny is
+talking in fairly broad strokes without really recommending anything
+in particular. (This probably contributes to the focus of the
+discussion on plain-text email and not maintainer succession) So if
+you think that the reputation of Microsoft is well-deserved, you're
+not likely to read between those lines in a way that assumes good
+intent. Instead, it vaguely smells like another nefarious attempt at
+<a href="https://en.wikipedia.org/wiki/Embrace,_extend,_and_extinguish">&quot;embrace, extend,
+extinguish&quot;</a>.</p>
+<p>A similar example might be if Linux Torvalds has something excitable
+but borderline to say on the LKML. Because of his reputation as being
+an asshole, if you're inclined to see him as a jerk you'll read what
+he says uncharitably. Whereas if you're inclined to believe he's
+trying to do the work of self-improvement, you may read it more
+generously as enthusiastically penetrating questions to a colleague he
+respects.</p>
+<p>Novotny's playing coy about hosting kernel development on GitHub
+probably works against her here. We all know that's what we're talking
+about, because there are no technically feasible alternatives for a
+project of that scale. (Sorry GitLab.)</p>
+<p>In any case, while I'm not particularly inclined to see Microsoft in a
+good light, in this case I don't see much to be paranoid about. While
+I'm sure GitHub would love the reputational boost of hosting kernel
+development, this is small potatoes in the grand scheme of things. It
+wouldn't give Microsoft special control over the project that it
+doesn't already have by its funding, board position, and many
+development contributions.</p>
+<h2 id="nobody-escapes-conways-law">Nobody Escapes Conway's Law</h2>
+<p>If we get rid of misaligned goals or accusations of bad faith, that
+leaves us with a discussion of tactics. This is where I suspect
+Novotny's background at Google is influencing her to try to apply a
+tooling fix to a cultural problem.</p>
+<p>Which is to say, <code>git-send-email</code> is not the problem here.</p>
+<p>Daniel Vetter's 2017 post <a href="https://blog.ffwll.ch/2017/08/github-why-cant-host-the-kernel.html">Why Github can't host the Linux Kernel
+Community</a>
+does a good job summarizing the distributed structure of the kernel
+development project:</p>
+<blockquote>
+<p>No one (except Linus himself) is developing stuff on top of Linus’
+repository. Every subsystem, and often even big drivers, have their
+own git repositories, with their own mailing lists to track
+submissions and discuss issues completely separate from everyone
+else.<br/>
+...<br/>
+But looking closer, it’s very, very far away from a single git
+repository. Just looking at the upstream subsystem and driver
+repositories gives you a few hundred. If you look at the entire
+ecosystem, including hardware vendors, distributions, other
+linux-based OS and individual products, you easily have a few
+thousand major repositories, and many, many more in total.</p>
+</blockquote>
+<p>As skilled as the kernel developers may be, nobody escapes Conway's
+Law. The systems they have developed, <em>including git itself</em>, are
+reflections of the organization that created them.</p>
+<p>The kernel is not developed in the same way that Kubernetes is,
+because it's not organized the same way. Kubernetes is largely run by
+many committees (&quot;SIGs&quot;), befitting its origin as a corporate
+controlled project. While Linux is developed largely via the
+contributions of these same corporations, the technical governance
+structure is one of distributed hierarchies.</p>
+<p>Someone looking to contribute to the kernel needs to understand the
+kernel subsystem in question. They need to write professional-grade
+C. They need to use the notoriously user-hostile <code>git</code> source control
+software. Given those heady requirements, I suspect that plain-text
+email is not the barrier to entry that Novotny thinks it is. And
+certainly compared to understanding the sprawling organization of the
+project it seems like a tiny one.</p>
+<p>Search for &quot;getting into linux kernel development&quot; and the best page
+you find is the
+<a href="https://www.kernel.org/doc/html/latest/process/howto.html">kernel.org</a>
+page that gets you started with... kbuild, email patches, and coding
+style? A less narrow search found the <a href="https://www.kernel.org/doc/html/v5.7/process/development-process.html">development
+process</a>
+page which is better, but not exactly a welcome mat.</p>
+<p>This isn't a tooling problem, it's one of human communication. And
+what I find especially frustrating about a focus on tooling is that
+Novotny's employer is one of those uniquely positioned to contribute
+to fixing the human problems.</p>
+<p>The huge corporate contributors like Microsoft, Google, and RedHat
+should be building on-ramps to kernel development. They should be
+producing on-boarding documentation, guides to how the project is
+structured, and providing mentorship (and sponsorship!) for new kernel
+developers. They should be ensuring that their own pipeline of kernel
+contributors is diverse and that the contributors they employ are
+building an inclusive culture within the LKML and other project
+spaces. And they should be holding each other accountable for doing
+the same.</p>
+<p>Telling El Reg the issue is plain text email only distracts from
+solving the real problems.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fgit-send-email%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; 2013-2020 Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

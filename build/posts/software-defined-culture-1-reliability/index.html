@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Software Defined Culture, Part 1 - Reliability</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Software Defined Culture, Part 1 - Reliability</h1>
+  <section class="byline">February 18, 2018</section>
+  <p>This five-part series of posts covers a talk titled <em>Software Defined Culture</em> that I gave at <a href="https://www.devopsdays.org/events/2016-philadelphia/program/tim-gross/">DevOps Days Philadelphia 2016</a>, <a href="https://gotochgo.com/2017/sessions/43">GOTO Chicago 2017</a>, and <a href="https://vimeo.com/228067673">Velocity San Jose 2017</a>.</p>
+<p>If you'd like to read the rest of the series:</p>
+<ol start="0">
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture/">Part 0: Software Defined Culture</a></li>
+<li>Part 1: Build for Reliability</li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-2-operability/">Part 2: Build for Operability</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-3-observability/">Part 3: Build for Observability</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/">Part 4: Build for Responsibility</a></li>
+</ol>
+<hr>
+<h1 id="building-for-reliability">Building for Reliability</h1>
+<p>Failure to build for reliability means we develop a culture of firefighting. Firefighting becomes a rut for organizations. Things are broken, we rush out fixes, and we pile on technical debt. The &quot;temporary&quot; hacks lead to problems that come back, grow, and cascade. Urgency starts to supercede importance. That is, the thing that needs to be fixed <em>right now</em> sets back the mission of the organization as a whole. Problems become crises, and the organization simply starts lurching from crisis to crisis. This has insidious effects on the organization's culture as we start rewarding our best firefighters. We misalign incentives away from the creation of value and towards the prevention of largely self-inflicted harm.</p>
+<p>This is going to burn out your team. People don't like getting paged. They want to sleep. They want to spend time with their families. They want to spend their working hours tackling the cool &quot;hard problems&quot; you sold them on when you recruited them. Ironically, the best firefighters will be the ones to burn out, and then you'll be without them as they either quit or their burnout starts to affect their personalities and performance. (Speaking from personal hard-won experience here!)</p>
+<p>So given that we want to build for reliability, how do we get there? Far smarter people than me have given this serious detailed treatment, but from a high level view there are some obvious rough guidelines.</p>
+<h2 id="no-more-resume-driven-development">No More Resume Driven Development</h2>
+<p>Bleeding-edge technology is broken all. the. time. It's great that your engineers want to learn about Elixir or Vue JS or AerospikeDB. They should do that on their own time, or at least in your internal systems and dev tooling. Don't #YOLO that shit into production!</p>
+<p>Not only is this bad for reliability it also tells people that this is good engineering decision making — that it's okay to push untrusted systems into production. In fact, in many organizations you'll be rewarded for this behavior because you've &quot;shipped&quot;. Pay no attention to the unmaintainable tire fire afterwards!</p>
+<p>It's not just rewarding the behavior on your team, but it's also a problem for hiring. If your job listings look like a Markov chain from the front page of HackerNews, what kind of developer is this attracting to your organization?</p>
+<p>This sort of thing creates a vicious cycle. There are certain people within our profession who never really want to maintain anything. They want to chase the new shiny and then move on to the next thing. If one of these folks lands in your organization and they're allowed free rein, they'll bring in all their friends as well. I've witnessed these roving gangs of locust developers coming in, dropping a new framework or programming language on an organization, and heading off to the next organization to screw up.</p>
+<p>Lack of reliability biases your organization against experienced hires. If you've been through a couple of cycles of burnout already (aside: that's super fucked up that this is even a thing), you're going to see a stack of shiny new tech in a job posting and immediately toss it out, because you know there's no way you want to live through that again. It also biases your organization against older folks in general, who will tend to have families at home — particularly women as they still manage a disproportionate share of household duties. They don't want to be up all night helping you debug MongoDB because you decided to switch to the new storage engine after only a couple of days of testing.</p>
+<h2 id="choose-boring-tech">Choose Boring Tech</h2>
+<p>We should have a strong bias towards <a href="http://mcfunley.com/choose-boring-technology">choosing boring technology</a>. You have a limited amount of time and energy to pour into innovation. That energy should be spent on the things that will have the biggest positive impact for your organization's mission.</p>
+<p>Building for reliability encourages the development of a certain set of cultural values. It builds a culture trust between developers and operators. It builds a culture of inclusivity. It builds a culture of sensible attitudes towards risk. And it builds a culture of work-life balance.</p>
+<hr>
+<p>If you'd like to read the rest of the series:</p>
+<ol start="0">
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture/">Part 0: Software Defined Culture</a></li>
+<li>Part 1: Build for Reliability</li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-2-operability/">Part 2: Build for Operability</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-3-observability/">Part 3: Build for Observability</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/">Part 4: Build for Responsibility</a></li>
+</ol>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fsoftware-defined-culture-1-reliability%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; 2013-2020 Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

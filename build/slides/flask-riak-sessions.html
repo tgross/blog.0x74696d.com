@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2010 Google Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+  Original slides: Marcin Wichary (mwichary@google.com)
+  Modifications: Ernest Delgado (ernestd@google.com)
+                 Alex Russell (slightlyoff@chromium.org)
+
+  landslide modifications: Adam Zapletal (adamzap@gmail.com)
+                           Nicolas Perriault (nperriault@gmail.com)
+-->
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Flask sessions in Riak</title>
+    <!-- Styles -->
+    
+    <link rel="stylesheet" media="print" href="file:///Users/tgross/Projects/tgross.github.io/slides/theme/css/print.css">
+    <link rel="stylesheet" media="screen, projection" href="file:///Users/tgross/Projects/tgross.github.io/slides/theme/css/screen.css">
+    
+    
+    <!-- /Styles -->
+    <!-- Javascripts -->
+    
+    <script type="text/javascript" src="file:///Users/tgross/Projects/tgross.github.io/slides/theme/js/slides.js"></script>
+    
+    
+    <!-- /Javascripts -->
+</head>
+<body>
+  <div id="blank"></div>
+  <div class="presentation">
+    <div id="current_presenter_notes">
+      <div id="presenter_note"></div>
+    </div>
+    <div class="slides">
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Flask sessions in Riak</h1></header>
+            
+            <section><div style="position: absolute; bottom: 0">
+<p>tim gross | @0x74696d</p>
+<p>http://0x74696d.com/slides/flask-riak-sessions/</p>
+<p>http://github.com/tgross/flask-riak-sessions/</p>
+</div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>I'm Tim Gross</li>
+<li>I do DevOps and develop software infrastructure for DramaFever.</li>
+<li>DynamoDB talk, Hector from Basho says try Riak</li>
+<li>Session store for Flask in Riak (project in progress)</li>
+<li>Session stores a problem @ DF due to write contention on the DB, Django's signed cookies don't support encryption</li>
+<li>Want to expand this into a full authentication system for OAuth2 clients</li>
+<li>Very briefly touch on Riak and sessions, then go into some code</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              1/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Riak in Brief</h1></header>
+            
+            <section><ul>
+<li>Distributed key-value store</li>
+<li>Eventually consistent; designed for "AP"</li>
+</ul>
+<p><img alt="riak ring" src="file:///Users/tgross/Projects/tgross.github.io/slides/./images/20130627/riak-ring.png" /></p>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>bucket + key =&gt; 160-bit hash</li>
+<li>hash space divided equally among nodes</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              2/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Riak Availability</h1></header>
+            
+            <section><ul>
+<li>Hinted handoff (inter-node communication to determine bad ring neighbors)</li>
+<li><code>n</code> replication number causes objects to replicated to <code>n</code> partitions</li>
+</ul>
+<p><img alt="riak data distribution" src="file:///Users/tgross/Projects/tgross.github.io/slides/./images/20130627/riak-data-distribution.png" /></p>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>Consistent hashing means new nodes get new writes</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              3/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Riak Consistency</h1></header>
+            
+            <section><p>CAP-tuning features</p>
+<ul>
+<li><code>r</code> and <code>w</code> allow client-specified consistency requirements</li>
+<li>eventual consistency w/ metadata</li>
+</ul>
+<p>Vector Clock</p>
+<ul>
+<li>each stored value is tagged w/ initial version</li>
+<li>graphs whether objects are descendants, have common parents, etc.</li>
+<li>used to auto-repair out-of-sync data</li>
+</ul>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>r/w is the number of replicas that have to have to succeed</li>
+<li>r/w tunable per request</li>
+<li>which object value returning sync'd w/ vector clock</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              4/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Client-side sessions (stateless)</h1></header>
+            
+            <section><p><img alt="client-side sessions" height=550 src="file:///Users/tgross/Projects/tgross.github.io/slides/./images/20130627/client-side-sessions.png"></p>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>No state on the server</li>
+<li>Note order of operations in serialize/deserialize</li>
+<li>Racy!</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              5/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Client-side sessions (stateless)</h1></header>
+            
+            <section><p>HMAC-signed client-side cookies store session data</p>
+<ul>
+<li>data can be read by client unless cookie data is encrypted server-side first</li>
+<li>data can't be undetectably tampered with</li>
+<li>Flask ships with <code>itsdangerous</code> to do client-side session cookie</li>
+</ul>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>client-side reading is sometimes an advantage</li>
+<li>encrypting data lets it be stored "on the wire"</li>
+<li>we use this at DF b/c of speed, reduced write-pressure on DB</li>
+<li>will use at DF for storing client-readable</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              6/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Server-side sessions (stateful)</h1></header>
+            
+            <section><p><img alt="server-side sessions" width=800 src="file:///Users/tgross/Projects/tgross.github.io/slides/./images/20130627/server-side-sessions.png"></p>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>state is persisted in the data store</li>
+<li>needs to be fast, highly-available</li>
+<li>cookie token should be hard to spoof</li>
+<li>N.B. both stateless and stateful should protect w/ httponly/SSL-only if used for auth</li>
+<li>Riak/Dynamo/any-eventually-consistent-store sessions are still racy!</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              7/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Flask-RiakSessions</h1></header>
+            
+            <section><p><code>flask_riaksessions.py</code></p>
+<div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">class</span> <span class="nc">RiakSession</span><span class="p">(</span><span class="n">CallbackDict</span><span class="p">,</span> <span class="n">SessionMixin</span><span class="p">):</span>
+<span class="lineno"> 2</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 3</span> <span class="sd">    Implements a Flask session for storage in Riak.</span>
+<span class="lineno"> 4</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span>     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">sid</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+<span class="lineno"> 7</span>                  <span class="n">new</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">expiry</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<span class="lineno"> 8</span> 
+<span class="lineno"> 9</span>         <span class="k">def</span> <span class="nf">on_update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="lineno">10</span>             <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno">11</span> <span class="sd">            Set the dirty-session flag.</span>
+<span class="lineno">12</span> <span class="sd">            &quot;&quot;&quot;</span>
+<span class="lineno">13</span>             <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
+<span class="lineno">14</span> 
+<span class="lineno">15</span>         <span class="n">CallbackDict</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial</span><span class="p">,</span> <span class="n">on_update</span><span class="p">)</span>
+<span class="lineno">16</span>         <span class="bp">self</span><span class="o">.</span><span class="n">sid</span> <span class="o">=</span> <span class="n">sid</span>
+<span class="lineno">17</span>         <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="n">token</span>
+<span class="lineno">18</span>         <span class="bp">self</span><span class="o">.</span><span class="n">new</span> <span class="o">=</span> <span class="n">new</span>
+<span class="lineno">19</span>         <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="lineno">20</span>         <span class="bp">self</span><span class="o">.</span><span class="n">expiry</span> <span class="o">=</span> <span class="n">expiry</span>
+<span class="lineno">21</span> 
+<span class="lineno">22</span>     <span class="nd">@property</span>
+<span class="lineno">23</span>     <span class="k">def</span> <span class="nf">key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="lineno">24</span>         <span class="k">return</span> <span class="s">&#39;{}!{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sid</span><span class="p">)</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>SessionMixin plugs this into Flask</li>
+<li>CallbackDict is from werkzeug</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              8/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Flask-RiakSessions</h1></header>
+            
+            <section><div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">class</span> <span class="nc">RiakSessions</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="lineno"> 2</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 3</span> <span class="sd">    Sets up the Flask-RiakSessions extension during application</span>
+<span class="lineno"> 4</span> <span class="sd">    startup. Instantiate this class and pass the application to</span>
+<span class="lineno"> 5</span> <span class="sd">    the `app` argument to set it up.</span>
+<span class="lineno"> 6</span> 
+<span class="lineno"> 7</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno"> 8</span>     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<span class="lineno"> 9</span>         <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+<span class="lineno">10</span>         <span class="k">if</span> <span class="n">app</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+<span class="lineno">11</span>             <span class="bp">self</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+<span class="lineno">12</span> 
+<span class="lineno">13</span>     <span class="k">def</span> <span class="nf">init_app</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+<span class="lineno">14</span>         <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno">15</span> <span class="sd">        Sets up default config variables and instantiates the</span>
+<span class="lineno">16</span> <span class="sd">        session interface.</span>
+<span class="lineno">17</span> 
+<span class="lineno">18</span> <span class="sd">        &quot;&quot;&quot;</span>
+<span class="lineno">19</span>         <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;RIAK_BIN_DIR&#39;</span><span class="p">,</span>
+<span class="lineno">20</span>                               <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;RIAK_DIR&#39;</span><span class="p">,</span><span class="s">&#39;&#39;</span><span class="p">))</span>
+<span class="lineno">21</span>         <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;RIAK_HTTP_PORT&#39;</span><span class="p">,</span> <span class="mi">10018</span><span class="p">)</span>
+<span class="lineno">22</span>         <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;RIAK_SESSIONS_HASH_FUNCTION&#39;</span><span class="p">,</span>
+<span class="lineno">23</span>                               <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">)</span>
+<span class="lineno">24</span> 
+<span class="lineno">25</span>         <span class="n">app</span><span class="o">.</span><span class="n">session_interface</span> <span class="o">=</span> <span class="n">RiakSessionInterface</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>fairly typical Flask extension boilerplate</li>
+<li>sets default config values and adds code to app context</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              9/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Flask-RiakSession</h1></header>
+            
+            <section><p><code>app.py</code> (example)</p>
+<div class="highlight"><pre><span class="lineno"> 1</span> <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">session</span><span class="p">,</span> <span class="n">request</span>
+<span class="lineno"> 4</span> <span class="kn">from</span> <span class="nn">flask.ext.riaksessions</span> <span class="kn">import</span> <span class="n">RiakSessions</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span> <span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+<span class="lineno"> 7</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">from_object</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+<span class="lineno"> 8</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&#39;SECRET_KEY&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;mysecretkey&#39;</span>
+<span class="lineno"> 9</span> 
+<span class="lineno">10</span> <span class="n">RiakSessions</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>Flask boilerplate</li>
+<li>instantiates the RiakSessionInterface and attached it to <code>app.session_interface</code></li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              10/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Flask-RiakSession</h1></header>
+            
+            <section><div class="highlight"><pre><span class="lineno">1</span> <span class="nd">@app.route</span><span class="p">(</span><span class="s">&#39;/&#39;</span><span class="p">)</span>
+<span class="lineno">2</span> <span class="k">def</span> <span class="nf">hello</span><span class="p">():</span>
+<span class="lineno">3</span>     <span class="n">previous_visit</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;last_visit&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+<span class="lineno">4</span>     <span class="n">last_ip</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;ip&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+<span class="lineno">5</span>     <span class="n">session</span><span class="p">[</span><span class="s">&#39;last_visit&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+<span class="lineno">6</span>     <span class="n">session</span><span class="p">[</span><span class="s">&#39;ip&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+<span class="lineno">7</span>     <span class="k">if</span> <span class="ow">not</span> <span class="n">previous_visit</span><span class="p">:</span>
+<span class="lineno">8</span>         <span class="k">return</span> <span class="s">&#39;Hello, stranger from {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">)</span>
+<span class="lineno">9</span>     <span class="k">return</span> <span class="s">&#39;Last visit was {} from {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">previous_visit</span><span class="p">,</span> <span class="n">last_ip</span><span class="p">)</span>
+</pre></div>
+
+<p><img alt="example without session" src="file:///Users/tgross/Projects/tgross.github.io/slides/./images/20130627/example-new.png" />
+<br/>
+<img alt="example with session" src="./images/20130627/example-session.png" /></p></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              11/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Flask-RiakSession</h1></header>
+            
+            <section><div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">class</span> <span class="nc">RiakSessionInterface</span><span class="p">(</span><span class="n">SessionInterface</span><span class="p">):</span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span>     <span class="k">def</span> <span class="nf">open_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+<span class="lineno"> 4</span>         <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 5</span> <span class="sd">        Fetch the session from the Riak database after validating the</span>
+<span class="lineno"> 6</span> <span class="sd">        session ID or create a new session ID + session.</span>
+<span class="lineno"> 7</span> 
+<span class="lineno"> 8</span> <span class="sd">        &quot;&quot;&quot;</span>
+<span class="lineno"> 9</span>         <span class="n">cookie</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">cookies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">session_cookie_name</span><span class="p">)</span>
+<span class="lineno">10</span>         <span class="n">ip</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+<span class="lineno">11</span>         <span class="c"># Flask test server has no User-Agent</span>
+<span class="lineno">12</span>         <span class="n">user_agent</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;User-Agent&#39;</span><span class="p">,</span> <span class="s">&#39;NULL&#39;</span><span class="p">)</span>
+<span class="lineno">13</span> 
+<span class="lineno">14</span>         <span class="k">if</span> <span class="n">cookie</span><span class="p">:</span>
+<span class="lineno">15</span>             <span class="k">try</span><span class="p">:</span>
+<span class="lineno">16</span>                 <span class="n">session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cookie</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">ip</span><span class="p">,</span> <span class="n">user_agent</span><span class="p">)</span>
+<span class="lineno">17</span>                 <span class="k">return</span> <span class="n">session</span>
+<span class="lineno">18</span>             <span class="k">except</span> <span class="n">SessionValidationError</span><span class="p">:</span>
+<span class="lineno">19</span>                 <span class="c"># pass and generate a new session</span>
+<span class="lineno">20</span>                 <span class="n">LOG</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s">&#39;Invalid session&#39;</span><span class="p">)</span>
+<span class="lineno">21</span> 
+<span class="lineno">22</span>         <span class="n">sid</span> <span class="o">=</span> <span class="n">generate_sid</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">ip</span><span class="p">,</span> <span class="n">user_agent</span><span class="p">)</span>
+<span class="lineno">23</span>         <span class="n">session</span> <span class="o">=</span> <span class="n">RiakSession</span><span class="p">(</span><span class="n">sid</span><span class="o">=</span><span class="n">sid</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="n">uuid4</span><span class="p">(),</span> <span class="n">new</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="lineno">24</span>         <span class="n">session</span><span class="o">.</span><span class="n">expiry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_expiration_time</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">session</span><span class="p">)</span>
+<span class="lineno">25</span>         <span class="k">return</span> <span class="n">session</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>still in flask_riaksessions.py</li>
+<li>if there's a session cookie, try to get the session</li>
+<li>if not, create a new session ID and new session</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              12/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Flask-RiakSession</h1></header>
+            
+            <section><div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">def</span> <span class="nf">generate_sid</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">ip</span><span class="p">,</span> <span class="n">user_agent</span><span class="p">):</span>
+<span class="lineno"> 2</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 3</span> <span class="sd">    Uses the IP and user-agent as the inputs to an HMAC to be used</span>
+<span class="lineno"> 4</span> <span class="sd">    as part of the unique session ID.</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno"> 7</span>     <span class="n">sid</span> <span class="o">=</span> <span class="n">get_hmac</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="s">&#39;{}.{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span><span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">user_agent</span><span class="p">)))</span>
+<span class="lineno"> 8</span>     <span class="k">return</span> <span class="n">sid</span>
+<span class="lineno"> 9</span> 
+<span class="lineno">10</span> 
+<span class="lineno">11</span> <span class="k">def</span> <span class="nf">get_hmac</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">content</span><span class="p">):</span>
+<span class="lineno">12</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno">13</span> <span class="sd">    Generates the hash message authentication code (HMAC) using the</span>
+<span class="lineno">14</span> <span class="sd">    application configuration and the passed content.</span>
+<span class="lineno">15</span> <span class="sd">    Takes the RIAK_SESSIONS_HASH_FUNCTION and SECRET_KEY app config.</span>
+<span class="lineno">16</span> 
+<span class="lineno">17</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno">18</span>     <span class="n">hash_function</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&#39;RIAK_SESSIONS_HASH_FUNCTION&#39;</span><span class="p">]</span>
+<span class="lineno">19</span>     <span class="n">secret</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&#39;SECRET_KEY&#39;</span><span class="p">]</span>
+<span class="lineno">20</span>     <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">hmac</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">secret</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span>
+<span class="lineno">21</span>                                      <span class="n">hash_function</span><span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">())</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>Using user agent &amp; IP address not enough to ID user</li>
+<li>concat w/ UUID, username, etc.</li>
+<li>Using IP/User-Agent is a standin</li>
+<li>will use an HMAC of user information for authenticated users + browser identifiers</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              13/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Flask-RiakSession</h1></header>
+            
+            <section><div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cookie</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">ip</span><span class="p">,</span> <span class="n">user_agent</span><span class="p">):</span>
+<span class="lineno"> 2</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 3</span> <span class="sd">    Gets the session data from the Riak datastore and compares the</span>
+<span class="lineno"> 4</span> <span class="sd">    HMAC signatures of inputs against the session ID to ensure it</span>
+<span class="lineno"> 5</span> <span class="sd">    has not been altered.</span>
+<span class="lineno"> 6</span> 
+<span class="lineno"> 7</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno"> 8</span>     <span class="n">sid</span> <span class="o">=</span> <span class="n">generate_sid</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">ip</span><span class="p">,</span> <span class="n">user_agent</span><span class="p">)</span>
+<span class="lineno"> 9</span>     <span class="n">token</span><span class="p">,</span> <span class="n">cookie_sid</span> <span class="o">=</span> <span class="n">cookie</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;!&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="lineno">10</span> 
+<span class="lineno">11</span>     <span class="k">if</span> <span class="n">cookie_sid</span> <span class="o">!=</span> <span class="n">sid</span><span class="p">:</span>
+<span class="lineno">12</span>         <span class="k">raise</span> <span class="n">SessionValidationError</span><span class="p">(</span><span class="s">&#39;Tampered session.&#39;</span><span class="p">)</span>
+<span class="lineno">13</span> 
+<span class="lineno">14</span>     <span class="c"># this uses `riak-python-client` from basho</span>
+<span class="lineno">15</span>     <span class="n">session_bucket</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">bucket</span><span class="p">(</span><span class="s">&#39;sessions&#39;</span><span class="p">)</span>
+<span class="lineno">16</span>     <span class="n">stored_value</span> <span class="o">=</span> <span class="n">session_bucket</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cookie</span><span class="p">)</span>
+<span class="lineno">17</span> 
+<span class="lineno">18</span>     <span class="c"># check expiry and deserialize data</span>
+<span class="lineno">19</span>     <span class="k">if</span> <span class="n">stored_value</span><span class="p">:</span>
+<span class="lineno">20</span>         <span class="n">expiry</span><span class="p">,</span> <span class="n">serialized</span> <span class="o">=</span> <span class="n">stored_value</span><span class="o">.</span><span class="n">get_data</span><span class="p">()</span>
+<span class="lineno">21</span>         <span class="k">if</span> <span class="n">serialized</span> <span class="ow">and</span> <span class="p">(</span><span class="n">expiry</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">expiry</span> <span class="o">&gt;</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()):</span>
+<span class="lineno">22</span>             <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">serialized</span><span class="p">,</span> <span class="n">object_hook</span><span class="o">=</span><span class="n">date_hook</span><span class="p">)</span>
+<span class="lineno">23</span>             <span class="k">return</span> <span class="n">RiakSession</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">sid</span><span class="o">=</span><span class="n">sid</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">expiry</span><span class="o">=</span><span class="n">expiry</span><span class="p">)</span>
+<span class="lineno">24</span> 
+<span class="lineno">25</span>     <span class="c"># no valid session, create a new one</span>
+<span class="lineno">26</span>     <span class="n">session</span> <span class="o">=</span> <span class="n">RiakSession</span><span class="p">(</span><span class="n">sid</span><span class="o">=</span><span class="n">sid</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="n">uuid4</span><span class="p">(),</span> <span class="n">new</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="lineno">27</span>     <span class="n">session</span><span class="o">.</span><span class="n">expiry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_expiration_time</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">session</span><span class="p">)</span>
+<span class="lineno">28</span>     <span class="k">return</span> <span class="n">session</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>instantiated riak client in <strong>init</strong> (trivial)</li>
+<li><code>date_hook</code> in deserialization is a custom decoder subclass to decode datetimes</li>
+<li>validation is stand-in still.</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              14/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Flask-RiakSession</h1></header>
+            
+            <section><div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">def</span> <span class="nf">save_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">session</span><span class="p">,</span> <span class="n">response</span><span class="p">):</span>
+<span class="lineno"> 2</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 3</span> <span class="sd">    This will be called by Flask during request teardown.  Saves the</span>
+<span class="lineno"> 4</span> <span class="sd">    session if it has been modified.</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno"> 7</span>     <span class="n">domain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cookie_domain</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+<span class="lineno"> 8</span>     <span class="k">if</span> <span class="ow">not</span> <span class="n">session</span><span class="p">:</span>
+<span class="lineno"> 9</span>         <span class="n">response</span><span class="o">.</span><span class="n">delete_cookie</span><span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">session_cookie_name</span><span class="p">,</span> <span class="n">domain</span><span class="p">)</span>
+<span class="lineno">10</span>         <span class="k">return</span>
+<span class="lineno">11</span> 
+<span class="lineno">12</span>     <span class="k">if</span> <span class="ow">not</span> <span class="n">session</span><span class="o">.</span><span class="n">modified</span><span class="p">:</span>
+<span class="lineno">13</span>         <span class="k">return</span>
+<span class="lineno">14</span> 
+<span class="lineno">15</span>     <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
+<span class="lineno">16</span>     <span class="n">cookie_contents</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">key</span>
+<span class="lineno">17</span>     <span class="n">response</span><span class="o">.</span><span class="n">set_cookie</span><span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">session_cookie_name</span><span class="p">,</span> <span class="n">cookie_contents</span><span class="p">,</span>
+<span class="lineno">18</span>                         <span class="n">expires</span><span class="o">=</span><span class="n">session</span><span class="o">.</span><span class="n">expiry</span><span class="p">,</span>
+<span class="lineno">19</span>                         <span class="n">httponly</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_cookie_httponly</span><span class="p">(</span><span class="n">app</span><span class="p">),</span>
+<span class="lineno">20</span>                         <span class="n">secure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_cookie_secure</span><span class="p">(</span><span class="n">app</span><span class="p">),</span>
+<span class="lineno">21</span>                         <span class="n">domain</span><span class="o">=</span><span class="n">domain</span><span class="p">)</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>Checks if the session has been modified</li>
+<li>Puts in the data store</li>
+<li>Respects app config for httponly and secure cookies</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              15/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Flask-RiakSession</h1></header>
+            
+            <section><div class="highlight"><pre><span class="lineno"> 1</span> <span class="k">def</span> <span class="nf">put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session</span><span class="p">):</span>
+<span class="lineno"> 2</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 3</span> <span class="sd">    Stores the session data and expiry time in the Riak datastore.</span>
+<span class="lineno"> 4</span> 
+<span class="lineno"> 5</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno"> 6</span>     <span class="n">session_bucket</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">bucket</span><span class="p">(</span><span class="s">&#39;sessions&#39;</span><span class="p">)</span>
+<span class="lineno"> 7</span>     <span class="n">session_object</span> <span class="o">=</span> <span class="n">session_bucket</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">session</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+<span class="lineno"> 8</span>                                         <span class="p">(</span><span class="n">session</span><span class="o">.</span><span class="n">expiry</span><span class="p">,</span>
+<span class="lineno"> 9</span>                                          <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">session</span><span class="p">),</span>
+<span class="lineno">10</span>                                                     <span class="n">cls</span><span class="o">=</span><span class="n">Encoder</span><span class="p">)))</span>
+<span class="lineno">11</span>     <span class="n">session_object</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>of course I'm not using pickle because it's dangerous</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              16/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Next steps</h1></header>
+            
+            <section><p>Need to verify program correctness and service robustness, make available to developers</p>
+<ul>
+<li>Interface w/ user accounts for validation</li>
+<li>Test rig for exercising Riak (node failure, stale vector clocks)</li>
+<li>Test <code>setup.py</code> deployments</li>
+<li>Vagrant file to build a Riak cluster of VMs for</li>
+<li>Package for Cheese Shop (open source w/ MIT license)</li>
+</ul>
+<p>Compare vs DynamoDB</p>
+<ul>
+<li>Build similar library for DynamoDB</li>
+<li>Provisioning cost estimation for EC2 vs. DynamoDB</li>
+<li>Load testing on EC2 and DynamoDB (<code>ab</code> or similar)</li>
+</ul>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>Riak gives you plenty of interface tools</li>
+<li>Riak dev server is broken currently (at least on OS X under certain installs).</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              17/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: flask-riak-sessions.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Flask sessions in Riak</h1></header>
+            
+            <section><div style="position: absolute; bottom: 0">
+<p>tim gross | @0x74696d</p>
+<p>http://0x74696d.com/slides/flask-riak-sessions/</p>
+<p>http://github.com/tgross/flask-riak-sessions/</p>
+</div></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="flask-riak-sessions.md">flask-riak-sessions.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              18/18
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  
+  <div id="toc" class="sidebar hidden">
+    <h2>Table of Contents</h2>
+    <table>
+      <caption>Table of Contents</caption>
+      
+      <tr id="toc-row-1">
+        <th><a href="#slide1">Flask sessions in Riak</a></th>
+        <td><a href="#slide1">1</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-2">
+        <th><a href="#slide2">Riak in Brief</a></th>
+        <td><a href="#slide2">2</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-3">
+        <th><a href="#slide3">Riak Availability</a></th>
+        <td><a href="#slide3">3</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-4">
+        <th><a href="#slide4">Riak Consistency</a></th>
+        <td><a href="#slide4">4</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-5">
+        <th><a href="#slide5">Client-side sessions (stateless)</a></th>
+        <td><a href="#slide5">5</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-6">
+        <th><a href="#slide6">Client-side sessions (stateless)</a></th>
+        <td><a href="#slide6">6</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-7">
+        <th><a href="#slide7">Server-side sessions (stateful)</a></th>
+        <td><a href="#slide7">7</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-8">
+        <th><a href="#slide8">Flask-RiakSessions</a></th>
+        <td><a href="#slide8">8</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-9">
+        <th><a href="#slide9">Flask-RiakSessions</a></th>
+        <td><a href="#slide9">9</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-10">
+        <th><a href="#slide10">Flask-RiakSession</a></th>
+        <td><a href="#slide10">10</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-11">
+        <th><a href="#slide11">Flask-RiakSession</a></th>
+        <td><a href="#slide11">11</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-12">
+        <th><a href="#slide12">Flask-RiakSession</a></th>
+        <td><a href="#slide12">12</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-13">
+        <th><a href="#slide13">Flask-RiakSession</a></th>
+        <td><a href="#slide13">13</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-14">
+        <th><a href="#slide14">Flask-RiakSession</a></th>
+        <td><a href="#slide14">14</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-15">
+        <th><a href="#slide15">Flask-RiakSession</a></th>
+        <td><a href="#slide15">15</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-16">
+        <th><a href="#slide16">Flask-RiakSession</a></th>
+        <td><a href="#slide16">16</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-17">
+        <th><a href="#slide17">Next steps</a></th>
+        <td><a href="#slide17">17</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-18">
+        <th><a href="#slide18">Flask sessions in Riak</a></th>
+        <td><a href="#slide18">18</a></td>
+      </tr>
+      
+      
+    </table>
+  </div>
+  
+  <div id="help" class="sidebar hidden">
+    <h2>Help</h2>
+    <table>
+      <caption>Help</caption>
+      <tr>
+        <th>Table of Contents</th>
+        <td>t</td>
+      </tr>
+      <tr>
+        <th>Exposé</th>
+        <td>ESC</td>
+      </tr>
+      <tr>
+        <th>Full screen slides</th>
+        <td>e</td>
+      </tr>
+      <tr>
+        <th>Presenter View</th>
+        <td>p</td>
+      </tr>
+      <tr>
+        <th>Source Files</th>
+        <td>s</td>
+      </tr>
+      <tr>
+        <th>Slide Numbers</th>
+        <td>n</td>
+      </tr>
+      <tr>
+        <th>Toggle screen blanking</th>
+        <td>b</td>
+      </tr>
+      <tr>
+        <th>Show/hide slide context</th>
+        <td>c</td>
+      </tr>
+      <tr>
+        <th>Notes</th>
+        <td>2</td>
+      </tr>
+      <tr>
+        <th>Help</th>
+        <td>h</td>
+      </tr>
+    </table>
+  </div>
+  <script>main()</script>
+</body>
+</html>

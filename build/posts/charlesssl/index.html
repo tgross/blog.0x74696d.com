@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Securing Charles Proxy with a Personal CA</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Securing Charles Proxy with a Personal CA</h1>
+  <section class="byline">May 13, 2013</section>
+  <p>Some of the guys in my shop like to use <a href="http://www.charlesproxy.com">Charles</a> proxy to help debug their web and mobile applications. It's no good for non-HTTP traffic so it's a bit of a unitasker, but modulo some questionable UI choices it's not bad.  Charles is user-friendly enough that you can hand it off to a wet-behind-the-ears web developer who wouldn't know a TCP SYN flag if you waved it at him.  And it has some nice features like on-the-fly traffic throttling that we find handy in the online video business — as far as I know you can't do that with <a href="http://portswigger.net/burp/">Burp suite</a>.</p>
+<p>But Charles has one head-scratcher, and that's proxying SSL traffic.  The author gives instructions to <a href="http://www.charlesproxy.com/documentation/using-charles/ssl-certificates/">install the Charles certificate</a> as a trusted root, but this is a <em>really</em> bad idea.  Anyone can download that certificate and key and use it to sign certificates in the same way Charles does.  Which means if you set the Charles certificate as trusted root, you're one DNS spoof or spearphishing attack away from handing over your credentials to arbitrary secure sites to the owner of some sketchy <code>.ru</code> domain.</p>
+<p>What you <em>should</em> do (and what the <a href="http://blog.xk72.com/">author</a> of Charles should recommend) is to set up your own certificate authority (CA) and trust that instead.  We can use this for more than just Charles, but I'll touch on that at the end of this post.  The whole process is barely more complicated than generating the X.509 self-signed cert you might be using for your home web server anyways.  The instructions below work on my OS X development machine but should be the same for any Unixy machine with OpenSSL installed.</p>
+<p>We're going to build our new CA in <code>/usr/local</code>, and OpenSSL on my machine was built so that its configuration file was stored in <code>/opt/local/etc/openssl/openssl.cnf</code>.  Yeah, yeah, we can get religious about the Unix FHS some other time.  Let's get our environment prepped:</p>
+<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash">mkdir -p /usr/local/CharlesCA
+<span class="nb">cd</span> /usr/local/CharlesCA
+mkdir certs private newcerts
+<span class="nb">echo</span> <span class="m">01</span> &gt; serial
+touch index.txt
+</code></pre></div><p>On the last two items: <code>serial</code> contains the next serial number that will be assigned to a cert, in hex.  The <code>index.txt</code> file is the text database of issued certificates.  Next we create the certificate and key used for our new CA.</p>
+<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash">openssl req -new -x509 -days <span class="m">3650</span> -extensions v3_ca <span class="se">\
+</span><span class="se"></span>            -keyout private/ca_key.pem -out certs/ca_cert.pem <span class="se">\
+</span><span class="se"></span>            -config /opt/local/etc/openssl/openssl.cnf
+</code></pre></div><p>Ok, what are we doing here?  We're making a new X.509 certificate request with the appropriate extension to use the certificate for signing other certificates (or in other words, use it as a CA).  We're going to give it a very long expiration period because we're lazy and want to guarantee we won't have to do this again on this machine.  And we're outputting both a private keyfile (<code>ca_key.pem</code>) and the public certificate file (<code>ca_cert.pem</code>). If you're following along, you'll get something like the below.  Fill in your information.</p>
+<pre><code>Generating a 1024 bit RSA private key
+...++++++
+........................................++++++
+writing new private key to private/ca_key.pem
+Enter PEM pass phrase:
+Verifying - Enter PEM pass phrase:
+-----
+You are about to be asked to enter information that will be
+incorporated into your certificate request.
+What you are about to enter is what is called a Distinguished Name
+or a DN. There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter ., the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:US
+State or Province Name (full name) [Some-State]:Pennsylvania
+Locality Name (eg, city) []:Philadelphia
+Organization Name (eg, company) [Internet Widgets Pty Ltd]:
+Organizational Unit Name (eg, section) []:
+Common Name (e.g. server FQDN or YOUR name) []:0x74696d.com
+Email Address []:tim@0x74696d.com
+</code></pre><p>We've got our CA now, and if we trust it as a root authority (we'll get to that in a minute), we can create SSL certificates that our browser will accept without complaint.  But Charles expects the signing certificate to be in PKCS12 format.  So we need to use OpenSSL again to convert our keys to a .pfx file.</p>
+<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash">openssl pkcs12 -export -out ca_cert.pfx -inkey private/ca_key.pem <span class="se">\
+</span><span class="se"></span>               -in certs/ca_cert.pem
+</code></pre></div><aside>Update 2013/10/12: Thanks to <a href="https://twitter.com/markaufflick">Mark Aufflick</a> who pointed out I was missing the certs directory path from the "-in" argument of this command</aside>
+<p>The <code>ca_cert.pfx</code> output file for this is what we'll add as a trusted root cert.  On OS X the easiest way to do this is just to hit the directory in Finder and double-click the cert (you can also use the <code>security</code> command-line interface).  Keychain Access will come up and ask you if you're really really sure, that you're aware that you are granting this cert the right to make arbitrary Facebook posts about your mother-in-law on your behalf, etc.</p>
+<p><img src="/images/20130513/1.png" alt="Do you want to trust certificates signed by 0x74696d.com?"></p>
+<p>You should see the following when you're done.</p>
+<p><img src="/images/20130513/2.png" alt="This certificate is marked as trusted"></p>
+<p>Now we can fire up Charles and configure it to use our new certificate.  Under Proxy Settings and the SSL tab, check <em>Use a Custom CA Certificate</em>.  For some reason on my installation, the Choose button would not find <code>/usr/local</code> at all so I had to enter the path by hand.  We'll trust this for all locations.</p>
+<aside>Update 2013/10/12: Thanks to <a href="https://twitter.com/markaufflick">Mark Aufflick</a> who pointed out you can just drag the .pfx file into the dialog.</aside>
+<p><img src="/images/20130513/3.png" alt="Proxy settings"></p>
+<p>And now we can go visit our favorite SSL-secured sites and sniff the exchange.</p>
+<p><img src="/images/20130513/4.png" alt="Sniffing Github traffic"></p>
+<p>You can use this same CA to sign what would otherwise be snake-oil certs for your development environment so that you don't have to shell out for an SSL certificate. But I like to use a separate CA for that — each machine I use for development can have its own CA generating temporary certs like those used by Charles, and I can have a separate one for signing certificates I want to use across multiple machines. This also makes revocation easier if you lose a machine to theft.</p>
+<p>The machine with the private key for that CA is an internally-facing server and not something like a laptop that you'll carry into high-risk environments like an open WiFi at LAS during DEFCON.  Or ideally, you should remove the CA entirely from your machine once you've created certificates with it, and leave the private key burned to a CD so you can recreate the CA and renew the certificates when necessary. This way the key can't be compromised without the theft of the CD backup.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fcharlesssl%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; 2013-2020 Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

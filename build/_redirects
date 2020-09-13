@@ -1,0 +1,4 @@
+# Redirect domain aliases to primary domain
+http://0x74696d.com/talk-containerdays-nyc-2015/* http://tgross.github.io/talk-containerdays-nyc-2015/:splat 301!
+https://0x74696d.com/* https://blog.0x74696d.com/:splat 301!
+http://0x74696d.com/* https://blog.0x74696d.com/:splat 301!

@@ -1,0 +1,362 @@
+html { font-size: 100%; }
+
+/* merriweather-regular - latin */
+@font-face {
+  font-family: 'Merriweather';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Merriweather Regular'), local('Merriweather-Regular'),
+       url('../fonts/merriweather-v19-latin-regular.woff2') format('woff2'),
+       url('../fonts/merriweather-v19-latin-regular.woff') format('woff'), /* slightly older */
+       url('../fonts/merriweather-v19-latin-regular.ttf') format('truetype'); /* mobile */
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Merriweather, Georgia, serif;
+    color: #404040;
+}
+
+a { color: #307EA9; }
+b, strong { color: #555; }
+
+ul { padding-left: 18px; }
+li {
+    padding: 0;
+    list-style-type: square;
+    margin-left: 0;
+    line-height: 180%;
+}
+
+.header { margin: 100px 0 35px 0; }
+  .header a, .header b {
+      color: #444;
+      text-transform: uppercase;
+      text-decoration: none;
+      transition: color 0.25s ease-in;
+      -webkit-transition: color 0.25s ease-in;
+  }
+  .header a:hover, .header a:hover b { color: #307EA9; }
+
+/* note: Android 4 has a font-size bug so we need the px fallback
+that otherwise we would only need for IE8 */
+.name a {
+    font-size: 50px;
+    font-size: 2.778rem;
+    font-weight: normal;
+}
+.name b {
+    font-family: Monaco, 'Droid Sans Mono', Consolas, Tahoma, monospace;
+    font-weight: normal;
+}
+
+.menu {
+    padding: 0;
+    margin: 5px 0;
+    font-weight: 200;
+    font-family: Monaco, 'Droid Sans Mono', Consolas, Tahoma, monospace;
+
+}
+  .menu li {
+      display: inline;
+      padding-right: 15px;
+  }
+  .menu li a{
+      font-size: 16px;
+      font-size: 0.888rem;
+  }
+
+
+  .pager a, .pager b {
+      color: #444;
+      text-transform: uppercase;
+      font-family: Monaco, 'Droid Sans Mono', Consolas, Tahoma, monospace;
+      text-decoration: none;
+      transition: color 0.25s ease-in;
+      -webkit-transition: color 0.25s ease-in;
+  }
+  .pager a:hover, .pager a:hover b { color: #307EA9; }
+
+  .pager ul {
+      padding: 0;
+      margin: 5px 0;
+      font-weight: 200;
+  }
+  .pager li {
+      display: inline;
+      padding-right: 15px;
+      font-size: 16px;
+      font-size: 0.888rem;
+  }
+  .pager span {
+      float: right;
+  }
+
+
+h1 {
+    font-size: 26px;
+    font-size: 1.444rem;
+    margin: 40px -30px 30px -30px;
+    padding: 15px 30px 15px 23px;
+    border-left: 7px solid #eee;
+    font-family: Merriweather, Georgia, serif;
+    font-weight: 400;
+    color: #444;
+}
+
+h2 {
+    margin: 50px -30px 20px -30px;
+    padding: 10px 30px 10px 25px;
+    border-left: 5px solid #eee;
+    font-size: 20px;
+    font-size: 1.111rem;
+    font-family: Merriweather, Georgia, serif;
+    font-weight: 400;
+    color: #444;
+}
+
+h3 {
+    margin: 50px -30px 20px -27px;
+    padding: 15px 30px;
+    font-size: 18px;
+    font-family: Merriweather, Georgia, serif;
+    font-size: 1rem;
+    font-weight: 400;
+    color: #444;
+}
+
+.container {
+    width: 768px;
+    margin: 0 auto;
+}
+
+.content { }
+  .content i, .content em {
+      font-weight: 100;
+      font-style: italic;
+  }
+  .content b, .content strong {
+      font-weight: 700;
+  }
+  .content em b {
+      font-weight: 700;
+      font-style: italic;
+  }
+  .content p {
+      line-height: 200%;
+      margin: 25px 0;
+  }
+  .content img, .content video {
+      max-width: 770px;
+      border: 0px;
+  }
+  .content pre {
+      overflow: auto;
+      padding: 10px 20px;
+      margin: 0 10px;
+      background-color: #efefef;
+  }
+  .content p code {
+      font-weight: 600;
+  }
+
+.error i {
+    font-size: 16px;
+    font-size: 0.889rem;
+    font-style: italic;
+}
+
+.share {
+    border-top: 1px solid #eee;
+    padding: 30px 0;
+}
+
+.share a {
+    text-decoration: none;
+}
+
+/* the footer block */
+.meta {
+    margin: 0px -30px 25px -30px;
+    border-top: 1px solid #eee;
+    color: #eee;
+    text-align: center;
+}
+.meta .blocks {
+    display: inline-block;
+    padding: 60px 0;
+    color: #eee;
+    text-align: center;
+}
+  .meta a {
+      font-size: 40px;
+      font-size: 2.222rem;
+      color: #555;
+      text-decoration: none;
+      transition: color 0.25s ease-in;
+      -webkit-transition: color 0.25s ease-in;
+  }
+  .meta a:hover {
+    color: #307EA9;
+  }
+  .meta .block {
+    display: inline-block;
+    vertical-align: top;
+    text-align: center;
+    line-height: 20px;
+    width: 100px;
+    padding: 0 10px;
+  }
+  .meta .block div {
+    margin-top: 10px;
+    font-size: 12px;
+    font-size: 0.667rem;
+  }
+  .meta .disclaimer {
+      display: inline-block;
+      padding: 10px 0;
+      vertical-align: top;
+      line-height: 20px;
+      width: 300px;
+      color: #555;
+      font-size: 12px;
+      font-size: 0.667rem;
+      text-align: left;
+  }
+  .meta .disclaimer a {
+      color: #307EA9;
+      font-size: 12px;
+      font-size: 0.667rem;
+      text-decoration: none;
+      transition: color 0.25s ease-in;
+      -webkit-transition: color 0.25s ease-in;
+  }
+
+
+.listing {
+    margin: 25px 0;
+    padding: 0;
+}
+  .listing a {
+      text-decoration: none;
+  }
+  .listing li {
+      list-style-type: none;
+      padding: 7px 5px;
+      border-bottom: 1px solid #eee;
+  }
+  .listing span {
+      padding-top: 2px;
+      float: right;
+      font-family: Monaco, 'Droid Sans Mono', Consolas, Tahoma, monospace;
+      text-transform: uppercase;
+      font-size: 12px;
+      font-size: 0.667rem;
+      color: #999;
+  }
+
+.about-avatar {
+    float: left;
+    margin-right: 20px;
+}
+  .about-avatar img {
+      width: 125px;
+      border: none;
+  }
+
+aside {
+    margin-bottom: 25px;
+    background-color: #eee;
+    padding: 10px;
+    font-size: 14px;
+    font-size: 0.778rem;
+}
+
+blockquote {
+    color: #000;
+    font-style: italic;
+}
+
+blockquote cite {
+    color: #404040;
+    font-size: 16px;
+    font-size: 0.888rem;
+}
+
+::selection {
+    background-color: #2B2B2B;
+    color: #eee;
+}
+
+
+@media (max-device-width: 768px) {
+
+body {
+    padding: 0 20px;
+    margin-left: 10px;
+}
+
+.container {
+    width: 100%;
+    overflow-x: hidden;
+}
+
+.header {
+    margin-top: 50px;
+    margin-bottom: 10px;
+}
+
+.name { }
+  .name a {
+      font-size: 24px;
+      font-size: 1.333rem;
+  }
+
+.content p {
+    margin: 15px 0;
+}
+.content li {
+  font-size: inherit;
+}
+.content img {
+    max-width: 100%;
+    margin: 0px;
+    padding: 0;
+    border: 0;
+}
+
+h1 {
+    border: 0;
+    margin: 25px 0 20px 0;
+    padding: 10px 0;
+    font-size: 20px;
+    font-size: 1.111rem;
+}
+
+h2, h3 {
+    border: 0;
+    margin: 25px 10px 0px -25px;
+    padding-bottom: 0;
+}
+
+.listing a {
+    text-decoration: none;
+}
+.listing span {
+    display: none;
+}
+
+.meta {
+    margin: 50px 0;
+    padding: 50px 0 25px 0;
+}
+  .meta .block {
+      padding: 0;
+      width: 50px;
+      margin: 0 10px;
+  }
+  .meta .block div {
+      display: none;
+  }
+}

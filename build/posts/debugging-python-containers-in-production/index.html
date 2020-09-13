@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Debugging Python Containers in Production</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Debugging Python Containers in Production</h1>
+  <section class="byline">May 3, 2018</section>
+  <p>We all figure out our first Python bugs by sprinkling some <code>print</code> statements over our code. As we gain experience, our debugging toolbox becomes richer and we can figure out harder bugs in development. But production systems provide a different kind of challenge, and this challenge is amplified when we try to debug in a containerized environment. We need to be able to debug running code safely, without impacting performance or interfering with the user experience.</p>
+<p>Some of the most powerful tools like debuggers or eBPF are the hardest to get working with Python containers, so in this post I'll cover methods to build Python containers for improved instrumentation and debugging. I gave a talk covering most of this content <a href="https://www.meetup.com/phillypug/events/244306771/">Philadelphia Python Users Group (PhillyPUG)</a> last November. The original talk covered a bunch of material on logging but I'll revisit that in an upcoming post.</p>
+<h2 id="groundwork">Groundwork</h2>
+<p>Let's first assume that you've grabbed all the low-hanging fruit. You're collecting structured logs or events from your applications in a centralized location like <a href="https://www.elastic.co/elk-stack">Elasticsearch</a> or <a href="https://honeycomb.io/">Honeycomb.io</a>. You're sending unhandled exceptions to something like <a href="https://sentry.io/welcome/">Sentry</a>. If you have a web application, you're tagging incoming web requests at the edge with something like <a href="https://www.nginx.com/blog/application-tracing-nginx-plus/">Nginx request IDs</a>. You can get really far with that! But it doesn't give you a detailed insight into how the application is behaving &quot;under the hood&quot;, particularly in the cases where the application is failing in a way that isn't already known. <a href="https://youtu.be/AdMqCUhvRz8?t=1215">Bryan Cantrill</a> calls these &quot;implicit failure&quot; modes.</p>
+<p>With Python in particular, you can get insight into a lot of the application behavior with tools like <a href="https://docs.newrelic.com/docs/agents/python-agent/getting-started/introduction-new-relic-python">NewRelic</a>. But this is incredibly expensive to deploy across your whole production footprint, it can't really help with crashed applications, and it can't look into the Python interpreter or operating system underneath your code. I also find that the expense means that it doesn't get used in development or testing environments, and that makes for a gap in understanding.</p>
+<p>The tools I'll discuss below do require some one-time up-front work, but the payoffs are enormous. First, to use native core dumps you need debugging symbols for Python. To use eBPF on Linux, you need to be on a modern Linux kernel (4.0+, or whatever frankenkernel RedHat is shipping these days). To use <code>usdt</code> probes for Python you need to be on Python 3.6+. But I've found most Linux distributions are not compiling-in the <code>usdt</code> probes, including the various Docker containers that ship Python. So we're going to want to build our own Python. Don't worry! This is much easier than it sounds!</p>
+<h2 id="building-your-python">Building Your Python</h2>
+<p>The Docker Hub has a <a href="https://store.docker.com/images/python">Python image</a> in its library. We need to slightly modify that build and make sure it's part of our continuous integration system. The source for the Dockerfiles is <a href="https://github.com/docker-library/python/tree/master">on GitHub</a>. We only care about Python 3.6 and above.</p>
+<aside>Addendum (Feb 2019): I submitted a pull request to the Docker library (<a href="https://github.com/docker-library/python/pull/366">PR #366</a>) for compiling in <code>usdt</code> hooks. The change was benchmarked using Python's own benchmarking suite. Although many of the benchmarks don't show a significant difference between <code>--with-dtrace</code> and not, <strong>26 of the 60 tests show a 5%-17% performance hit</strong>, even without an active trace. This is probably not the approach you want. For live profiling in production you might instead want to check out <a href="https://github.com/benfred/py-spy"><code>py-spy</code></a></aside>
+<p>Python is written in C, and like many C applications under Unix it's built via Autotools. A <code>configure</code> step takes a Makefile template and some parameters, and generates a Makefile that we call <code>make</code> on to build the software. We want to alter the parameters that the Docker build is using to add debugging symbols (the <code>--with-pydebug</code> flag) and tracepoints (the <code>--with-dtrace</code> flag). So for example as of this writing, we'd be adding these flags to the template used for the <code>docker/python:3.6-slim</code> version <a href="https://github.com/docker-library/python/blob/ba5711fb564133bf9c8b870b431682a4db427219/Dockerfile-slim.template#L61-L67">here</a>. We also need to include the installation of <code>systemtap-sdt-dev</code>.</p>
+<div class="highlight"><pre class="chroma"><code class="language-diff" data-lang="diff"><span class="gh">index 6799174..16dbbf0 100644
+</span><span class="gh"></span><span class="gd">--- a/Dockerfile-debian.template
+</span><span class="gd"></span><span class="gi">+++ b/Dockerfile-debian.template
+</span><span class="gi"></span><span class="gu">@@ -19,6 +19,7 @@ ENV PYTHON_VERSION %%PLACEHOLDER%%
+</span><span class="gu"></span> RUN set -ex \
+         &amp;&amp; buildDeps=&#39; \
+                dpkg-dev \
+<span class="gi">+               systemtap-sdt-dev \
+</span><span class="gi"></span>                tcl-dev \
+                tk-dev \
+         &#39; \
+<span class="gu">@@ -43,6 +44,8 @@ RUN set -ex \
+</span><span class="gu"></span>                --with-system-expat \
+                --with-system-ffi \
+                --without-ensurepip \
+<span class="gi">+               --with-pydebug \
+</span><span class="gi">+               --with-dtrace \
+</span><span class="gi"></span>       &amp;&amp; make -j &#34;$(nproc)&#34; \
+       &amp;&amp; make install \
+       &amp;&amp; ldconfig \
+</code></pre></div><p>The &quot;best&quot; way to accomplish this is going to depend a lot on how you build the rest of your software. But the overall steps you need are:</p>
+<ul>
+<li>Fork the <a href="https://github.com/docker-library/python">https://github.com/docker-library/python</a> and add the patch above to any of the templates you need.</li>
+<li>Have your CI system build the container images on a regular basis. You want to make sure you're pulling in any changes to both Python and the base Debian or Alpine image you're using.</li>
+<li>Have the output of the CI system be a push to your organization's private Docker registry (or even a public one if you don't mind sharing).</li>
+</ul>
+<p>You can find my fork at <a href="https://github.com/tgross/docker-python">https://github.com/tgross/docker-python</a>. I'm using TravisCI to create a weekly build of Python 3.6 and 3.7 for Debian and pushing it to the Docker Hub under <a href="https://hub.docker.com/r/0x74696d/python/">https://hub.docker.com/r/0x74696d/python/</a>.</p>
+<p>If you aren't using containers, don't have immutable infrastructure, and deploy your software via <code>git pull</code> in <code>ssh</code> in a for loop, then you'll probably want to do something like the following instead. This assumes you're on a Debian-based distro like Ubuntu and that you have a clone of the Python source code handy:</p>
+<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash"><span class="c1"># juuuuust a couple of dependencies...</span>
+sudo apt install <span class="se">\
+</span><span class="se"></span>    build-essential libssl-dev zlib1g-dev <span class="se">\
+</span><span class="se"></span>    libncurses5-dev libncursesw5-dev libreadline-dev <span class="se">\
+</span><span class="se"></span>    libsqlite3-dev libgdbm-dev libdb5.3-dev libbz2-dev <span class="se">\
+</span><span class="se"></span>    libexpat1-dev liblzma-dev tk-dev <span class="se">\
+</span><span class="se"></span>    systemtap-sdt-dev
+
+./configure <span class="se">\
+</span><span class="se"></span>    --with-pydebug <span class="se">\
+</span><span class="se"></span>    --with-dtrace <span class="se">\
+</span><span class="se"></span>    --enable-loadable-sqlite-extensions <span class="se">\
+</span><span class="se"></span>    --enable-shared <span class="se">\
+</span><span class="se"></span>    --with-system-expat <span class="se">\
+</span><span class="se"></span>    --with-system-ffi <span class="se">\
+</span><span class="se"></span>    --without-ensurepip
+
+make
+make <span class="nb">test</span>
+sudo make install
+</code></pre></div><h2 id="debugging-from-sidecars">Debugging From Sidecars</h2>
+<p>Container images don't typically include debugging tools. They add a lot to the image size, but they also require root-like privileges (ex. <code>ptrace</code>, <code>CAP_SYSADMIN</code>) and the whole point of a container is that you can run it with reduced privileges. So typically you'll debug a container either from the host (if you have access to the host) or from a &quot;swiss army knife&quot; sidecar container like the one you can find at <a href="https://github.com/tgross/swiss-army-knife">https://github.com/tgross/swiss-army-knife</a></p>
+<div class="highlight"><pre class="chroma"><code class="language-Dockerfile" data-lang="Dockerfile"><span class="c"># swiss-army-knife container for debugging as side-car</span><span class="err">
+</span><span class="err"></span><span class="k">FROM</span><span class="s"> ubuntu:16.04</span><span class="err">
+</span><span class="err">
+</span><span class="err"></span><span class="c"># add whatever tools you want here</span><span class="err">
+</span><span class="err"></span><span class="k">RUN</span> apt-get update <span class="se">\
+</span><span class="se"></span>    <span class="o">&amp;&amp;</span> apt-get install -y <span class="se">\
+</span><span class="se"></span>       gdb <span class="se">\
+</span><span class="se"></span>       strace <span class="se">\
+</span><span class="se"></span>       tcpdump <span class="se">\
+</span><span class="se"></span>       linux-tools <span class="se">\
+</span><span class="se"></span>       software-properties-common <span class="se">\
+</span><span class="se"></span>       apt-transport-https <span class="se">\
+</span><span class="se"></span>       ca-certificates <span class="se">\
+</span><span class="se"></span>       curl <span class="se">\
+</span><span class="se"></span>       jq <span class="se">\
+</span><span class="se"></span>    <span class="o">&amp;&amp;</span> rm -rf /var/lib/apt/lists/*<span class="err">
+</span><span class="err">
+</span><span class="err"></span><span class="k">RUN</span> add-apt-repository <span class="s2">&#34;deb [trusted=yes] https://repo.iovisor.org/apt/xenial xenial-nightly main&#34;</span> <span class="se">\
+</span><span class="se"></span>    <span class="o">&amp;&amp;</span> apt-get update <span class="se">\
+</span><span class="se"></span>    <span class="o">&amp;&amp;</span> apt-get install -y --allow-unauthenticated bcc-tools <span class="se">\
+</span><span class="se"></span>    <span class="o">&amp;&amp;</span> rm -rf /var/lib/apt/lists/*<span class="err">
+</span></code></pre></div><p>In either case you need to be aware of process namespaces. When you run a process in a container, it can't see all the other processes running on the host. In our Python container, the first process in the process tree (PID1) is typically going to be Python. Whereas PID1 on the container host is <code>systemd</code> or some other init system. You need to know which view of the process tree you have when you pass the process ID to your debugging tools.</p>
+<p>If we look at the process tree from the host we get one list of processes:</p>
+<pre><code>$ ps afx
+
+ PID COMMAND
+...
+1155 /usr/bin/dockerd -H fd://
+1350 \_ docker-containerd -l unix:///var/run/docker/libcontainerd/docker-containe
+22176 | \_ docker-containerd-shim a1e9578bfc58fb130a8b02fb413fc1579a4885a3fa0751
+22193 | | \_ /usr/local/bin/python /usr/local/bin/gunicorn --name myapp
+31786 | | \_ /usr/local/bin/python /usr/local/bin/gunicorn --name myapp
+  479 | | \_ /usr/local/bin/python /usr/local/bin/gunicorn --name myapp
+22879 | \_ docker-containerd-shim 6b6e053851cabc2e257e79ef130c140132d30d935e194b
+22896 | \_ /usr/local/bin/python /usr/local/bin/gunicorn --name anotherapp
+ 3965 | \_ /usr/local/bin/python /usr/local/bin/gunicorn --name anotherapp
+ 4153 | \_ /usr/local/bin/python /usr/local/bin/gunicorn --name anotherapp
+...
+</code></pre><p>Whereas if we look at the process tree from inside the container we'll get a different list:</p>
+<pre><code>$ docker exec -it 6b6e053851ca ps -ef
+
+ PID COMMAND
+   1 {gunicorn} /usr/local/bin/python /usr/local/bin/gunicorn --name myapp
+3446 {gunicorn} /usr/local/bin/python /usr/local/bin/gunicorn --name myapp
+3453 {gunicorn} /usr/local/bin/python /usr/local/bin/gunicorn --name myapp
+</code></pre><p>If we want to run the eBPF tool <code>pythoncalls</code> (see below) from the host, we need to use the PID from the point-of-view of the host: <code>sudo /usr/share/bcc/tools/pythoncalls 479</code>. If we want to run this from a sidecar container, we need to use the container's view of the PID tree, share the process and network namespace, and give our sidecar elevated privileges for debugging:</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh">docker run -it <span class="se">\
+</span><span class="se"></span>    --pid<span class="o">=</span>container:6b6e053851ca <span class="se">\
+</span><span class="se"></span>    --net<span class="o">=</span>container:6b6e053851ca <span class="se">\
+</span><span class="se"></span>    --cap-add sys_admin <span class="se">\
+</span><span class="se"></span>    --cap-add sys_ptrace <span class="se">\
+</span><span class="se"></span>    swiss-army-knife <span class="se">\
+</span><span class="se"></span>    /usr/share/bcc/tools/pythoncalls -p <span class="m">1</span>
+</code></pre></div><h2 id="fatal-failure">Fatal Failure</h2>
+<p>A fatal failure is one in which the process dies. This can be explicit — the program has an instruction that tells it to exit because it can't safely continue. Or it can be implicit — the program can't continue and crashes unexpectedly (for example, with a segfault or Python traceback). While fatal failure is unfortunate from the perspective of the user, it's often much easier to debug.</p>
+<p>The reason is that whether implicit or explicit, fatal failure allows for post-mortem debugging. We can start with the fatal state (a core dump), and move it off the production environment into our development environment where it can be examined with a lot less pressure. We use tools (our debugger) to reason backwards from the fatal state to a root technical cause. (Yes, yes, I realize there's no such thing as &quot;root cause&quot; in a complex socio-technical system. We're talking about the root <em>technical</em> cause here.) The nice thing about this is that so long as the state was preserved we can typically discover the cause after a single failure.</p>
+<p>Python has its <code>pdb</code> debugger, but doesn't have a facility for dumping Python interpreter state to use it offline. If you attach <code>pdb</code> to a running process, it halts the process (which your users will not like), but you can't use it to debug post-mortem either. A Python traceback is only serializable in the trivial sense (dump to structured text), which is what services like Sentry use. Fortunately we can get core dumps from Python that are usable in the GNU debugger <code>gdb</code>.</p>
+<p>When the Python interpreter receives a <code>SIGABRT</code> signal, it dumps the interpreter's memory to a core file on disk. On Linux we can use <code>gdb</code> to read this core dump just as we would any other program. But what's cool about Python being interpreted is that your Python source code is all in the interpreter's memory, so <code>gdb</code> has some extensions that let us debug into the Python application code just as we would the interpreter.</p>
+<p>Under normal circumstances, Python won't dump core. We can send the <code>kill</code> signal to it manually, but there's another option — we can force Python to dump core on uncaught exception. I would only recommend this approach if you have good test coverage and are generally confident in your team's ability to write code that rarely crashes, as core dumps can get really large and eat up all your disk space unless you have something like <a href="https://github.com/joyent/manta-thoth">Joyent's Thoth</a> to move them off-disk to shared object storage. Here's how you'd add this to something like a Django middleware:</p>
+<div class="highlight"><pre class="chroma"><code class="language-python" data-lang="python"><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">AbortOnUncaughtExceptionMiddleware</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">get_response</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_response</span> <span class="o">=</span> <span class="n">get_response</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_response</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">process_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">abort</span><span class="p">()</span>
+</code></pre></div><p>This causes the application to crash and core dump if an exception wasn't handled. You probably want this to be the last middleware that gets called (so first in the list for Django) so that you can catch things like HTTP 404s more gracefully. Of course you'll also need your supervisor (<code>systemd</code> or similar) to restart the process after it crashes.</p>
+<p>On <code>systemd</code>-based systems, core dumps are handled by <code>coredumpctl</code>. We can use <code>coredumpctl</code> to output to a file which we'll then move to our development environment. Here we're taking the first python3.6 dump listed by <code>coredumpctl</code> and outputting it to the file <code>api.coredump</code>.</p>
+<pre><code>$ coredumpctl list
+TIME PID UID GID SIG PRESENT EXE
+Wed 2017-11-29 18:06:08 UTC 7858 0 0 6 * /usr/local/bin/python3.6
+Wed 2017-11-29 18:06:18 UTC 7872 0 0 6 * /usr/local/bin/python3.6
+Wed 2017-11-29 18:06:25 UTC 7881 0 0 6 * /usr/local/bin/python3.6
+Wed 2017-11-29 18:07:21 UTC 7890 0 0 6 * /usr/local/bin/python3.6
+Wed 2017-11-29 18:07:29 UTC 7914 0 0 6 * /usr/local/bin/python3.6
+
+$ sudo coredumpctl -o api.coredump dump /usr/local/bin/python3.6
+</code></pre><p>Once we have the core dump locally, we can load it into <code>gdb</code> and import the Python-specific tools to list source code, move up and down the stack, read Python backtraces, and print the values of variables. For a detailed treatment of using the <code>gdb</code> debugging tools see <a href="https://devguide.python.org/gdb/">https://devguide.python.org/gdb/</a>.</p>
+<pre><code>$ PYTHONPATH=/src/cpython/Tools/gdb gdb python3 api.coredump
+...
+(gdb) python import libpython
+(gdb) py-list
+  11        def __call__(self, request):
+  12            return self.get_response(request)
+  13
+  14        def process_exception(self, request, exception):
+  15            logger.error(exception)
+ &gt;16            os.abort()
+
+(gdb) py-up
+(gdb) py-locals
+self = &lt;AbortOnUncaughtExceptionMiddleware(get_response=&lt;function at remote 0x7fc98848d4a8&gt;) at remote 0x7fc9884b64d0&gt;
+request = &lt;WSGIRequest(environ={'wsgi.errors': &lt;WSGIErrorsWrapper(streams=[&lt;_io.TextIOWrapper at remote 0x7fc990140898&gt;]) at remote 0x7fc9883c25a0&gt;, 'wsgi.version': (1, 0), 'wsgi.multithread': False, 'wsgi.multiprocess': False, 'wsgi.run_once': False, 'wsgi.file_wrapper': &lt;type at remote 0x140a698&gt;, 'SERVER_SOFTWARE': 'gunicorn/19.7.1', 'wsgi.input': &lt;Body(reader=&lt;LengthReader(unreader=&lt;SocketUnreader(buf=&lt;_io.BytesIO at remote 0x7fc9883c01f0&gt;, sock=&lt;socket at remote 0x7fc9883af3b8&gt;, mxchunk=8192) at remote 0x7fc98ace5c88&gt;, length=0) at remote 0x7fc9883c26d8&gt;, buf=&lt;_io.BytesIO at remote 0x7fc9883c0410&gt;) at remote 0x7fc9883c2740&gt;, 'gunicorn.socket': &lt;...&gt;, 'REQUEST_METHOD': 'GET', 'QUERY_STRING': '', 'RAW_URI': '/histo/10/-1', 'SERVER_PROTOCOL': 'HTTP/1.1', 'HTTP_HOST': 'localhost:8000', 'HTTP_USER_AGENT': 'curl/7.47.0', 'HTTP_ACCEPT': '*/*', 'wsgi.url_scheme': 'http', 'REMOTE_ADDR': '127.0.0.1', 'REMOTE_PORT': '55272', 'SERVER_NAME': '127.0.0.1', 'SERVER_PORT': '8000', 'PATH_INFO': '/histo/10/-1', 'SCRIPT_NAME': ''}, p...(truncated)
+exception = Exception('uh oh',))
+</code></pre><h2 id="non-fatal-failure">Non-Fatal Failure</h2>
+<p>In contrast to fatal failures, non-fatal failures are sometimes the hardest problems to solve. These are the &quot;unknown unknowns&quot; of software engineering. Maybe your application is writing corrupted data. Maybe your application mysteriously runs slowly or freezes every few minutes. Maybe your application unexpectedly drops network connections. None of this is magic!</p>
+<p>These kinds of problems are often impossible to replicate in a development environment, especially when we're talking about the kinds of distributed systems that tend to pop up when we're working with containers. We need <em>in-vivo</em> analysis. And that means using tools like DTrace (for Unix) or eBPF (the closest Linux equivalent). Because for better or worse most folks are deploying production on Linux, we'll talk about eBPF here. The general concepts are similar to DTrace but DTrace is much more mature and frankly nicer to work with.</p>
+<p>The Linux kernel includes a sandboxed bytecode interpreter that was originally created for IP tables filtering (Berkeley Packet Filter or BPF). In the 3.15+ kernel this bytecode interpreter has been extended allow user-defined programs to instrument a live system with minimal performance impact. To create these user-defined programs, we can use the <a href="https://github.com/iovisor/bcc">BCC</a> toolkit. Programs are written in Python (or Lua) and compiled using LLVM to the eBPF bytecode. The eBPF programs read kernel instrumentation (kprobes) or user statically-defined trace points (<code>usdt</code>). What's really cool is that the outputs of the program are stored in buffers shared between kernel space and user space, so there's no inefficient copying of the data.</p>
+<p><img src="/images/20180503/eBPF-diagram.png" alt="eBPF"></p>
+<p>See also the <a href="http://man7.org/linux/man-pages/man2/bpf.2.html">bpf(2) man page</a></p>
+<p>The BCC toolkit comes with a ton of useful example tools. Want to sniff SSL traffic before the OpenSSL library encrypts it? Try <a href="https://github.com/iovisor/bcc/blob/master/tools/sslsniff.py"><code>sslsniff.py</code></a>. Want to figure out your DNS lookup latency? Try <a href="https://github.com/iovisor/bcc/blob/master/tools/gethostlatency.py"><code>gethostlatency.py</code></a>. Want to monitor I/O of your disks? Try <a href="https://github.com/iovisor/bcc/blob/master/tools/biotop.py"><code>biotop.py</code></a>. Brendan Gregg has a great diagram of where all the various tools appears here: <a href="http://www.brendangregg.com/Perf/linux_observability_tools.png">http://www.brendangregg.com/Perf/linux_observability_tools.png</a></p>
+<aside>Addendum (Feb 2019): see my addendum above about <code>usdt</code> hooks in Python and check out <a href="https://github.com/benfred/py-spy"><code>py-spy</code></a> instead!</aside>
+<p>In addition to being written in Python, BCC ships with a tools that are useful for instrumenting Python applications. If you have ever tried to profile a Python application you may have tried <a href="https://docs.python.org/3.6/library/profile.html"><code>cProfile</code></a>. But it has a performance impact on the application and you can't add it to a running production application after the fact. Instead you can use the <a href="https://github.com/iovisor/bcc/blob/master/tools/lib/ucalls.py"><code>ucalls.py</code></a> library (or its handy <a href="https://github.com/iovisor/bcc/blob/master/tools/pythoncalls.sh"><code>pythoncalls</code></a> wrapper). This hooks the usdt endpoints that we made sure our Python interpreter had when we built it earlier with the <code>--with-dtrace</code> flag. Here we use it on a Django application that makes calculations via <code>numpy</code>:</p>
+<pre><code>sudo /usr/share/bcc/tools/pythoncalls 30695
+Tracing calls in process 30695 (language: python)... Ctrl-C to quit.
+^C
+METHOD                                                                  # CALLS
+&lt;frozen importlib._bootstrap_external&gt;.__init__                               1
+/srv/venv/api/lib/python3.6/site-packages/django/vi._EnsureCsrfToken          1
+/srv/venv/api/lib/python3.6/site-packages/django/co.get_path_info             1
+/srv/venv/api/lib/python3.6/site-packages/numpy/lib.poly1d                    1
+/srv/venv/api/lib/python3.6/collections/__init__.py.update                    1
+/srv/venv/api/lib/python3.6/site-packages/numpy/lib.DummyArray                1
+/srv/venv/api/lib/python3.6/site-packages/numpy/lib.vectorize                 1
+/srv/venv/api/lib/python3.6/site-packages/django/te.__init__                  1
+/usr/local/lib/python3.6/logging/__init__.py._checkLevel                      1
+/srv/venv/api/lib/python3.6/site-packages/numpy/cor.&lt;listcomp&gt;                1
+/srv/venv/api/lib/python3.6/site-packages/numpy/lin._determine_error_states   1
+/srv/venv/api/lib/python3.6/site-packages/numpy/lib.ConverterLockError        1
+/srv/venv/api/lib/python3.6/site-packages/numpy/lib._set_function_name        1
+/srv/venv/api/lib/python3.6/site-packages/numpy/ma/.mr_class                  1
+/srv/venv/api/lib/python3.6/site-packages/numpy/cor._typedict                 1
+/srv/venv/api/lib/python3.6/site-packages/numpy/ma/._convert2ma               1
+/srv/venv/api/lib/python3.6/site-packages/numpy/lib.deprecate                 1
+/usr/local/lib/python3.6/unittest/case.py._Outcome                            1
+/srv/venv/api/lib/python3.6/enum.py.__and__                                   1
+/srv/venv/api/lib/python3.6/site-packages/django/ut.find_module               1
+...
+</code></pre><p>In addition to <code>pythoncalls</code>, there's <code>pythonflow</code> to trace execution flow, <code>pythongc</code> to summarize garbage collection events, and <code>pythonstat</code> to collect counts of exceptions, imports, or method calls. (These are actually all wrappers around a library of <code>usdt</code>-reading tools that work for Python, Ruby, Java, or PHP.)</p>
+<p>Happy debugging!</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fdebugging-python-containers-in-production%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; 2013-2020 Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

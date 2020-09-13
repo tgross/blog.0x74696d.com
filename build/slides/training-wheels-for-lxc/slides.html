@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2010 Google Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+  Original slides: Marcin Wichary (mwichary@google.com)
+  Modifications: Ernest Delgado (ernestd@google.com)
+                 Alex Russell (slightlyoff@chromium.org)
+
+  landslide modifications: Adam Zapletal (adamzap@gmail.com)
+                           Nicolas Perriault (nperriault@gmail.com)
+-->
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Docker: Training Wheels for LXC</title>
+    <!-- Styles -->
+    
+    <link rel="stylesheet" media="print" href="theme/css/print.css">
+    <link rel="stylesheet" media="screen, projection" href="theme/css/screen.css">
+    
+    
+    <!-- /Styles -->
+    <!-- Javascripts -->
+    
+    <script type="text/javascript" src="theme/js/slides.js"></script>
+    
+    
+    <!-- /Javascripts -->
+</head>
+<body>
+  <div id="blank"></div>
+  <div class="presentation">
+    <div id="current_presenter_notes">
+      <div id="presenter_note"></div>
+    </div>
+    <div class="slides">
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Docker: Training Wheels for LXC</h1></header>
+            
+            <section><div style="position: absolute; bottom: 0">
+<p>tim gross | @0x74696d</p>
+<p>http://0x74696d.com/posts/training-wheels-for-lxc-part-i/</p>
+</div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>I'm Tim Gross</li>
+<li>I the DevOps lead and I build software infrastructure for DramaFever.</li>
+<li>slides, code, more details in an upcoming blog post</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              1/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>What Does Docker Actually Do?</h1></header>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              2/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>The core: LXC</h1></header>
+            
+            <section><ul>
+<li>chroot + backing filesystem</li>
+<li>cgroups</li>
+<li>network namespace</li>
+<li>PID namespace</li>
+<li>UID namespace</li>
+<li>IPC namespace</li>
+<li>utsname namespace</li>
+</ul>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>isolate file system</li>
+<li>control privileges, constrain resource use</li>
+<li>containers can have their own hostname</li>
+<li>namespace ex: init in container is PID1 but not on the host</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              3/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>AUFS: Another Unioning File System</h1></header>
+            
+            <section><p><img alt="AUFS" style="margin-left:100px;margin-top:100px" src="./images/docker-aufs.png"></p>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>AUFS has a limitation in the number of layers you can have (42)</li>
+<li>managing disk space on small root volumes gets to be a pain in resource-constrained environments like AWS instances</li>
+<li>No good tooling for understanding relationships of AUFS layer dependencies</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              4/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Docker container management</h1></header>
+            
+            <section><p><img alt="Docker Overview" style="margin-left:100px" height=625 src="./images/docker_overview.png"></p>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>
+<ol>
+<li>ask for image from repo</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>copy images to container and configure</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>start application w/ chroot and dropped privs</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>provides a bridge</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>configures NAT</li>
+</ol>
+</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              5/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>How's Docker Work?</h1></header>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              6/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Docker images</h1></header>
+            
+            <section><p>Docker images are each an AUFS layer</p>
+<div class="highlight"><pre><span class="gp">root@docker:~#</span> docker images
+<span class="go">REPOSITORY         TAG      ID            CREATED     SIZE</span>
+<span class="go">example.com/nginx  latest   3b3e56c8728b  2 days ago  194.2 kB (virtual 486.3 MB)</span>
+<span class="go">140218             latest   9fcdcd1b466a  2 days ago  809.3 kB (virtual 1.298 GB)</span>
+<span class="go">&lt;none&gt;             &lt;none&gt;   f5e0aaf7c1c6  2 days ago  804.8 kB (virtual 1.298 GB)</span>
+<span class="go">&lt;none&gt;             &lt;none&gt;   5b54b1c18491  3 days ago  782.5 kB (virtual 1.298 GB)</span>
+<span class="go">&lt;none&gt;             &lt;none&gt;   3d141a007dde  3 days ago  573.9 kB (virtual 1.298 GB)</span>
+<span class="go">&lt;none&gt;             &lt;none&gt;   42a27ea66c7b  3 days ago  490.2 kB (virtual 1.298 GB)</span>
+<span class="go">...</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>docker images management tool</li>
+<li>list of source repository, tag, id (guid)</li>
+<li>note no relationship shown between images (<none> images effectively abandoned in the UI)</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              7/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Docker images</h1></header>
+            
+            <section><p>What are Docker images on-disk?</p>
+<div class="highlight"><pre><span class="gp">root@docker:/var/lib/docker/graph#</span> ls -gGh
+<span class="go">total 528K</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 10 22:12 01643fd18047352d9a79eb75b7e308a1d008d554c56a71021c8c55d05f6f6711</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 11 21:37 05f332145eb39853a9a7bc4c8b998534db817ae9a912d63a4308d7512a38e988</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 10 22:12 07b820fd749309f50ca4a768ca787891e5e3cd2b579784fd551a5db172cc17ab</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 10 22:12 07ed199d2cc37d2cc14ff8fcb309f411c6fae4de0d54327980f69f603976b931</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 10 21:55 083fef0ebd7d6fd80b73372b3f912b4ed1c7f41f3fbc799db03121b8b1e7b927</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 10 21:55 08b0b462ef5b5bf3a10ac18163799f1946e2927630fda827a9de8e701e8077c0</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 10 21:55 09ff3f834fa8c309d7bab71db296d1ff7a85a342a3cd20a83ae97acf8c676765</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 10 21:55 0e0e364a43825c51cc0b944e9003926ac75b42bf32955f2c5b7830762dc89021</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 10 21:55 0f0fcfa72154076edff2af62852cd58bb194f25702b86cc9897b3debcf63777c</span>
+<span class="go">drwxr-xr-x 3 4.0K Feb 10 21:55 10114b1b7dcc0684e226e5182df2a23c1517b5b3ca7ec1bd47320a654f2d2052</span>
+<span class="go">...</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>note the long filenames (from this point forward we'll show ... to make them fit on slides)</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              8/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Docker images</h1></header>
+            
+            <section><p>What's inside an image?</p>
+<div class="highlight"><pre><span class="gp">root@docker:/var/lib/docker/graph/01643fd18047352...#</span> ls -gGh
+<span class="go">total 12K</span>
+<span class="go">-rw------- 1 1.2K Feb 10 21:57 json</span>
+<span class="go">drwxr-xr-x 8 4.0K Dec 20 19:22 layer</span>
+<span class="go">-rw------- 1    6 Feb 10 22:12 layersize</span>
+
+<span class="gp">root@docker:/var/lib/docker/graph/01643fd18047352...#</span> ls -gGh layer/
+<span class="go">total 12K</span>
+<span class="go">drwxr-xr-x 2 4.0K Dec 20 19:22 dev</span>
+<span class="go">drwxr-xr-x 4 4.0K Dec 20 19:22 etc</span>
+<span class="go">drwxr-xr-x 3 4.0K Dec 20 19:22 var</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>Metadata about the layer</li>
+<li>A layer contains the difference between this layer and the layer below</li>
+<li>Note: no easy way from here to tell the relationships from here</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              9/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Docker containers</h1></header>
+            
+            <section><p>Containers (running and stopped)</p>
+<div class="highlight"><pre><span class="gp">root@docker:~#</span> docker ps -a
+<span class="go">ID              IMAGE                      COMMAND           CREATED       STATUS      PORTS</span>
+<span class="go">2167ea158044    140218:latest              /etc/init/django  5 hours ago   Up 5 hours</span>
+<span class="go">92fa573ac642    example.com/nginx:latest   /etc/init/nginx   2 days ago    Up 2 days   443-&gt;443, 80-&gt;80</span>
+<span class="go">2e826a369057    11f4582baf48               /etc/init/nginx   2 days ago    Exit 137</span>
+<span class="go">1c92b2165cbb    11f4582baf48               /etc/init/nginx   2 days ago    Exit 137</span>
+<span class="go">2b74a9181b27    11f4582baf48               /bin/bash         2 days ago    Exit 0</span>
+
+<span class="gp">root@docker:/var/lib/docker/containers#</span> ls -gGh
+<span class="go">total 104K</span>
+<span class="go">drwx------ 3 4.0K Feb 14 16:15 0c21a529abee4324a3b38ac3d1c455dfd93f6afc60bb9ce04153694180f238aa</span>
+<span class="go">drwx------ 3 4.0K Feb 14 14:23 0db4dffbc35475bb998284eb72269056d7848c420be2f220614f77ffc7d6fd47</span>
+<span class="go">drwx------ 3 4.0K Feb 13 20:39 10a8dd1bc774467dc41b7ee46a6b015d041a9709995ae6a9a57b4199d3325f98</span>
+<span class="go">drwx------ 3 4.0K Feb 14 14:20 137208649445ebb77f80ad6fa13300d49d74fcf2a67a612c30f3e6d6cc375b8e</span>
+<span class="go">drwx------ 3 4.0K Feb 13 20:39 14a4ab0cfdc5a9934cff5b6b3b6912df3aca4620131d7927ec5cccf77de606cf</span>
+<span class="go">drwx------ 3 4.0K Feb 14 16:15 15b9a4212c83f93972ed79710da737eb5cf3afbe8e74cc6342366c80ef77ab6a</span>
+<span class="go">drwx------ 4 4.0K Feb 14 16:11 1b881777ccbeb3a76031201f3bf8a713325ccd3b4677bc6dd38a3f30c2484b47</span>
+<span class="go">drwx------ 3 4.0K Feb 14 18:43 1c92b2165cbbf5fcb7d36a9c8c5a247f32f3058f369e3d4a76a64bf77bded198</span>
+<span class="go">...</span>
+</pre></div>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              10/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Docker containers</h1></header>
+            
+            <section><p>What's in Docker containers?</p>
+<div class="highlight"><pre><span class="gp">root@docker:/var/lib/docker/containers/0c21a529abee...#</span> ls -gGh
+<span class="go">total 364K</span>
+<span class="go">-rw------- 1  341K Feb 14 16:15 0c21a529abee...-json.log</span>
+<span class="go">-rw-r--r-- 1   991 Feb 14 16:15 config.json</span>
+<span class="go">-rw-r--r-- 1  3.5K Feb 14 16:11 config.lxc</span>
+<span class="go">-rw-r--r-- 1    50 Feb 14 16:11 hostconfig.json</span>
+<span class="go">drwxr-xr-x 60 4.0K Feb 14 16:11 rootfs</span>
+<span class="go">-rw------- 1     0 Feb 14 16:11 rootfs.hold</span>
+<span class="go">drwxr-xr-x 7  4.0K Feb 14 16:11 rw</span>
+
+<span class="gp">root@docker:/var/lib/docker/containers/0c21a529abee...#</span> ls -gGh rw/
+<span class="go">total 12K</span>
+<span class="go">drwxr-xr-x 2 4.0K Feb 14 16:11 dev</span>
+<span class="go">drwxr-xr-x 3 4.0K Aug 30 22:31 usr</span>
+<span class="go">drwxr-xr-x 4 4.0K Feb 11 16:01 var</span>
+<span class="go">-r--r--r-- 1    0 Feb 14 16:11 .wh..wh.aufs</span>
+<span class="go">drwx------ 2 4.0K Feb 14 16:11 .wh..wh.orph</span>
+<span class="go">drwx------ 2 4.0K Feb 14 16:11 .wh..wh.plnk</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>inside the container is the same diffs from the image, plus runtime changes</li>
+<li>note rootfs only exists in root containers (?)</li>
+<li>in theory you could chroot into the rw directory, but finding the right container/layer for a given file would be scary</li>
+<li>note the config.lxc file, will be important later</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              11/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Docker networking</h1></header>
+            
+            <section><p>LXC creates <code>iptables</code> rules, Docker adds NAT</p>
+<div class="highlight"><pre><span class="gp">root@docker:/var/lib/docker/volumes#</span> iptables -t nat -nL
+<span class="go">Chain PREROUTING (policy ACCEPT)</span>
+<span class="go">target     prot opt source            destination</span>
+<span class="go">DOCKER     all  --  0.0.0.0/0         0.0.0.0/0        ADDRTYPE match dst-type LOCAL</span>
+
+<span class="go">Chain INPUT (policy ACCEPT)</span>
+<span class="go">target     prot opt source            destination</span>
+
+<span class="go">Chain OUTPUT (policy ACCEPT)</span>
+<span class="go">target     prot opt source            destination</span>
+<span class="go">DOCKER     all  --  0.0.0.0/0         !127.0.0.0/8     ADDRTYPE match dst-type LOCAL</span>
+
+<span class="go">Chain POSTROUTING (policy ACCEPT)</span>
+<span class="go">target     prot opt source            destination</span>
+<span class="go">MASQUERADE  all  --  172.17.0.0/16    !172.17.0.0/16</span>
+
+<span class="go">Chain DOCKER (2 references)</span>
+<span class="go">target     prot opt source            destination</span>
+<span class="go">DNAT       tcp  --  0.0.0.0/0         0.0.0.0/0        tcp dpt:8000 to:172.17.0.9:8000</span>
+<span class="go">DNAT       tcp  --  0.0.0.0/0         0.0.0.0/0        tcp dpt:80 to:172.17.0.25:80</span>
+<span class="go">DNAT       tcp  --  0.0.0.0/0         0.0.0.0/0        tcp dpt:443 to:172.17.0.25:443</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>does post-routing to let containers talk to the outside world (LXC does this)</li>
+<li>sets up NAT rules to let inbound requests get routed to the containers with exposed ports (Docker does this)</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              12/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Docker CLI</h1></header>
+            
+            <section><ul>
+<li>docker run =&gt; lxc-start (plus generate lxc.config)</li>
+<li>docker attach =&gt; lxc-console</li>
+<li>docker rm =&gt; lxc-destroy</li>
+<li>docker commit + docker push =&gt; lxc-snapshot (sort of)</li>
+<li>??? =&gt; lxc-suspend</li>
+</ul>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>most of the docker commands are wrappers on LXC commands</li>
+<li>docker run: copies on-disk image to new container, chroots</li>
+<li>docker commit: an anonying feature of Docker is finding the real file; without AUFS you can just go to the directory, chroot, and edit-in-place. no commit process needed.</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              13/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>docker run</h1></header>
+            
+            <section><p>After <code>docker run -d example.com/nginx /etc/init/nginx</code></p>
+<div class="highlight"><pre><span class="gp">root@docker:~#</span> ps afx
+<span class="go">...</span>
+<span class="go"> 5186 ?        Sl     3:14  \_ /usr/bin/docker -D -d</span>
+<span class="go">10832 ?        S      0:00      \_ lxc-start -n 92fa573ac6422... -f /v</span>
+<span class="go">10836 ?        S      0:00          \_ /bin/bash /etc/init/nginx</span>
+<span class="go">10869 ?        S      0:00              \_ nginx: master process nginx</span>
+<span class="go">10878 ?        Sl     0:14                  \_ nginx: worker process</span>
+<span class="go">10879 ?        Sl     0:14                  \_ nginx: worker process</span>
+<span class="go">10880 ?        Sl     0:12                  \_ nginx: worker process</span>
+<span class="go">10881 ?        Sl     0:14                  \_ nginx: worker process</span>
+<span class="go">...</span>
+</pre></div>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              14/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>see docker run</h1></header>
+            
+            <section><p>Docker forks an lxc-start command</p>
+<div class="highlight"><pre><span class="go">lxc-start \</span>
+<span class="go">    -n 92fa573ac642... \</span>
+<span class="go">    -f /var/lib/docker/containers/92fa573ac642.../config.lxc \</span>
+<span class="go">    -- /.dockerinit \</span>
+<span class="go">       -g 172.17.42.1 \</span>
+<span class="go">       -e HOME=/ \</span>
+<span class="go">       -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \</span>
+<span class="go">       -e container=lxc \</span>
+<span class="go">       -e HOSTNAME=92fa573ac642 \</span>
+<span class="go">       -- /etc/init/nginx</span>
+
+<span class="gp">root@docker:~#</span> lxc-start --usage
+<span class="go">Usage: lxc-start [-d|--daemon] [-f|--rcfile=RCFILE] [-s|--define=DEFINE] [-c|--console=CONSOLE]</span>
+<span class="go">       [-C|--close-all-fds] [-n|--name=NAME] [-h|--help] [--usage]</span>
+<span class="go">       [-q|--quiet] [-o|--logfile=LOGFILE] [-l|--logpriority=LOGPRIORITY]</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>all we're doing it executing lxc-start with option flags and a startup script</li>
+<li>there's that config.lxc script we saw earlier</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              15/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>run, docker, run.</h1></header>
+            
+            <section><ul>
+<li>lxc-clone the image to a new container</li>
+<li>generate a new LXC configuration file</li>
+<li>attach shared volumes</li>
+<li>assign IP address</li>
+<li>common LXC configs</li>
+<li>lxc-start the container with a <code>.dockerinit</code> file</li>
+</ul>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>we can do this ourselves, right?</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              16/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Magic is OK</h1></header>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              17/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Our job is to know how the magic trick works</h1></header>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              18/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Why roll our own?</h1></header>
+            
+            <section><ul>
+<li>So we can understand and control the abstraction</li>
+<li>Make different choices than DotCloud/Docker with respect to AUFS, cgroups, etc.</li>
+<li>Docker daemon and repo are redundant and increase our attack surface</li>
+</ul></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              19/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Go away or I will replace you with a very small shell script</h1></header>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              20/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>lxc.config</h1></header>
+            
+            <section><p>The Docker <code>lxc.config</code> file is the same config file we would create with LXC without Docker!</p>
+<div class="highlight"><pre><span class="c"># hostname</span>
+lxc.utsname <span class="o">=</span> 3358b5c54e13
+
+<span class="c"># network configuration</span>
+lxc.network.type <span class="o">=</span> veth
+lxc.network.flags <span class="o">=</span> up
+lxc.network.link <span class="o">=</span> docker0
+lxc.network.name <span class="o">=</span> eth0
+lxc.network.mtu <span class="o">=</span> 1500
+lxc.network.ipv4 <span class="o">=</span> 172.17.0.18/16
+
+<span class="c"># root filesystem</span>
+lxc.rootfs <span class="o">=</span> /var/lib/docker/containers/3358b5c54e13.../rootfs
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>Hostname set by truncating giant GUID</li>
+<li>Docker sets an IP, LXC uses dnsmasq by default</li>
+<li>Create a rootfs (giant GUID again) where the container will chroot</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              21/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>lxc.config</h1></header>
+            
+            <section><p>LXC config determines what pty/tty get exposed</p>
+<div class="highlight"><pre><span class="c"># use a dedicated pts for the container (and limit the number of</span>
+<span class="c"># pseudo terminal available)</span>
+lxc.pts <span class="o">=</span> 1024
+
+<span class="c"># disable the main console</span>
+lxc.console <span class="o">=</span> none
+
+<span class="c"># no controlling tty at all</span>
+lxc.tty <span class="o">=</span> 1
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>maybe we don't want to disable the console?</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              22/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>lxc.config</h1></header>
+            
+            <section><p>LXC config determines what devices we allow access to</p>
+<div class="highlight"><pre><span class="c"># no implicit access to devices</span>
+lxc.cgroup.devices.deny <span class="o">=</span> a
+
+<span class="c"># /dev/null and zero</span>
+lxc.cgroup.devices.allow <span class="o">=</span> c 1:3 rwm
+lxc.cgroup.devices.allow <span class="o">=</span> c 1:5 rwm
+
+<span class="c"># consoles</span>
+lxc.cgroup.devices.allow <span class="o">=</span> c 5:1 rwm
+lxc.cgroup.devices.allow <span class="o">=</span> c 5:0 rwm
+lxc.cgroup.devices.allow <span class="o">=</span> c 4:0 rwm
+lxc.cgroup.devices.allow <span class="o">=</span> c 4:1 rwm
+
+<span class="c"># /dev/urandom,/dev/random</span>
+lxc.cgroup.devices.allow <span class="o">=</span> c 1:9 rwm
+lxc.cgroup.devices.allow <span class="o">=</span> c 1:8 rwm
+
+...
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>also /dev/pts, tuntap, fuse, rtc</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              23/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>lxc.config</h1></header>
+            
+            <section><p>After <code>docker run -d -v /var/log/nginx:/var/log example.com/nginx /etc/init/nginx</code></p>
+<div class="highlight"><pre>lxc.mount.entry <span class="o">=</span> proc /var/lib/docker/containers/3358b5c54e13.../rootfs/proc proc nosuid,nodev,noexec 0 0
+lxc.mount.entry <span class="o">=</span> sysfs /var/lib/docker/containers/3358b5c54e13.../rootfs/sys sysfs nosuid,nodev,noexec 0 0
+lxc.mount.entry <span class="o">=</span> devpts /var/lib/docker/containers/3358b5c54e13.../rootfs/dev/pts devpts newinstance,ptmxmode<span class="o">=</span>0666,nosuid,noexec 0 0
+lxc.mount.entry <span class="o">=</span> shm /var/lib/docker/containers/3358b5c54e13.../rootfs/dev/shm tmpfs <span class="nv">size</span><span class="o">=</span>65536k,nosuid,nodev,noexec 0 0
+
+<span class="c"># Inject docker-init</span>
+lxc.mount.entry <span class="o">=</span> /usr/bin/docker /var/lib/docker/containers/3358b5c54e13.../rootfs/.dockerinit none <span class="nb">bind</span>,ro 0 0
+
+<span class="c"># In order to get a working DNS environment, mount bind (ro) the host&#39;s /etc/resolv.conf into the container</span>
+lxc.mount.entry <span class="o">=</span> /etc/resolv.conf /var/lib/docker/containers/3358b5c54e13.../rootfs/etc/resolv.conf none <span class="nb">bind</span>,ro 0 0
+
+<span class="c"># This is from our -v flag</span>
+lxc.mount.entry <span class="o">=</span> /var/log/nginx /var/lib/docker/containers/3358b5c54e13.../rootfs//var/log none <span class="nb">bind</span>,rw 0 0
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>bind-mount locations from host to container guest</li>
+<li>.dockerinit sets environment variables in container that we set with -e flag in <code>docker run</code></li>
+<li>note that Docker -v always sets (rw) and not (ro); we can do anything we want here</li>
+<li>LXC config file also drops a few privileges for container (cgroups)</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              24/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>LXC template</h1></header>
+            
+            <section><p>LXC templates generate the config file and generate the initial file system</p>
+<div class="highlight"><pre><span class="gp">root@lxc:~#</span> ls -gGh /usr/lib/lxc/templates/
+<span class="go">total 88K</span>
+<span class="go">-rwxr-xr-x 1 8.1K Oct 29 22:16 lxc-busybox</span>
+<span class="go">-rwxr-xr-x 1 9.6K Oct 29 22:16 lxc-debian</span>
+<span class="go">-rwxr-xr-x 1  11K Oct 29 22:16 lxc-fedora</span>
+<span class="go">-rwxr-xr-x 1 8.9K Oct 29 22:16 lxc-opensuse</span>
+<span class="go">-rwxr-xr-x 1 5.0K Oct 29 22:16 lxc-sshd</span>
+<span class="go">-rwxr-xr-x 1  20K Oct 29 22:16 lxc-ubuntu</span>
+<span class="go">-rwxr-xr-x 1  11K Oct 29 22:16 lxc-ubuntu-cloud</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>template != disk image</li>
+<li>just bash scripts that download to the rootfs</li>
+<li>also typ. generate lxc config file, /etc/network/interfaces, /etc/hosts, /etc/hostname, etc.</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              25/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1><code>notdocker</code></h1></header>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              26/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Our goals</h1></header>
+            
+            <section><p>Creating new containers</p>
+<ol>
+<li>Start with a template</li>
+<li>Configure container</li>
+<li>Install application/configs</li>
+<li>Commit to repository on S3</li>
+</ol>
+<p>Starting a container</p>
+<ol>
+<li>Download the container on S3 if it doesn't exist on-disk.</li>
+<li>Run the application</li>
+<li>Mount volumes and expose ports as needed</li>
+</ol>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>this is just one potential deployment scenario</li>
+<li>the point of this is that we can change any of these elements when we roll out own.</li>
+<li>better yet would be using your favorite config mgmt too (Puppet, Saltstack, Ansible, etc)</li>
+<li>another approach we could take here is to build our own LXC template script</li>
+<li>available at http://0x74696d.com/_code/training_wheels/notdocker, let's take a look</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              27/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1><code>notdocker</code> results</h1></header>
+            
+            <section><p>After: <code>notdocker build -n test0 -p 80:80 -f setup.sh</code></p>
+<div class="highlight"><pre><span class="gp">root@lxc:~#</span> ls -gGh /var/lib/lxc/test0/
+<span class="go">total 12K</span>
+<span class="go">-rw-r--r--  1 1.3K Feb 18 20:08 config</span>
+<span class="go">-rw-r--r--  1  110 Feb 18 20:08 fstab</span>
+<span class="go">drwxr-xr-x 23 4.0K Feb 18 20:08 rootfs</span>
+
+<span class="gp">root@lxc:~#</span> head /var/lib/lxc/test0/config
+<span class="go">lxc.network.type=veth</span>
+<span class="go">lxc.network.link=lxcbr0</span>
+<span class="go">lxc.network.flags=up</span>
+<span class="go">lxc.network.hwaddr = 00:16:3e:c4:76:e4</span>
+<span class="go">lxc.utsname = test0</span>
+
+<span class="go">lxc.tty = 4</span>
+<span class="go">lxc.pts = 1024</span>
+<span class="go">lxc.rootfs = /var/lib/lxc/test0/rootfs</span>
+<span class="go">lxc.mount  = /var/lib/lxc/test0/fstab</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>in this case our setup just installs Nginx</li>
+<li>note that the container directory is easy to find</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              28/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1><code>notdocker</code> results</h1></header>
+            
+            <section><p>The rootfs of the container is easy to browse and we could chroot to this directory to modify it.</p>
+<div class="highlight"><pre><span class="gp">root@lxc:~#</span> ls -gGh /var/lib/lxc/test0/rootfs/
+<span class="go">total 84K</span>
+<span class="go">drwxr-xr-x  2 4.0K Jan 30 07:06 bin</span>
+<span class="go">drwxr-xr-x  3 4.0K Jan 30 07:06 boot</span>
+<span class="go">drwxr-xr-x  4 4.0K Jan 30 07:05 dev</span>
+<span class="go">drwxr-xr-x 86 4.0K Feb 18 20:08 etc</span>
+<span class="go">drwxr-xr-x  3 4.0K Jan 30 07:06 home</span>
+<span class="go">lrwxrwxrwx  1   33 Jan 30 07:05 initrd.img -&gt; /boot/initrd.img-3.2.0-58-virtual</span>
+<span class="go">drwxr-xr-x 18 4.0K Jan 30 07:05 lib</span>
+<span class="go">drwxr-xr-x  2 4.0K Jan 30 07:04 lib64</span>
+<span class="go">drwx------  2 4.0K Jan 30 07:06 lost+found</span>
+<span class="go">drwxr-xr-x  2 4.0K Jan 30 07:04 media</span>
+<span class="go">drwxr-xr-x  2 4.0K Apr 19  2012 mnt</span>
+<span class="go">drwxr-xr-x  2 4.0K Jan 30 07:04 opt</span>
+<span class="go">drwxr-xr-x  2 4.0K Apr 19  2012 proc</span>
+<span class="go">drwx------  2 4.0K Jan 30 07:06 root</span>
+<span class="go">drwxr-xr-x  2 4.0K Jan 30 07:06 run</span>
+<span class="go">drwxr-xr-x  2 4.0K Jan 30 07:06 sbin</span>
+<span class="go">drwxr-xr-x  2 4.0K Mar  5  2012 selinux</span>
+<span class="go">drwxr-xr-x  2 4.0K Jan 30 07:04 srv</span>
+<span class="go">drwxr-xr-x  2 4.0K Apr 14  2012 sys</span>
+<span class="go">drwxrwxrwt  2 4.0K Jan 30 07:06 tmp</span>
+<span class="go">drwxr-xr-x 10 4.0K Jan 30 07:04 usr</span>
+<span class="go">drwxr-xr-x 12 4.0K Jan 30 07:06 var</span>
+<span class="go">lrwxrwxrwx  1   29 Jan 30 07:05 vmlinuz -&gt; boot/vmlinuz-3.2.0-58-virtual</span>
+</pre></div>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              29/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>Inside the LXC container</h1></header>
+            
+            <section><p>After: <code>notdocker run -d -n test0</code></p>
+<p>We can use lxc-console to examine the container from the inside.</p>
+<div class="highlight"><pre><span class="gp">root@test0:~#</span> netstat -antp
+<span class="go">Active Internet connections (servers and established)</span>
+<span class="go">Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name</span>
+<span class="go">tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      3095/nginx</span>
+<span class="go">tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      361/sshd</span>
+<span class="go">tcp        0      0 10.0.3.133:49062        91.189.91.14:80         TIME_WAIT   -</span>
+<span class="go">tcp6       0      0 :::22                   :::*                    LISTEN      361/sshd</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>btw, we're running Nginx off of sysvinit, not upstart (which won't work)</li>
+<li>systemd is allegedly more LXC-friendly</li>
+<li>init is a complex topic and I'm not going to cover it here, but suffice to say it's full of ugly init-system-specific hacks.</li>
+<li>ex: we use (with Docker) upstart executing <code>docker run</code> with non-daemonized nginx in the container</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              30/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide has_code">
+          <div class="inner">
+            
+            <header><h1>PID isolation</h1></header>
+            
+            <section><p>Inside the container:</p>
+<div class="highlight"><pre><span class="gp">root@test0:~#</span> ps afx
+<span class="go">  PID TTY      STAT   TIME COMMAND</span>
+<span class="go">    1 ?        Ss     0:00 /sbin/init</span>
+<span class="go"> 3077 ?        Ss     0:00  \_ /bin/sh -e /proc/self/fd/9</span>
+<span class="go"> 3095 ?        Ss     0:00      \_ nginx: master process /usr/sbin/nginx</span>
+<span class="go"> 3096 ?        S      0:00         \_ nginx: worker process</span>
+<span class="go"> 3097 ?        S      0:00         \_ nginx: worker process</span>
+</pre></div>
+
+<p>Outside the container:</p>
+<div class="highlight"><pre><span class="gp">root@lxc:~#</span> ps afx
+<span class="go"> PID TTY      STAT   TIME COMMAND</span>
+<span class="go">3084 ?        Ss     0:00 lxc-start -d -n test0</span>
+<span class="go">3090 ?        Ss     0:00  \_ /sbin/init</span>
+<span class="go">3196 ?        Ss     0:00  \_ /bin/sh -e /proc/self/fd/9</span>
+<span class="go">6214 ?        Ss     0:00      \_ nginx: master process /usr/sbin/nginx</span>
+<span class="go">6215 ?        S      0:00          \_ nginx: worker process</span>
+<span class="go">6216 ?        S      0:00          \_ nginx: worker process</span>
+</pre></div>
+
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>aside: our /etc/init/nginx is just an upstart config</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              31/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>When to Use LXC Over Docker?</h1></header>
+            
+            <section><ul>
+<li>If managing AUFS is more painful than it's worth</li>
+<li>If you want to use btrfs snapshots or LVM for the backing store</li>
+<li>If your application dependencies are relatively fixed</li>
+<li>If you want to share read-only volumes between containers</li>
+<li>If your build process wants to write directly to the rootdir</li>
+</ul>
+</section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+              <ul>
+<li>in theory Docker is going to be more robust than your shell scrip (at Docker 1.0?</li>
+<li>remember: Docker is a generalized solution originally designed for PaaS, not for your app</li>
+</ul>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              32/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+      <!-- slide source: training-wheels-for-lxc.md -->
+      <div class="slide-wrapper">
+        <div class="slide">
+          <div class="inner">
+            
+            <header><h1>Docker: Training Wheels for LXC</h1></header>
+            
+            <section><div style="position: absolute; bottom: 0">
+<p>tim gross | @0x74696d</p>
+<p>http://0x74696d.com/posts/training-wheels-for-lxc-part-i/</p>
+</div></section>
+            
+            
+          </div>
+          <div class="presenter_notes">
+            <header><h1>Presenter Notes</h1></header>
+            <section>
+            
+            </section>
+          </div>
+          <footer>
+            
+            <aside class="source">
+              Source: <a href="training-wheels-for-lxc.md">training-wheels-for-lxc.md</a>
+            </aside>
+            
+            <aside class="page_number">
+              33/33
+            </aside>
+          </footer>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  
+  <div id="toc" class="sidebar hidden">
+    <h2>Table of Contents</h2>
+    <table>
+      <caption>Table of Contents</caption>
+      
+      <tr id="toc-row-1">
+        <th><a href="#slide1">Docker: Training Wheels for LXC</a></th>
+        <td><a href="#slide1">1</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-2">
+        <th><a href="#slide2">What Does Docker Actually Do?</a></th>
+        <td><a href="#slide2">2</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-3">
+        <th><a href="#slide3">The core: LXC</a></th>
+        <td><a href="#slide3">3</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-4">
+        <th><a href="#slide4">AUFS: Another Unioning File System</a></th>
+        <td><a href="#slide4">4</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-5">
+        <th><a href="#slide5">Docker container management</a></th>
+        <td><a href="#slide5">5</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-6">
+        <th><a href="#slide6">How's Docker Work?</a></th>
+        <td><a href="#slide6">6</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-7">
+        <th><a href="#slide7">Docker images</a></th>
+        <td><a href="#slide7">7</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-8">
+        <th><a href="#slide8">Docker images</a></th>
+        <td><a href="#slide8">8</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-9">
+        <th><a href="#slide9">Docker images</a></th>
+        <td><a href="#slide9">9</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-10">
+        <th><a href="#slide10">Docker containers</a></th>
+        <td><a href="#slide10">10</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-11">
+        <th><a href="#slide11">Docker containers</a></th>
+        <td><a href="#slide11">11</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-12">
+        <th><a href="#slide12">Docker networking</a></th>
+        <td><a href="#slide12">12</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-13">
+        <th><a href="#slide13">Docker CLI</a></th>
+        <td><a href="#slide13">13</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-14">
+        <th><a href="#slide14">docker run</a></th>
+        <td><a href="#slide14">14</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-15">
+        <th><a href="#slide15">see docker run</a></th>
+        <td><a href="#slide15">15</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-16">
+        <th><a href="#slide16">run, docker, run.</a></th>
+        <td><a href="#slide16">16</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-17">
+        <th><a href="#slide17">Magic is OK</a></th>
+        <td><a href="#slide17">17</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-18">
+        <th><a href="#slide18">Our job is to know how the magic trick works</a></th>
+        <td><a href="#slide18">18</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-19">
+        <th><a href="#slide19">Why roll our own?</a></th>
+        <td><a href="#slide19">19</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-20">
+        <th><a href="#slide20">Go away or I will replace you with a very small shell script</a></th>
+        <td><a href="#slide20">20</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-21">
+        <th><a href="#slide21">lxc.config</a></th>
+        <td><a href="#slide21">21</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-22">
+        <th><a href="#slide22">lxc.config</a></th>
+        <td><a href="#slide22">22</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-23">
+        <th><a href="#slide23">lxc.config</a></th>
+        <td><a href="#slide23">23</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-24">
+        <th><a href="#slide24">lxc.config</a></th>
+        <td><a href="#slide24">24</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-25">
+        <th><a href="#slide25">LXC template</a></th>
+        <td><a href="#slide25">25</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-26">
+        <th><a href="#slide26"><code>notdocker</code></a></th>
+        <td><a href="#slide26">26</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-27">
+        <th><a href="#slide27">Our goals</a></th>
+        <td><a href="#slide27">27</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-28">
+        <th><a href="#slide28"><code>notdocker</code> results</a></th>
+        <td><a href="#slide28">28</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-29">
+        <th><a href="#slide29"><code>notdocker</code> results</a></th>
+        <td><a href="#slide29">29</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-30">
+        <th><a href="#slide30">Inside the LXC container</a></th>
+        <td><a href="#slide30">30</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-31">
+        <th><a href="#slide31">PID isolation</a></th>
+        <td><a href="#slide31">31</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-32">
+        <th><a href="#slide32">When to Use LXC Over Docker?</a></th>
+        <td><a href="#slide32">32</a></td>
+      </tr>
+      
+      
+      <tr id="toc-row-33">
+        <th><a href="#slide33">Docker: Training Wheels for LXC</a></th>
+        <td><a href="#slide33">33</a></td>
+      </tr>
+      
+      
+    </table>
+  </div>
+  
+  <div id="help" class="sidebar hidden">
+    <h2>Help</h2>
+    <table>
+      <caption>Help</caption>
+      <tr>
+        <th>Table of Contents</th>
+        <td>t</td>
+      </tr>
+      <tr>
+        <th>Exposé</th>
+        <td>ESC</td>
+      </tr>
+      <tr>
+        <th>Full screen slides</th>
+        <td>e</td>
+      </tr>
+      <tr>
+        <th>Presenter View</th>
+        <td>p</td>
+      </tr>
+      <tr>
+        <th>Source Files</th>
+        <td>s</td>
+      </tr>
+      <tr>
+        <th>Slide Numbers</th>
+        <td>n</td>
+      </tr>
+      <tr>
+        <th>Toggle screen blanking</th>
+        <td>b</td>
+      </tr>
+      <tr>
+        <th>Show/hide slide context</th>
+        <td>c</td>
+      </tr>
+      <tr>
+        <th>Notes</th>
+        <td>2</td>
+      </tr>
+      <tr>
+        <th>Help</th>
+        <td>h</td>
+      </tr>
+    </table>
+  </div>
+  <script>main()</script>
+</body>
+</html>

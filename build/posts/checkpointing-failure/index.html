@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Checkpointing Failure</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Checkpointing Failure</h1>
+  <section class="byline">February 17, 2019</section>
+  <p>The conversation goes something like this:</p>
+<blockquote>
+<p>Them: &quot;Our service can't be autoscaled, run on spot instances, or have its host restarted at random because it runs long-running tasks.&quot;</p>
+</blockquote>
+<blockquote>
+<p>Me: &quot;Are the tasks idempotent?&quot;</p>
+</blockquote>
+<blockquote>
+<p>Them: &quot;No, but they're checkpointed.&quot;</p>
+</blockquote>
+<blockquote>
+<p>Me: &quot;Even if we don't autoscale, run on spot instances, or ever update the host, the host can randomly fail at any time.&quot;</p>
+</blockquote>
+<blockquote>
+<p>Them: &quot;Yes, but that's less often so it's ok. Throughput is ok if failure happens rarely.&quot;</p>
+</blockquote>
+<blockquote>
+<p>Me: &quot;But you have a bug if the tasks can't be safely retried.&quot;</p>
+</blockquote>
+<blockquote>
+<p>Them: &quot;I told you, we checkpoint it.&quot;</p>
+</blockquote>
+<p>If you have lots of experience with batch workloads, there's probably nothing new here for you. But I had three similar conversations about this problem recently, so let's look into it.</p>
+<p>The defining characteristic of the kinds of tasks we're talking about here is that they modify external state: they reserve a table at restaurant, they update the follower count in your social media network, they cause your book order to be shipped. These tasks are typically created by publishing to a queue which our workers are consuming, or they are generated on a schedule via something like cron.</p>
+<p>There are two primary attributes we're concerned with here. Tasks must be <strong>correct</strong> and they must have acceptable <strong>throughput.</strong></p>
+<p>By correctness, we mean that the task gets the right answer and does the right work. But because these tasks modify state, correctness also implies <strong>idempotency</strong>. That is, if we have to retry them because the task fails for reasons out of our control, it should be safe to do so. We should not, for example, cause two of the same book to be shipped to you.</p>
+<p>By throughput, we mean the performance of the task. Specifically in this case the number of tasks that can be processed by the worker. Tasks can vary quite a bit in how long they take, but if we have failures which cause us to start over, our throughput goes down. To reduce the amount of throughput lost, we can rely on <strong>checkpointing</strong>: we save our work in the middle of the job, allowing us to pick up where we left off with only the work between checkpoints lost.</p>
+<p>The external force on these two values is the <strong>error rate</strong>. This is how often a task fails, for any reason. Even if the developer never writes a bug, perhaps the task has a network timeout. Perhaps the infrastructure team is making a kernel update and restarts the host. Perhaps the Kubernetes cluster reschedules the job. Or perhaps an electrical fire burns down the rack of hosts, sparing them the indignity of running Kubernetes.</p>
+<p>In the conversation I had above, the developer is conflating the purpose of the two knobs of idempotency and checkpointing. A developer can tune the throughput of their tasks by adjusting the length of steps taken between checkpoints relative to the rate of unexpected errors. But increasing the rate of checkpoints does nothing for correctness.</p>
+<p><strong>And as we'll see below, increasing the rate of checkpoints can very easily damage correctness.</strong></p>
+<p>I've worked up a simple model to demonstrate the effect the two knobs of idempotency and checkpoint rate have on both correctness and throughput, at various error rates. This model ignores concurrency for clarity, but concurrent tasks make the correctness problem even more important to solve. You can follow along with the code <a href="https://github.com/tgross/blog.0x74696d.com/blob/trunk/static/_code/checkpointing/checkpoint.py">on GitHub</a>.</p>
+<p>We run each set of parameters through our model for 100,000 &quot;ticks&quot;. For each tick through our model, our task updates a pair of counters in a SQL database. In the middle of doing so, there is a small chance that the update fails. Each model reports the values for each counter. The difference in value between the two counters (if any) we'll refer to as the <strong>drift</strong> and it reflects correctness. The maximum value of the counter reflects the throughput. In a perfect world where there is a 0% error rate, both counters will have a value of 100,000.</p>
+<p>Let's look at our idempotent task processor first.</p>
+<div class="highlight"><pre class="chroma"><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">idempotent_task</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">,</span> <span class="n">err_rate</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">event_id</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">cur</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&#34;INSERT OR REPLACE INTO counterA VALUES (?)&#34;</span><span class="p">,</span> <span class="p">(</span><span class="n">event_id</span><span class="p">,))</span>
+        <span class="n">maybe_error</span><span class="p">(</span><span class="n">err_rate</span><span class="p">)</span>
+        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&#34;INSERT OR REPLACE INTO counterB VALUES (?)&#34;</span><span class="p">,</span> <span class="p">(</span><span class="n">event_id</span><span class="p">,))</span>
+        <span class="n">maybe_checkpoint</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">)</span>
+        <span class="n">event_id</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">event_id</span>
+</code></pre></div><p>We pass the <code>event_id</code> into the task and increment it upon success. The <code>event_id</code> is returned whether or not it has been incremented, so the next iteration will retry failed events. Additionally, we update both counters in a single <strong>atomic transaction</strong> so that we can't have partial updates. Note that atomicity and idempotency aren't the same thing! But you can't have idempotency without atomicity if you make multiple updates in a given task.</p>
+<p>An alternative to retrying events would be to simply drop work that fails and not retry it. If our interest in the event is bound by time, this might be correct behavior. For example, if the event was a location update of our moving rideshare car, we might decide to ignore a stale update in favor of simply waiting for the next one.</p>
+<p>Now let's take a look at our non-idempotent processor.</p>
+<div class="highlight"><pre class="chroma"><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">non_idempotent_task</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">,</span> <span class="n">err_rate</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">event_id</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">cur</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&#34;INSERT OR REPLACE INTO counterA VALUES (?)&#34;</span><span class="p">,</span> <span class="p">(</span><span class="n">event_id</span><span class="p">,))</span>
+        <span class="n">maybe_checkpoint</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">)</span>
+        <span class="n">maybe_error</span><span class="p">(</span><span class="n">err_rate</span><span class="p">)</span>
+        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&#34;INSERT OR REPLACE INTO counterB VALUES (?)&#34;</span><span class="p">,</span> <span class="p">(</span><span class="n">event_id</span><span class="p">,))</span>
+        <span class="n">maybe_checkpoint</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">)</span>
+        <span class="n">event_id</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">event_id</span>
+</code></pre></div><p>This non-idempotent task represents a common source of bugs. We've tried to make it idempotent by using the <code>event_id</code> as we did in our previous task. But because this isn't an atomic transaction, each table can see a different set of events! The most common way this happens in my experience is <strong>write skew</strong>: an application that reads from the database, and then writes values back based on those values without taking into account concurrent updaters.</p>
+<p>I've run these two tasks with error rates ranging up to 2%. That rate is perhaps pathological, but consider a task with a 20-minute long step between checkpoints. If its host is restarted once per week for kernel updates that's a 2% &quot;failure rate&quot; per host, assuming nothing else goes wrong. The other parameter is checkpoint steps ranging from 1 (checkpoint every tick) to 11 (checkpoint every 11 ticks).</p>
+<p><img src="/images/20190217/plot.png" alt="diagram"></p>
+<p>The top graph measures throughput. We can see that as the error rate increases, the throughput decreases as we'd expect. We can also see that as the frequency of checkpointing goes up, the throughput goes up. For non-idempotent tasks that checkpoint after every step, we can reach very nearly 100,000. But for each pair of idempotent and non-idempotent tasks at each value of the checkpoint steps parameter, we see that the idempotent tasks fare worse in throughput performance.</p>
+<p>The bottom graph measures correctness. At the bottom we see a single dotted line representing all the idempotent tasks together: they have no drift between the counters! But for non-idempotent tasks, we can see that as they checkpoint more frequently, not only does the checkpointing not help their correctness, but it compounds the errors they make.</p>
+<p>What this demonstrates is that correctness cannot be truly solved by improving the failure rate of your infrastructure. If you want the wrong answer quickly, feel free to checkpoint without idempotency. But if you want software that works, your tasks need to be idempotent.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fcheckpointing-failure%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; 2013-2020 Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

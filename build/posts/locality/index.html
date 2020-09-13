@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Locality</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Locality</h1>
+  <section class="byline">June 4, 2019</section>
+  <p>On Memorial Day weekend I grilled a steak, as one does. <sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup> A few days before, I took it out of the freezer and put it into the fridge to thaw on a plate. Late Sunday afternoon I took it out of the fridge and patted it down with a paper towel. Then I put it back in the fridge. Then I took it out and rubbed it down with oil and salt and pepper. Then I put it back in the fridge. I stepped outside to get the charcoals going. When I came back I found that my partner had seen the steak sitting in the fridge unattended and put it back into the freezer. I took the steak out of the freezer and back into the fridge. Then I took it out of the fridge and moved it to the grill. After a few minutes I <s>stretched this metaphor to its breaking point</s> took the steak off the grill and put it back into the fridge. Then I took it out of the fridge and put it back on the grill to cook the other side. Then I put it back in the fridge. Finally, I took it out to serve.</p>
+<p>This is your data on serverless.</p>
+<p>In December a paper <a href="https://arxiv.org/pdf/1812.03651.pdf"><em>Serverless Computing: One Step Forward, Two Steps Back</em></a> (Joseph M. Hellerstein, Jose Faleiro, Joseph E. Gonzalez, Johann Schleier-Smith, Vikram Sreekanti,
+Alexey Tumanov and Chenggang Wu) discussed this problem at more depth and seriousness that I've done here. The authors address missed opportunities in the current serverless landscape such as specialized hardware (ex. GPUs), but that's a matter of feature development and not inherent to the model as it currently exists.</p>
+<p>The more fundamental problem they illustrate is that serverless is a &quot;data shipping architecture&quot; where communication between tasks is via storage I/O. Instead of being able to take advantage of all the last couple decades' worth of advances in distributed computing, we're relying on a giant blob of global state. This problem persists even if we assume that the various operational difficulties of deploying serverless can be resolved with better tooling. (I don't see any reason this shouldn't be the case, see companies like <a href="https://www.iopipe.com/">IOPipe</a> for an example of the possibilities). But in the existing implementations of serverless, we can't get around the problem that your serverless functions are a sea of unstructured side-effects.</p>
+<p>In addition to semantics that'll make Haskell developers cry, the lack of data locality undermines mechanical sympathy. How can we we reason about performance when the underlying compute is so profoundly abstracted and your next &quot;cache line&quot; is an S3 API response 200ms away? This isn't so bad if you're a large cloud provider charging a premium for those milliseconds. But if performance is important to your workload (or perhaps you just care about the environmental impact of all that extraneous compute power), it's worth considering if the tradeoffs are worth it.</p>
+<p>There's an interesting historical note here in that only a short time ago the industry understood this problem of data locality, and this led to the Hadoop hype. In a typical map-reduce workflow, your data is distributed across HDFS and then your mapping computation happens physically co-located with the data. This hasn't ever been my particular area of expertise, but it seems that there were a couple of factors that contributed to the fizzling of the Hadoop hype. One is that it doesn't support update-in-place semantics, so you can't quite support arbitrary Unix applications. The second factor is the dominance of object storage in the form of S3 and the various upstack services that AWS has created on top of it. The pricing of S3 is aggressive relative to trying to build HDFS on top of instance storage or EBS, so if you're all-in on the cloud it's hard to make the economics work.</p>
+<p>A counterexample of this trend is Joyent's <a href="https://github.com/joyent/manta">Manta</a>. They have an object store built on top of their Triton platform that allows you to instantiate a container (a SmartOS zone) directly &quot;on&quot; the objects in the object store. So you get a full Unix environment to perform compute on the objects without moving the data. Your ability to parallelize workloads is limited only by the replication factor and size of the storage cluster. Under the hood it's all built on ZFS, zones, and cleverly managed Postgres. It's really amazing technology and as a bonus it's open source!</p>
+<p>There are definitely a few barriers to Manta's wider adoption. Without Linux support for the compute zones, machine learning teams are less likely to adopt it. It doesn't support the S3 API so organizations potentially have a bunch of third-party tooling to recreate. While Manta is open source, it's decidedly not a standalone application but really a way of building an entire datacenter. So it can't be deployed onto AWS if you're already there. (Joyent does have an excellent cloud offering if you don't need much in the way of AWS upstack services.) And most importantly from the standpoint of serverless workflows, there's not yet a way to &quot;watch&quot; for events on Manta or get a changefeed as an end user; this could allow Lambda-like workflows.</p>
+<aside>Update June 6, 2019: only days after publishing this, Joyent announced they are shutting down their public cloud offering. Triton and Manta are still open source, and many of Joyent's enterprise customers are running on-prem. But sadly I have trouble imagining someone starting a new project on Triton following that announcement.</aside>
+<p>If you are a smaller cloud provider or just an organization struggling with problems of data locality in your data pipeline, you could do much worse than standing on the shoulders of giants and taking a look at Manta. Even if you're already all-in on AWS and/or Linux containerization schedulers like k8s or Nomad, there's an opportunity for a sufficiently motivated team<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup> to take inspiration from Manta to build a system that brings better mechanical sympathy to serverless.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>Yes, more cooking metaphors. <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p>Which could include me, if you were to hire me to work on projects like this at your org! <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2flocality%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; 2013-2020 Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

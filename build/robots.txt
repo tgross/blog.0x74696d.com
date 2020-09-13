@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /.git
+Disallow: /src
+Disallow: /CNAME
+Disallow: /_code
+Disallow: /css
+Disallow: /fonts
+Disallow: /me
+Disallow: /_redirects
+Disallow: /zohoverify

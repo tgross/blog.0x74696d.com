@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Software Defined Culture, Part 4 - Responsibility</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Software Defined Culture, Part 4 - Responsibility</h1>
+  <section class="byline">February 18, 2018</section>
+  <p>This five-part series of posts covers a talk titled <em>Software Defined Culture</em> that I gave at <a href="https://www.devopsdays.org/events/2016-philadelphia/program/tim-gross/">DevOps Days Philadelphia 2016</a>, <a href="https://gotochgo.com/2017/sessions/43">GOTO Chicago 2017</a>, and <a href="https://vimeo.com/228067673">Velocity San Jose 2017</a>.</p>
+<p>If you'd like to read the rest of the series:</p>
+<ol start="0">
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture/">Part 0: Software Defined Culture</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/">Part 1: Build for Reliability</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-2-operability/">Part 2: Build for Operability</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-3-observability/">Part 3: Build for Observability</a></li>
+<li>Part 4: Build for Responsibility</li>
+</ol>
+<hr>
+<h1 id="building-for-responsibility">Building for Responsibility</h1>
+<p>This has been the section of the talk where I definitely lost some of the audience. In fairness, you were warned at the beginning that we were going to talk about culture and that it can be tricky. So if you've been following along so far and don't think I'm totally crazy yet... hold on to your butts!</p>
+<h2 id="every-tool-comes-with-a-community">Every Tool Comes With a Community</h2>
+<p>All our technical choices implicitly make us a part of the community of users of the tools we choose. Some of those communities have been intentionally and thoughtfully designed around making sure that everyone can participate in the community. The Rust language community is an amazing example of this. From the very beginning of their organization, they realized that the technical community would be stronger when everyone takes responsibility towards making it inclusive. From their <a href="https://www.rust-lang.org/en-US/conduct.html">Code of Conduct</a>:</p>
+<blockquote>
+<p>Even if you feel you were misinterpreted or unfairly accused, chances are good there was something you could've communicated better — remember that it's your responsibility to make your fellow Rustaceans comfortable.</p>
+</blockquote>
+<p>Now, I'm not saying you should go and switch all your production code to Rust. I did recommend in Part 1 to choose boring technologies, after all! But it's clear that the Rust community has taken seriously its responsibility to be welcoming to all.</p>
+<p>Other communities have well-deserved reputations for toxicity. When you choose a technology where a portion of the community forked the runtime in protest of the steward company's CTO defense of gender-neutral pronouns in documentation, you're implicitly saying you're okay with being part of that community. Maybe that's the right choice because the rest of the community outweighs the sexist assholes. But we should make those trade-offs with open eyes.</p>
+<p>When you choose a language where the original developers defend their language design decisions because their co-workers are <a href="https://channel9.msdn.com/Events/Lang-NEXT/Lang-NEXT-2014/From-Parallel-to-Concurrent">&quot;not capable of understanding a brilliant language but we want to use them to build good software&quot;</a>, then you shouldn't be surprised if this mentality has trickled into the community.</p>
+<p>When we choose a technology for our organization, it determines what communities we'll be a part of. It determines who we'll hire. If your organization's mission is to build amazing compiler tools, then you might want to hire people who know that &quot;a monad is a monoid in the category of endofunctor&quot; (not me!). But if you're making line-of-business CRUD web apps that mostly serialize rows in and out of a database, you might not want to choose Haskell. Not because of any technical constraints, but because the community of developers you'll have access to are going to be bored out of their minds writing line-of-business CRUD web apps.</p>
+<h2 id="community-doesnt-stop-with-your-team">Community Doesn't Stop With Your Team</h2>
+<p>Our technical communities are only one part of building with responsibility in mind. There is also the larger community — our culture at large. The culture impact of our technical choices reflect our biases and they reflect our blind spots. When Google and Facebook demand the legal names of users, it's because they're not considering the risks that political activists, abuse victims, or trans persons would be taking by giving this information up. When a media website pushes down 10MB of crummy ads to go along with 100 words of news content, it's because they're not considering the impact this has on working class users with low-end limited data plans, who can't afford the stuff in those crummy ads anyways.</p>
+<p><a href="https://twitter.com/polotek/status/856183297180704768"><img src="/images/20180218/marco-rogers.png" alt="Kalanick keeps asking for unethical/illegal things, but at some point we have to talk about how engineers at Uber keep saying yes."></a></p>
+<p>When I gave this talk, I asked the audience to stop and reflect on what they were doing on a day to day basis. Am I making the world worse? This can be for whatever definition of &quot;worse&quot; you want to use. Maybe you're ok with ads, but not pharmaceutical ads. Maybe you're ok making embedded software for sensors but not for weapons. Maybe you're ok making weapons, so long as the software that delivers them is Free and Open Source. But whatever your definition is, you can ask yourself this question.</p>
+<p>I then ask how many people work for organizations that are hiring. In a packed room of hundreds of people, virtually every hand goes up. If you think you're making the world worse, the market conditions in our industry are such that you don't have to continue to participate in that. Find somewhere that doesn't make the world worse.</p>
+<h2 id="professional-ethics">Professional Ethics</h2>
+<p>The software industry doesn't have a professional licensing body. That's probably the right call, at least for now. There's so much variation in what we do — the people who write web apps and the people who build embedded systems for airplanes are only barely in the same profession. But other industries do have licensing bodies, and I think we can learn a thing or two from our siblings in other professions.</p>
+<blockquote>
+<p>Engineers shall hold paramount the safety, health and welfare of the public and shall strive to comply with the principles of sustainable development... Engineers shall act in such a manner as to uphold and enhance the honor, integrity, and dignity of the engineering profession.</p>
+</blockquote>
+<p>This is from the <a href="http://www.asce.org/code-of-ethics/">Code of Ethics for the American Society of Civil Engineers</a>. Imagine what the software industry would look like if we held to this code of ethics. Imagine if we had <a href="https://www.youtube.com/watch?v=9QMGAtxUlAc">shared principles</a>. Imagine how it would change the impact we have on the world. We don't need a governing body to impose this on us.</p>
+<p>We can start today.</p>
+<hr>
+<p>If you'd like to read the rest of the series:</p>
+<ol start="0">
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture/">Part 0: Software Defined Culture</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/">Part 1: Build for Reliability</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-2-operability/">Part 2: Build for Operability</a></li>
+<li><a href="https://blog.0x74696d.com/posts/software-defined-culture-3-observability/">Part 3: Build for Observability</a></li>
+<li>Part 4: Build for Responsibility</li>
+</ol>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fsoftware-defined-culture-4-responsibility%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; 2013-2020 Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

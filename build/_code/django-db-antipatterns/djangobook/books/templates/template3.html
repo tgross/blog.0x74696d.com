@@ -1,0 +1,13 @@
+<html><body>
+<h1>Books</h1>
+Published between {{start|date:"Y M d"}} and {{end|date:"Y M d"}}
+<table>
+{% for book in books %}
+  <tr>{{book.title}} by
+    {% for author in book.authors.all %}
+      {{author.name}}
+    {% endfor %}
+    {{book.publisher}},
+    {{book.pub_date}}</tr>
+{% endfor %}</table>
+</body> </html>

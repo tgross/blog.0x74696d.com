@@ -1,0 +1,181 @@
+#!/bin/bash
+# notdocker: a half-assed shell script replacement for Docker
+# For demonstration purposes only, not suited for anything!
+
+# usage string just copies most of lxc-create/lxc-start
+# -s flag isn't implemented yet, but will modify lxc file
+# before starting container
+usage="notdocker provides two commands.
+
+notdocker build -n <name> [-ip ipaddress -v host:container -p host:container -f script]
+Options:
+  -n, --name=NAME      NAME for name of the container
+  -f, --file=FILE      location of setup file
+
+notdocker run -name=NAME -- COMMAND
+
+Options:
+  -n, --name=NAME      NAME for name of the container
+  -d, --daemon         daemonize the container
+  -p, --port=HOSTPORT:CONTAINERPORT expose a container port
+  -v, --volume=HOSTDIR:CONTAINERDIR  attach a volume (rw)
+  -s, --define KEY=VAL Override config KEY to VAL
+
+"
+
+# script configuration
+S3BUCKET=mybucket
+
+# argument parsing
+CMD=$1
+shift
+
+PORT=
+DAEMONIZE=
+VOLUME=
+NAME=
+SETUP=
+
+while getopts "n:v:p:f:d:h:" OPT
+do
+    case $OPT in
+        n)
+            NAME=$OPTARG
+            ;;
+        f)
+            SETUP=$OPTARG
+            ;;
+        v)
+            VOLUME=$OPTARG
+            ;;
+        p)
+            PORT=$OPTARG
+            ;;
+        d)
+            DAEMONIZE=1
+        h,\?)
+            echo "$usage" >&2
+            exit 1
+            ;;
+    esac
+
+done
+shift $((OPTIND-1))
+
+echo notdocker $CMD
+EXECUTE="$@"
+
+
+# --------------------------------------------
+# the `notdocker build` command
+
+if [ $CMD == build ] then build fi;
+
+function build() {
+
+
+    # generate an LXC config file
+    TMPCONFIG="$(mktemp)"
+    cat <<EOF >> ${TMPCONFIG}
+# hostname
+lxc.utsname = ${NAME}
+
+# network configuration using dnsmasq
+lxc.network.type=veth
+lxc.network.link=lxcbr0
+lxc.network.flags=up
+
+# root filesystem
+lxc.rootfs = /var/lib/lxc/${NAME}/rootfs
+
+# (this section borrowed from Docker)
+# no implicit access to devices
+lxc.cgroup.devices.deny = a
+
+# /dev/null and zero
+lxc.cgroup.devices.allow = c 1:3 rwm
+lxc.cgroup.devices.allow = c 1:5 rwm
+
+# consoles
+lxc.cgroup.devices.allow = c 5:1 rwm
+lxc.cgroup.devices.allow = c 5:0 rwm
+lxc.cgroup.devices.allow = c 4:0 rwm
+lxc.cgroup.devices.allow = c 4:1 rwm
+
+# /dev/urandom,/dev/random
+lxc.cgroup.devices.allow = c 1:9 rwm
+lxc.cgroup.devices.allow = c 1:8 rwm
+
+# /dev/pts/* - pts namespaces are "coming soon"
+lxc.cgroup.devices.allow = c 136:* rwm
+lxc.cgroup.devices.allow = c 5:2 rwm
+
+# tuntap
+lxc.cgroup.devices.allow = c 10:200 rwm
+
+
+# Inject the setup script
+lxc.mount.entry = /usr/bin/setup /var/lib/lxc/${NAME}/rootfs/${SETUP} none bind,ro 0 0
+
+# STOP! YOU SHOULD DEFINITELY CONSIDER DROPPING ADDITIONAL
+# PRIVILEGES VIA CGROUP HERE
+EOF
+
+    # create a base box from the ubuntu-cloud image with our
+    # generated lxc.config
+    lxc-create -f ${TMPCONFIG} -t ubuntu-cloud -n ${NAME}
+
+    # note we modify the root filesystem directly here without
+    # having to fire up the container!
+    cp ${SETUP} /var/lib/lxc/${CONTAINER}/rootfs/${SETUP}
+
+    # start a container to run the script, and then stop it.
+    # we could instead chroot to the rootfs and run the setup
+    # in the host's context if we'd like
+    lxc-start -n $NAME -- /usr/bin/setup
+    lxc-stop -n $NAME
+
+    # tarball the whole container and send it up to S3.
+    # you'll need your own credentials to AWS.
+    # if we had used btrfs, we could have used a btrfs snapshot instead
+    tar -czf /tmp/$CONTAINER.tar.gz /var/lib/lxc/$CONTAINER
+    aws s3 cp /tmp/$CONTAINER.tar.gz s3://$S3BUCKET/
+}
+
+# --------------------------------------------
+# the `notdocker run` command
+
+if [ $CMD == run ] then run fi;
+
+function run() {
+
+    # if we don't have the container, download it
+    # Docker lacks semantic versioning on images (except tagging)
+    # so adding versioning here would be a big improvement
+    if [ ! -d /var/lib/lxc/${CONTAINER} ]; then
+        aws s3 cp s3://${S3BUCKET}/${CONTAINER}.tar.gz /var/lib/lxc/
+        tar -xf /var/lib/lxc/${CONTAINER}.tar.gz
+    fi
+
+    # add the volume from the -v flag by appending the entry to
+    # the LXC configuration file.
+    # we could also just as easily include this in the lxc config
+    # file instead of doing it on the fly like this
+    if [ $VOLUME ];
+    then
+        read HOSTVOL CONTAINERVOL <<<$(IFS=":"; echo $VOLUME)
+        echo "lxc.mount.entry = $HOSTVOL /var/lib/lxc/$CONTAINER/rootfs/$CONTAINERVOL none bind,rw 0 0" >> /var/lib/lxc/$CONTAINER/config
+    fi
+
+    lxc-start -d -n $CONTAINER -- $EXECUTE
+
+    # set up NAT for the ports we need (assumes TCP)
+    # we're checking dnsmasq to get the IP address of the running container
+    # if we had an IP address in the lxc config file we generated
+    # we could use that instead of hitting dnsmasq
+    if [ $PORT ];
+    then
+        iptables -t nat -A PREROUTING -i eth0 -p tcp --dport $PORT \
+                 -j DNAT --to `dig @10.0.3.1 $CONTAINER +short`:$PORT
+    fi
+}

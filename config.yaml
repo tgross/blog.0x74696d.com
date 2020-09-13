@@ -7,8 +7,12 @@ PygmentsCodeFences: true
 pygmentsuseclasses: true
 rssLimit: 20
 
-blackfriday:
-  smartypants: false
+markup:
+  goldmark:
+    extensions:
+      typographer: false
+    renderer:
+      unsafe: true
 
 params:
   author: "Tim Gross"

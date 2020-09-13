@@ -9,7 +9,7 @@ slug: django-db-antipatterns
 
 At work our core application is a big Django project that's been developed over the course of a couple of years.  At the scale at which we're operating, we're finding lots of areas where we've had to tweak or replace out-of-the-box components with more performant alternatives.  One of the areas that's a constant source of pain for me is the Django ORM.
 
-><aside>Disclaimer: I really do like Django.  It's a great tool for getting a site up and running fast. When combined with the typical third-party modules (ex. django-registration, south, etc.), you have that Python-style "batteries included" feel.  But this is a case where a powerful tool makes it easy to cut your finger off.</aside>
+<aside>Disclaimer: I really do like Django.  It's a great tool for getting a site up and running fast. When combined with the typical third-party modules (ex. django-registration, south, etc.), you have that Python-style "batteries included" feel.  But this is a case where a powerful tool makes it easy to cut your finger off.</aside>
 
 Django makes a lot of design choices that make sense in isolation but end up combining into some bad behavior in real production sites.  I'm not going to waste any time second-guessing the authors of Django, but I'll focus on how to work-around or otherwise avoid the painful stuff.
 
@@ -248,4 +248,4 @@ The title of this post is probably a slight misnomer.  All the above covers are 
 
 It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns &mdash; a rich source for defects unless you know what to look for.
 
-><aside>I'm giving a lightning talk based on this post at PhillyPUG's meetup on May 21, 2013. My slides can be found at https://blog.0x74696d.com/slides/django-db-antipatterns.html</aside>
+<aside>I'm giving a lightning talk based on this post at PhillyPUG's meetup on May 21, 2013. My slides can be found at https://blog.0x74696d.com/slides/django-db-antipatterns.html</aside>

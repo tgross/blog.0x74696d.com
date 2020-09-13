@@ -26,7 +26,7 @@ Heavens forbid if you want to use your own organization's fork of an open source
 
 `go get` fetches dependencies, and their dependencies, and so on. But it doesn't help you to figure out what you've got. You can't do the equivalent of a `pip list`. Why is this important? Because after you've done `go get`, you now have to go through the licenses of every dependency you have and find out whether it's suitable for your organization.
 
-><aside>Addendum: I need to head off a frequent objection that there's `go list`. It's not even close. It doesn't give you a list of the packages and their versions in the build environment.</aside>
+<aside>Addendum: I need to head off a frequent objection that there's `go list`. It's not even close. It doesn't give you a list of the packages and their versions in the build environment.</aside>
 
 
 # Convention doesn't isolate workspaces.

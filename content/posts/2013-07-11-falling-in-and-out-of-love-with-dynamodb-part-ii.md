@@ -9,7 +9,7 @@ slug: falling-in-and-out-of-love-with-dynamodb-part-ii
 
 Amazon's DynamoDB provides high concurrent throughput, availability across multiple AWS data centers, and the convenience of pay-as-you go pricing. All this is great, but key design for DynamoDB results in some unexpected challenges. [We](https://www.dramafever.com) have built a number of production systems at this point using DynamoDB and as such have a bit of a love/hate relationship with the product.
 
-><aside>In my <a href="{{< ref "2013-06-18-falling-in-and-out-of-love-with-dynamodb.md" >}}">last post</a> I put up my slides from a talk by this same title. But sharing slides for a talk online without video isn't all that useful, so this is an attempt to distill the essence of a few of my points in the talk to something more comprehensible.</aside>
+<aside>In my <a href="{{< ref "2013-06-18-falling-in-and-out-of-love-with-dynamodb.md" >}}">last post</a> I put up my slides from a talk by this same title. But sharing slides for a talk online without video isn't all that useful, so this is an attempt to distill the essence of a few of my points in the talk to something more comprehensible.</aside>
 
 
 Schema-less-ish
@@ -111,13 +111,13 @@ It is possible to do time-series data in the hash key, but only barely. You can 
 
 A two-ASCII-character token is enough to give you plenty of key space. Note that this makes it impossible to make API-based queries, because you'll need to make thousands of queries per timestamp you want to grab. You can *only* query this schema with map-reduce.
 
-><aside>I had a chance to talk to some of the DynamoDB team recently about this approach and it's pretty clear this is a wrong-headed plan of attack they would probably not recommend. But at the time secondary indexes weren't available and in this use case we didn't need to query via the API. So we ran with this for a while despite some serious warts.</aside>
+<aside>I had a chance to talk to some of the DynamoDB team recently about this approach and it's pretty clear this is a wrong-headed plan of attack they would probably not recommend. But at the time secondary indexes weren't available and in this use case we didn't need to query via the API. So we ran with this for a while despite some serious warts.</aside>
 
 This design makes the writes simple and reduces the cost of doing ingest, but adds operational complications. In order to reduce the time it takes to do post-processing, you're going to want to roll-off data that you've processed by rotating tables. For us this meant doing a monthly rotation of tables, but the time it took to do a month's worth of data was impractically long and we wanted to eventually be able to shrink the processing window down so that our management team could use this for actionable BI (i.e. no more than 24 hours old).
 
 You are *much* better off using a secondary index on an attribute which is a timestamp. Your row-writes will double in cost, but it'll be worth the greatly reduced complication and cost of your post-processing in EMR.
 
-><aside>We ultimately replaced this entire system with a fun hack using a handful of evented Flask servers making 0-byte GETs (with appended query-strings) against S3 and ingesting S3 logs into Redshift. This reduced costs to a fraction of what they were but I'm going to leave that discussion for another time and an upcoming jointly-written post with one of our senior developers.</aside>
+<aside>We ultimately replaced this entire system with a fun hack using a handful of evented Flask servers making 0-byte GETs (with appended query-strings) against S3 and ingesting S3 logs into Redshift. This reduced costs to a fraction of what they were but I'm going to leave that discussion for another time and an upcoming jointly-written post with one of our senior developers.</aside>
 
 
 Throttling

@@ -8,7 +8,7 @@ slug: tag-all-the-things
 
 If you're using push-based orchestration like Fabric, you need hostnames to send commands over `ssh` to your instances. But if the instances are in an AWS autoscaling group, you don't know most of the hostnames of the boxes at any given time. Typing out EC2 hostnames like `ec2-11-222-33-44.compute-1.amazonaws.com` sucks once you have a couple dozen instances in play. You could have each box register itself in Route53 with some kind of friendly name, but then you'll need to wait for DNS propagation and your local `~/.ssh/known_hosts` file is going to be out-of-date if you reuse names.
 
-><aside>Of course you can get around this problem with pull-based orchestration like Puppet. But now you have a client on each box that needs some kind of credentials for the control host. That control host needs to be highly-available. In practice, I use a mix of pull-based and push-based orchestration, but I'll deal with this larger philosophical debate in another post some other day.</aside>
+<aside>Of course you can get around this problem with pull-based orchestration like Puppet. But now you have a client on each box that needs some kind of credentials for the control host. That control host needs to be highly-available. In practice, I use a mix of pull-based and push-based orchestration, but I'll deal with this larger philosophical debate in another post some other day.</aside>
 
 There's a two-part solution to this that makes both orchestration and plain old shelling into a remote host easier and faster.
 
@@ -202,4 +202,4 @@ We've added code to write out host aliases and hostnames to the `ssh_host.config
 
 Another nice advantage of this is that it avoids name collisions in `~/.ssh/known_hosts`. So if I scale up to 10 "web" instances in an availability zone and have a "web010", and if that instance is terminated by scaling down later, the next time I see a "web010" I won't have to worry about editing my `~/.ssh/known_hosts` file to remove the old entry. You will accumulate a lot of cruft there, though, so you should probably have a job run through and clean yours out from time-to-time. I just do a quickie `C-SPC M-> C-w` now and then, but if you have a much larger installed base that might not do the job.
 
-><aside>Download the code from this post <a href="https://github.com/tgross/blog.0x74696d.com/blob/trunk/static/_code/tag-all-the-things.py">here</a></aside>
+<aside>Download the code from this post <a href="https://github.com/tgross/blog.0x74696d.com/blob/trunk/static/_code/tag-all-the-things.py">here</a></aside>

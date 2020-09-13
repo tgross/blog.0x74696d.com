@@ -1,13 +1,13 @@
 <div class="pager">
   <div class="container">
     <ul>
-      <li>
-        <a href="{{ if .Paginator.HasNext }}{{ .Paginator.Next.URL }}{{ else }}#{{ end }}">&lt; Older</a>
+      <li>{{ if .Paginator.HasNext }}
+        <a href="{{ .Paginator.Next.URL }}">&lt; Older</a>{{ end }}
       </li>
-      <li>
+      <li>{{ if .Paginator.HasPrev }}
         <span>
-        <a href="{{ if .Paginator.HasPrev }}{{ .Paginator.Prev.URL }}{{ else }}#{{ end }}">Newer &gt;</a>
-        </span>
+        <a href="{{ .Paginator.Prev.URL }}">Newer &gt;</a>
+        </span>{{ end }}
       </li>
     </ul>
   </div>

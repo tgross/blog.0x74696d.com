@@ -112,10 +112,8 @@ development project:
 > repository. Every subsystem, and often even big drivers, have their
 > own git repositories, with their own mailing lists to track
 > submissions and discuss issues completely separate from everyone
-> else.
-
-> ...
-
+> else.<br/>
+> ...<br/>
 > But looking closer, it’s very, very far away from a single git
 > repository. Just looking at the upstream subsystem and driver
 > repositories gives you a few hundred. If you look at the entire

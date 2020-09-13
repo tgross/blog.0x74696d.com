@@ -15,7 +15,7 @@ Amazon's DynamoDB provides high concurrent throughput, availability across multi
 Schema-less-ish
 ----
 
-DynamoDB is schema-less, but the design of your keys has a big impact on application design, throughput performance, and cost. Table rows are referenced by primary key: either a hash key or a hash key and range key. Range keys are sorted but -- this is the big catch -- they are sorted only within a given hash key's bucket. Hash key queries are exact, whereas range key queries can be conditional; you can ask for the range key portion to be "starts with" or "greater than".  If you have a hash-range key want to use the API and not spin up map-reduce (effectively, for anything soft real-time), you need to query the hash key and range key together.
+DynamoDB is schema-less, but the design of your keys has a big impact on application design, throughput performance, and cost. Table rows are referenced by primary key: either a hash key or a hash key and range key. Range keys are sorted but &mdash; this is the big catch &mdash; they are sorted only within a given hash key's bucket. Hash key queries are exact, whereas range key queries can be conditional; you can ask for the range key portion to be "starts with" or "greater than".  If you have a hash-range key want to use the API and not spin up map-reduce (effectively, for anything soft real-time), you need to query the hash key and range key together.
 
 ![range key sorting](/slides/images/20130618/dynamo-hashrange.png)
 
@@ -180,7 +180,7 @@ if datetime.datetime.now().hour > 6:
                               provset[WRITE_CAP])
 ```
 
-I'm eliding a bunch of setup and error-handling code -- check the `boto` docs. We have a similar branch of code that is hit when `now` is in the wee hours of the morning. This branch checks whether the currently used throughput is below a threshold value and steps down our provisioning. Rather than keeping track of state (so we don't use up our 2 decreases), this branch checks the value of the provisioning against a hard-coded value before making the API call.
+I'm eliding a bunch of setup and error-handling code &mdash; check the `boto` docs. We have a similar branch of code that is hit when `now` is in the wee hours of the morning. This branch checks whether the currently used throughput is below a threshold value and steps down our provisioning. Rather than keeping track of state (so we don't use up our 2 decreases), this branch checks the value of the provisioning against a hard-coded value before making the API call.
 
 The very minor risk here is that if we were to somehow have a sudden rush of traffic at 4AM we would get throttled quite a bit, but the SQS queue protects us from this being a serious problem. This solution works for our predictable and relatively smoothly-changing load, but your mileage may vary.
 

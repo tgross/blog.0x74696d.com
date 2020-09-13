@@ -212,7 +212,7 @@ This will knock us down to 2 `SELECTS`, one of which uses an `IN` parameter.  Th
 Caching
 ----
 
-QuerySets are evaluated lazily, and this has a couple of implications for caching.  First, the database isn't hit until you evaluate the queryset in some way -- iterating, slicing with a step, calling `len` or `list` on it, pickling it, etc.  Then it grabs the first 100 rows and will instantiate them as models as they are accessed.  If you are using `memcached` to cache whole querysets, you can easily hit the 1MB slab limit if you are caching a large queryset.  If you go over the limit of your slab size, you'll always get a cache miss, have to fetch the whole queryset, and then get an invalid cache set; you've just made your application perform worse by caching! This means that this sort of thing can be fine when you're working with small datasets but can get out of hand quickly:
+QuerySets are evaluated lazily, and this has a couple of implications for caching.  First, the database isn't hit until you evaluate the queryset in some way &mdash; iterating, slicing with a step, calling `len` or `list` on it, pickling it, etc.  Then it grabs the first 100 rows and will instantiate them as models as they are accessed.  If you are using `memcached` to cache whole querysets, you can easily hit the 1MB slab limit if you are caching a large queryset.  If you go over the limit of your slab size, you'll always get a cache miss, have to fetch the whole queryset, and then get an invalid cache set; you've just made your application perform worse by caching! This means that this sort of thing can be fine when you're working with small datasets but can get out of hand quickly:
 
 ``` python
 def get_books_by_date(request, start, end):
@@ -246,6 +246,6 @@ The title of this post is probably a slight misnomer.  All the above covers are 
 - Writing tests for Model collections with only one fixture row for that Model.
 - Writing tests for ModelManager methods that don't include a check on the number of queries and/or cache hits made.
 
-It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns -- a rich source for defects unless you know what to look for.
+It's pretty obvious why Django works this way.  There's nothing magical about attribute access in the templates vs. in view code.  But it reveals a leaky abstraction, and it violates the principle of separation of concerns &mdash; a rich source for defects unless you know what to look for.
 
 ><aside>I'm giving a lightning talk based on this post at PhillyPUG's meetup on May 21, 2013. My slides can be found at https://blog.0x74696d.com/slides/django-db-antipatterns.html</aside>

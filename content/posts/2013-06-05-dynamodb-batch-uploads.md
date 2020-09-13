@@ -9,7 +9,7 @@ slug: dynamodb-batch-uploads
 
 I work with a moderately large AWS deployment, and this includes a few applications that are using Amazon's DynamoDB. One of the many many quirks of working with DynamoDB is that it's optimized towards highly parallel operations. Ordinarily this is exactly what you want, but if you ran into the situation I did over the weekend not so much.
 
-I had a modestly-sized data subset of user video-watching habits -- on the order of 10s of millions of rows -- that had to be transfered from a MySQL instance on RDS to DynamoDB. Obviously when going from a relational store to a non-relational one, there also needed to be a transformation of that data. The data had to be duplicated to three different tables because of an idiosyncratic schema optimized towards fast reads. (Actually, more like idiomatic -- I'm speaking at [PhillyDB](http://www.meetup.com/phillydb/) this month on DynamoDB if you're interested in learning more about DynamoDB schema design, operations, etc.) And due to what was honestly some poor decision-making on my part, I needed it done in a hurry.
+I had a modestly-sized data subset of user video-watching habits &mdash; on the order of 10s of millions of rows &mdash; that had to be transfered from a MySQL instance on RDS to DynamoDB. Obviously when going from a relational store to a non-relational one, there also needed to be a transformation of that data. The data had to be duplicated to three different tables because of an idiosyncratic schema optimized towards fast reads. (Actually, more like idiomatic &mdash; I'm speaking at [PhillyDB](http://www.meetup.com/phillydb/) this month on DynamoDB if you're interested in learning more about DynamoDB schema design, operations, etc.) And due to what was honestly some poor decision-making on my part, I needed it done in a hurry.
 
 I already had code that would be writing new records to the table later down the road when the system went to production, so I figured I'd just make a query against RDS, page the results in chunks of a couple hundred, do the transformations, and then use the [boto](http://boto.readthedocs.org/en/latest/dynamodb_tut.html)-based code to do the uploads. No problem, right?  Except that of course when I tried that I was maxing out at about 100 writes/second, which was going to take way more time than I had. I wanted at least 1000/sec, and more if I wanted to make it to beer o'clock before the weekend was over.
 
@@ -65,7 +65,7 @@ Now, you could stop here and just `batch_write` things up to DynamoDB and that w
          items = []
 ```
 
-Okay, so we'll treat our list as a queue, and when it gets to the maximum size we can push in a single batch write, we'll push that up. But I buried the problem with this when I elided the error handling -- if the write is throttled by DynamoDB, you'll be silently dropping writes because `boto` doesn't raise an exception. So let's try that part again.
+Okay, so we'll treat our list as a queue, and when it gets to the maximum size we can push in a single batch write, we'll push that up. But I buried the problem with this when I elided the error handling &mdash; if the write is throttled by DynamoDB, you'll be silently dropping writes because `boto` doesn't raise an exception. So let's try that part again.
 
 ``` python
       if len(items) > 25:

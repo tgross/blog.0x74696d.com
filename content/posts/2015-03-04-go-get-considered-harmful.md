@@ -31,7 +31,7 @@ Heavens forbid if you want to use your own organization's fork of an open source
 
 # Convention doesn't isolate workspaces.
 
-Picture this -- you're a brand new Go developer. Let's get started and check out the docs on how to set up your workspace:
+Picture this &mdash; you're a brand new Go developer. Let's get started and check out the docs on how to set up your workspace:
 
 > To get started, create a workspace directory and set GOPATH accordingly. Your workspace can be located wherever you like, but we'll use $HOME/go in this document. Note that this must not be the same path as your Go installation.
 

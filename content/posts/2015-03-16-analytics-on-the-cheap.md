@@ -81,11 +81,11 @@ X-Amz-Authentication: xxxxx
 data=|2014-01-15T19:33:23|xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx|1234567|Registered|InternalCodeForConsumerType|Wales|watch|video|4|60|120|
 ```
 
-(Notice that we start and stop with a pipe -- this will come up again later!)
+(Notice that we start and stop with a pipe &mdash; this will come up again later!)
 
 In practice we use a short code for the various enums involved rather than writing out "InternalCodeForConsumerType" in the querystring. If the message fails to validate or, far less likely, the GET to S3 fails, we can either log this querystring for later reply or send it off to a queue for reprocessing later. If you don't have a lot of failed messages and having added latency between message arrival and analysis isn't a problem, just logging it out is probably cheaper. In our service we have few true errors but our validation is pretty strict (so we don't analyze a lot of garbage) and if a client has a buggy release then it'll send a flood of bad messages. So we sample validation errors and send those off to Sentry so the client developers can see them and fix their clients.
 
-If you really care about latency of the initial request a lot, you can reduce S3 latency slightly by using multiple identical-to-your-application S3 keys. S3 suffers from hot-hashes -- although I've never noticed it at our scale -- so you can hash the requests among *n* keys in the same bucket and it won't matter to the final logging output.
+If you really care about latency of the initial request a lot, you can reduce S3 latency slightly by using multiple identical-to-your-application S3 keys. S3 suffers from hot-hashes &mdash; although I've never noticed it at our scale &mdash; so you can hash the requests among *n* keys in the same bucket and it won't matter to the final logging output.
 
 Why sign the GET? Because we have the S3 bucket locked down so that only our ingest servers can make the GET. This prevents third-parties or incautious developers from messing around with our analytics data. Create an IAM user just for your ingest servers and use that AWS access key and secret key in your application to sign the request. Here's the IAM configuration you'll want for that user:
 
@@ -171,6 +171,6 @@ The important thing to notice here is that although we're doing a daily roll-up 
 Events as Audit Trail
 ----
 
-Even not counting the analysis part, there's one more nice bit about this setup which is that it's modular and reusable across applications. We can imagine a poor-mans version of this for a static web site. Instead of signing the GET, a piece of Javascript on the page makes the GET (or a resource is loaded remotely like the classic 1x1 transparent tracking pixel). You can't validate the input or sign the request if you do this, which is probably dangerous, so don't go 'round telling your clients I said you should do this. But it's "infinitely" scalable -- if reddit decides to hit your blog your web server won't fall over serving analytics tracking.
+Even not counting the analysis part, there's one more nice bit about this setup which is that it's modular and reusable across applications. We can imagine a poor-mans version of this for a static web site. Instead of signing the GET, a piece of Javascript on the page makes the GET (or a resource is loaded remotely like the classic 1x1 transparent tracking pixel). You can't validate the input or sign the request if you do this, which is probably dangerous, so don't go 'round telling your clients I said you should do this. But it's "infinitely" scalable &mdash; if reddit decides to hit your blog your web server won't fall over serving analytics tracking.
 
-But the really nice thing here is that these log events are just a bunch of files when you're done. The lines of the log can serve as an immutable event source -- so long as you only ever read from them. You can back them up to cold storage, use them in different data stores, treat them as your audit log, whatever you need.
+But the really nice thing here is that these log events are just a bunch of files when you're done. The lines of the log can serve as an immutable event source &mdash; so long as you only ever read from them. You can back them up to cold storage, use them in different data stores, treat them as your audit log, whatever you need.

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Dropped Signals</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Dropped Signals</h1>
+  <section class="byline">January 24, 2021</section>
+  <p>A lot of go applications try to do something clever with signals and
+end up dropping signals on the floor. I've definitely written this
+kind of bug myself. It's not a community practice to lean on an
+application server rather than the stdlib, so that creates an
+opportunity for folks to incorrectly implement it from scratch.</p>
+<p>Note that we're not talking about
+<a href="https://man7.org/linux/man-pages/man7/signal-safety.7.html"><code>signal-safety(7)</code></a>. For
+purposes of this discussion we're going to merrily assume the authors
+of <a href="https://golang.org/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a> have
+avoided any signal-unsafe code. Although it'd be neat to dig into how
+that worked out with the go scheduler at some point.</p>
+<p>The docs for <code>os/signal.Notify</code> say:</p>
+<blockquote>
+<p>Package signal will not block sending to c: the caller must ensure
+that c has sufficient buffer space to keep up with the expected
+signal rate. For a channel used for notification of just one signal
+value, a buffer of size 1 is sufficient.</p>
+</blockquote>
+<p>We have to read this a bit carefully; it says a buffer of size 1 is
+sufficient for one signal <em>value</em>, which is not the same as one signal
+type.</p>
+<p>Suppose we have a server that can reload its configuration on <code>SIGHUP</code>
+and does a graceful shutdown on <code>SIGINT</code> (or <code>SIGTERM</code>). If we're in
+the middle of doing a configuration load and get a shutdown notice,
+we'll queue-up the shutdown signal and process it afterwards. The
+signal mask is still in place, so any other signal sent during that
+window will get dropped.</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">chan</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Signal</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="nx">signal</span><span class="p">.</span><span class="nf">Notify</span><span class="p">(</span><span class="nx">c</span><span class="p">,</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGINT</span><span class="p">,</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGHUP</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="p">{</span>
+        <span class="nx">s</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">c</span>
+        <span class="k">switch</span> <span class="nx">s</span> <span class="p">{</span>
+        <span class="k">case</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGHUP</span><span class="p">:</span>
+            <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Got SIGHUP, reloading config...&#34;</span><span class="p">,</span> <span class="nx">s</span><span class="p">)</span>
+            <span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+        <span class="k">case</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGINT</span><span class="p">:</span>
+            <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Got SIGINT, gracefully shutting down...&#34;</span><span class="p">,</span> <span class="nx">s</span><span class="p">)</span>
+            <span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div><p>If we run this program in one terminal and then send it 3 signals in a
+row, we can see we drop one of them.</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="c1"># first terminal</span>
+$ go run .
+Got SIGHUP, reloading config... hangup
+Got SIGHUP, reloading config... hangup
+
+<span class="c1"># second terminal</span>
+$ pkill -SIGHUP signals<span class="p">;</span> pkill -SIGHUP signals<span class="p">;</span> pkill -SIGINT signals
+</code></pre></div><p>This would be a catastrophic bug in an init system or process
+supervisor (and/or something like
+<a href="https://github.com/joyent/containerpilot">ContainerPilot</a>, where it
+actually was a bug in early versions). We need to catch
+<code>SIGWAIT</code> to reap zombie processes. It'd also cause dropped for an
+interactive terminal application, where we're probably masking
+<code>SIGWINCH</code> to detect terminal window size changes.</p>
+<p>But for most web applications this isn't a huge deal. Typically where
+this bites us is if we have an orchestration layer that sends <code>SIGINT</code>
+or <code>SIGTERM</code> for graceful shutdown and then kills the process
+unceremoniously after a timeout. But there's some kind of automated
+process that's picking up changes from the environment and firing
+<code>SIGHUP</code> to do a config reload. If we drop the graceful shutdown
+signal because we're stuck in a config reload, then the orchestrator
+sends an interrupt that the application ignores. After 10 seconds or
+whatever your timeout is, the orchestration says &quot;whelp, I give up&quot;
+and sends a <code>SIGKILL</code>. And then our application drops in-flight
+requests and users are unhappy.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fdropped-signals%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

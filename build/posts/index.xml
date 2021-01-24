@@ -5,10 +5,89 @@
     <description>Recent content in Posts on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 29 Aug 2020 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 24 Jan 2021 12:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Dropped Signals</title>
+      <link>https://blog.0x74696d.com/posts/dropped-signals/</link>
+      <pubDate>Sun, 24 Jan 2021 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/dropped-signals/</guid>
+      <description>&lt;p&gt;A lot of go applications try to do something clever with signals and
+end up dropping signals on the floor. I&#39;ve definitely written this
+kind of bug myself. It&#39;s not a community practice to lean on an
+application server rather than the stdlib, so that creates an
+opportunity for folks to incorrectly implement it from scratch.&lt;/p&gt;
+&lt;p&gt;Note that we&#39;re not talking about
+&lt;a href=&#34;https://man7.org/linux/man-pages/man7/signal-safety.7.html&#34;&gt;&lt;code&gt;signal-safety(7)&lt;/code&gt;&lt;/a&gt;. For
+purposes of this discussion we&#39;re going to merrily assume the authors
+of &lt;a href=&#34;https://golang.org/pkg/os/signal/#Notify&#34;&gt;&lt;code&gt;os/signal.Notify&lt;/code&gt;&lt;/a&gt; have
+avoided any signal-unsafe code. Although it&#39;d be neat to dig into how
+that worked out with the go scheduler at some point.&lt;/p&gt;
+&lt;p&gt;The docs for &lt;code&gt;os/signal.Notify&lt;/code&gt; say:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Package signal will not block sending to c: the caller must ensure
+that c has sufficient buffer space to keep up with the expected
+signal rate. For a channel used for notification of just one signal
+value, a buffer of size 1 is sufficient.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;We have to read this a bit carefully; it says a buffer of size 1 is
+sufficient for one signal &lt;em&gt;value&lt;/em&gt;, which is not the same as one signal
+type.&lt;/p&gt;
+&lt;p&gt;Suppose we have a server that can reload its configuration on &lt;code&gt;SIGHUP&lt;/code&gt;
+and does a graceful shutdown on &lt;code&gt;SIGINT&lt;/code&gt; (or &lt;code&gt;SIGTERM&lt;/code&gt;). If we&#39;re in
+the middle of doing a configuration load and get a shutdown notice,
+we&#39;ll queue-up the shutdown signal and process it afterwards. The
+signal mask is still in place, so any other signal sent during that
+window will get dropped.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;c&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;make&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;chan&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Signal&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;signal&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Notify&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;syscall&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;SIGINT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;syscall&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;SIGHUP&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;s&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;-&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;c&lt;/span&gt;
+        &lt;span class=&#34;k&#34;&gt;switch&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;s&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;k&#34;&gt;case&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;syscall&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;SIGHUP&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Got SIGHUP, reloading config...&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;time&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Sleep&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;time&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Second&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+        &lt;span class=&#34;k&#34;&gt;case&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;syscall&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;SIGINT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Got SIGINT, gracefully shutting down...&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;time&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Sleep&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;time&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Second&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If we run this program in one terminal and then send it 3 signals in a
+row, we can see we drop one of them.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-sh&#34; data-lang=&#34;sh&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# first terminal&lt;/span&gt;
+$ go run .
+Got SIGHUP, reloading config... hangup
+Got SIGHUP, reloading config... hangup
+
+&lt;span class=&#34;c1&#34;&gt;# second terminal&lt;/span&gt;
+$ pkill -SIGHUP signals&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; pkill -SIGHUP signals&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; pkill -SIGINT signals
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This would be a catastrophic bug in an init system or process
+supervisor (and/or something like
+&lt;a href=&#34;https://github.com/joyent/containerpilot&#34;&gt;ContainerPilot&lt;/a&gt;, where it
+actually was a bug in early versions). We need to catch
+&lt;code&gt;SIGWAIT&lt;/code&gt; to reap zombie processes. It&#39;d also cause dropped for an
+interactive terminal application, where we&#39;re probably masking
+&lt;code&gt;SIGWINCH&lt;/code&gt; to detect terminal window size changes.&lt;/p&gt;
+&lt;p&gt;But for most web applications this isn&#39;t a huge deal. Typically where
+this bites us is if we have an orchestration layer that sends &lt;code&gt;SIGINT&lt;/code&gt;
+or &lt;code&gt;SIGTERM&lt;/code&gt; for graceful shutdown and then kills the process
+unceremoniously after a timeout. But there&#39;s some kind of automated
+process that&#39;s picking up changes from the environment and firing
+&lt;code&gt;SIGHUP&lt;/code&gt; to do a config reload. If we drop the graceful shutdown
+signal because we&#39;re stuck in a config reload, then the orchestrator
+sends an interrupt that the application ignores. After 10 seconds or
+whatever your timeout is, the orchestration says &amp;quot;whelp, I give up&amp;quot;
+and sends a &lt;code&gt;SIGKILL&lt;/code&gt;. And then our application drops in-flight
+requests and users are unhappy.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>git-send-email</title>
@@ -1439,17 +1518,6 @@ time_created: Timespec &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt; sec: 1458435
       <guid>https://blog.0x74696d.com/posts/applications-on-autopilot/</guid>
       <description>&lt;p&gt;Deploying containerized applications and connecting them together is a challenge because it forces developers to design for operationalization. Autopiloting applications are a powerful design pattern to solving these problems. By pushing the responsibility for understanding startup, shutdown, scaling, and recovery from failure into the application, we can build intelligent architectures that minimize human intervention in operation. But we can&#39;t rewrite all our applications at once, so we need a way to build application containers that can knit together legacy and greenfield applications alike. This project demonstrates the autopilot pattern by applying it to a simple microservices deployment using Nginx and two Node.js applications.&lt;/p&gt;
 &lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/applications-on-autopilot&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>MySQL on Autopilot</title>
-      <link>https://blog.0x74696d.com/posts/mysql-on-autopilot/</link>
-      <pubDate>Mon, 22 Feb 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/mysql-on-autopilot/</guid>
-      <description>&lt;p&gt;DBaaS solutions lock too many doors: we&#39;re locked into a service provider and locked out of configuring it as we need. Fortunately, modern operational patterns are emerging that eliminate the complexity of running even sophisticated applications like databases and free us from the lock-in of *aaS. Now we are free to develop on our laptops and deploy to private data centers, combining the simplicity we thought was only possible with *aaS with the portability of running applications on our own terms. Let&#39;s take a look at how to do that with MySQL.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/dbaas-simplicity-no-lock-in&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 </description>
     </item>
     

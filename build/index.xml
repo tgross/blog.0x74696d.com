@@ -10,6 +10,104 @@
     
     
     <item>
+      <title>Exec from Your start.sh</title>
+      <link>https://blog.0x74696d.com/posts/exec-from-your-start-script/</link>
+      <pubDate>Mon, 25 Jan 2021 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/exec-from-your-start-script/</guid>
+      <description>&lt;p&gt;At some point I noticed that some large portion of containers I&#39;ve
+seen have some kind of &lt;code&gt;start.sh&lt;/code&gt; script file doing some setup and
+then calling the actual application. Unfortunately a ton of these
+break features of the application server. Like the previous post on
+dropping signals, the way this typically manifests is the application
+server can&#39;t reload configuration or gracefully shut down.&lt;/p&gt;
+&lt;p&gt;Your standard user-friendly web frameworks run your code inside an
+application server. This is what opens up a port, accepts connections,
+and turns the data that comes into over those connections into some
+kind of &amp;quot;request object&amp;quot;. Usually this will be a library separate from
+your framework with some of its guts written in C, and the framework
+will support a few options for servers. For Django this might be uwsgi
+or gunicorn, for Rails it might be puma or unicorn, and for Spring it
+might be Tomcat or Jetty.&lt;/p&gt;
+&lt;p&gt;Most of these application servers have a bunch of nice features that
+rely on signals, to reload the configuration, do graceful shutdown,
+add extra worker processes, or whatever. And then some unlucky
+developer gets handed a Dockerfile and gets told they have to use
+that. But they have to load some config or do some setup at start
+up. They look up how to do it and systemd has some &lt;code&gt;ExecStartPre&lt;/code&gt;
+thing but this container stuff doesn&#39;t. And no one has ever bothered
+to teach them what this is supposed to look like because developers
+are only supposed to care about business logic anyways. So we end up
+with a process tree in the container like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ ps f -o pid,comm
+  PID COMMAND
+    1 /bin/sh start.sh
+    8  \_ /usr/local/bin/gunicorn
+   21     \_ gunicorn worker
+   22     \_ gunicorn worker
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now the orchestrator wants to tell the application to reload its
+config and it sends a &lt;code&gt;SIGHUP&lt;/code&gt; to the container. By which we mean
+PID1 in the container, which is our &lt;code&gt;start.sh&lt;/code&gt; script. It doesn&#39;t know
+anything about signals, so it dies and takes the application with it.&lt;/p&gt;
+&lt;p&gt;If you&#39;re using Docker you might have a
+&lt;a href=&#34;https://github.com/krallin/tini&#34;&gt;&lt;code&gt;tini&lt;/code&gt;&lt;/a&gt; init process in there as
+PID1 that&#39;ll pass signals to the &lt;code&gt;start.sh&lt;/code&gt; script, but the result is
+the same because the signals never reach the application server.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ ps f -o pid,comm
+  PID COMMAND
+    1 init
+    7 \_ /bin/sh start.sh
+   21     \_ /usr/local/bin/gunicorn
+   22        \_ gunicorn worker
+   23        \_ gunicorn worker
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;What we wanted to do is to call &lt;code&gt;exec&lt;/code&gt; in our &lt;code&gt;start.sh&lt;/code&gt; script. Then
+the process tree looks like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ ps f -o pid,comm
+  PID COMMAND
+    1 /usr/local/bin/gunicorn
+    7 \_ gunicorn worker
+    8 \_ gunicorn worker
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Doing this also means we can just set export environment variables in
+the shell script and they&#39;ll be set in our new application server
+process. A minimal working example looks like the following.&lt;/p&gt;
+&lt;p&gt;Here&#39;s our mock application:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;c&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;make&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;chan&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Signal&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;signal&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Notify&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;syscall&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;SIGINT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;env&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Environ&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;env&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+    &lt;span class=&#34;o&#34;&gt;&amp;lt;-&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;c&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;\ngraceful shutdown!&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Our minimal startup script:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;#!/bin/sh
+export SUPER_SECRET_FROM_VAULT=xyzzy
+export PLATFORM=$(uname)
+exec printenvvars
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And our Dockerfile:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;FROM busybox:1
+COPY printenvvars /bin/printenvvars
+COPY start.sh /bin/start.sh
+ENTRYPOINT [&amp;quot;/bin/start.sh&amp;quot;]
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We build that with &lt;code&gt;docker build -t test .&lt;/code&gt; and now let&#39;s run it:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ docker run test
+HOSTNAME=741960aa5144
+HOME=/root
+SUPER_SECRET_FROM_VAULT=xyzzy
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PLATFORM=Linux
+PWD=/
+^C
+graceful shutdown!
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Note this will hang until we hit Ctrl-C, which sends &lt;code&gt;SIGINT&lt;/code&gt; to PID1
+in the container. At that point the channel in our application
+unblocks and we see the graceful shutdown message.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
       <title>Dropped Signals</title>
       <link>https://blog.0x74696d.com/posts/dropped-signals/</link>
       <pubDate>Sun, 24 Jan 2021 12:00:00 +0000</pubDate>
@@ -1506,17 +1604,6 @@ time_created: Timespec &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt; sec: 1458435
       <description>&lt;p&gt;In a &lt;a href=&#34;https://blog.0x74696d.com/posts/docker-logging/&#34;&gt;previous post&lt;/a&gt; I talked about an approach I took getting logs out of Docker containers when I first started using Docker way back at the end of 2013. But Docker has done a lot of growing up since then!&lt;/p&gt;
 &lt;p&gt;Using &lt;code&gt;docker logs&lt;/code&gt; to get our container logs works in development but in production we need to centralize our logs. Triton has support for the syslog, Graylog, and Fluentd log drivers and we can use them to support production-ready log collection.&lt;/p&gt;
 &lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/docker-log-drivers&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Implementing the autopilot pattern</title>
-      <link>https://blog.0x74696d.com/posts/applications-on-autopilot/</link>
-      <pubDate>Thu, 03 Mar 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/applications-on-autopilot/</guid>
-      <description>&lt;p&gt;Deploying containerized applications and connecting them together is a challenge because it forces developers to design for operationalization. Autopiloting applications are a powerful design pattern to solving these problems. By pushing the responsibility for understanding startup, shutdown, scaling, and recovery from failure into the application, we can build intelligent architectures that minimize human intervention in operation. But we can&#39;t rewrite all our applications at once, so we need a way to build application containers that can knit together legacy and greenfield applications alike. This project demonstrates the autopilot pattern by applying it to a simple microservices deployment using Nginx and two Node.js applications.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/applications-on-autopilot&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 </description>
     </item>
     

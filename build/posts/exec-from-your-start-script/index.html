@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Exec from Your start.sh</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Exec from Your start.sh</h1>
+  <section class="byline">January 25, 2021</section>
+  <p>At some point I noticed that some large portion of containers I've
+seen have some kind of <code>start.sh</code> script file doing some setup and
+then calling the actual application. Unfortunately a ton of these
+break features of the application server. Like the previous post on
+dropping signals, the way this typically manifests is the application
+server can't reload configuration or gracefully shut down.</p>
+<p>Your standard user-friendly web frameworks run your code inside an
+application server. This is what opens up a port, accepts connections,
+and turns the data that comes into over those connections into some
+kind of &quot;request object&quot;. Usually this will be a library separate from
+your framework with some of its guts written in C, and the framework
+will support a few options for servers. For Django this might be uwsgi
+or gunicorn, for Rails it might be puma or unicorn, and for Spring it
+might be Tomcat or Jetty.</p>
+<p>Most of these application servers have a bunch of nice features that
+rely on signals, to reload the configuration, do graceful shutdown,
+add extra worker processes, or whatever. And then some unlucky
+developer gets handed a Dockerfile and gets told they have to use
+that. But they have to load some config or do some setup at start
+up. They look up how to do it and systemd has some <code>ExecStartPre</code>
+thing but this container stuff doesn't. And no one has ever bothered
+to teach them what this is supposed to look like because developers
+are only supposed to care about business logic anyways. So we end up
+with a process tree in the container like this:</p>
+<pre><code>$ ps f -o pid,comm
+  PID COMMAND
+    1 /bin/sh start.sh
+    8  \_ /usr/local/bin/gunicorn
+   21     \_ gunicorn worker
+   22     \_ gunicorn worker
+</code></pre><p>Now the orchestrator wants to tell the application to reload its
+config and it sends a <code>SIGHUP</code> to the container. By which we mean
+PID1 in the container, which is our <code>start.sh</code> script. It doesn't know
+anything about signals, so it dies and takes the application with it.</p>
+<p>If you're using Docker you might have a
+<a href="https://github.com/krallin/tini"><code>tini</code></a> init process in there as
+PID1 that'll pass signals to the <code>start.sh</code> script, but the result is
+the same because the signals never reach the application server.</p>
+<pre><code>$ ps f -o pid,comm
+  PID COMMAND
+    1 init
+    7 \_ /bin/sh start.sh
+   21     \_ /usr/local/bin/gunicorn
+   22        \_ gunicorn worker
+   23        \_ gunicorn worker
+</code></pre><p>What we wanted to do is to call <code>exec</code> in our <code>start.sh</code> script. Then
+the process tree looks like this:</p>
+<pre><code>$ ps f -o pid,comm
+  PID COMMAND
+    1 /usr/local/bin/gunicorn
+    7 \_ gunicorn worker
+    8 \_ gunicorn worker
+</code></pre><p>Doing this also means we can just set export environment variables in
+the shell script and they'll be set in our new application server
+process. A minimal working example looks like the following.</p>
+<p>Here's our mock application:</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">c</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">chan</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Signal</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="nx">signal</span><span class="p">.</span><span class="nf">Notify</span><span class="p">(</span><span class="nx">c</span><span class="p">,</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGINT</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">env</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Environ</span><span class="p">()</span> <span class="p">{</span>
+        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">env</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="o">&lt;-</span><span class="nx">c</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;\ngraceful shutdown!&#34;</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p>Our minimal startup script:</p>
+<pre><code>#!/bin/sh
+export SUPER_SECRET_FROM_VAULT=xyzzy
+export PLATFORM=$(uname)
+exec printenvvars
+</code></pre><p>And our Dockerfile:</p>
+<pre><code>FROM busybox:1
+COPY printenvvars /bin/printenvvars
+COPY start.sh /bin/start.sh
+ENTRYPOINT [&quot;/bin/start.sh&quot;]
+</code></pre><p>We build that with <code>docker build -t test .</code> and now let's run it:</p>
+<pre><code>$ docker run test
+HOSTNAME=741960aa5144
+HOME=/root
+SUPER_SECRET_FROM_VAULT=xyzzy
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PLATFORM=Linux
+PWD=/
+^C
+graceful shutdown!
+</code></pre><p>Note this will hang until we hit Ctrl-C, which sends <code>SIGINT</code> to PID1
+in the container. At that point the channel in our application
+unblocks and we see the graceful shutdown message.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fexec-from-your-start-script%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

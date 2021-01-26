@@ -10,6 +10,53 @@
     
     
     <item>
+      <title>Main Branch</title>
+      <link>https://blog.0x74696d.com/posts/main-branch/</link>
+      <pubDate>Tue, 26 Jan 2021 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/main-branch/</guid>
+      <description>&lt;p&gt;A short and mostly unserious rant.&lt;/p&gt;
+&lt;p&gt;Much of the industry seems to have come around to changing the default
+branch for git from &lt;code&gt;master&lt;/code&gt; to &lt;code&gt;main&lt;/code&gt;. It&#39;s absolutely terrible. Oh,
+not changing from &lt;code&gt;master&lt;/code&gt;. That&#39;s fine. A modest improvement in
+making our industry kinder. I&#39;m all for it. But we picked &lt;code&gt;main&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Literally any time anything to do with git comes up, you&#39;ve got a
+whole mess of people complaining about what a terrible user experience
+it has, and how hard it is to bring new people into the industry when
+we use such unfriendly tools, and yada yada yada. And they&#39;re mostly
+right.&lt;/p&gt;
+&lt;p&gt;The git data model is awesome, but the command line interface is an
+inconsistent disaster that we&#39;re all begrudgingly forced to learn. I
+feel like I have a really solid understanding of the data model and
+I&#39;m a rebasing and reflogging fiend, but I still end up having to
+double-check the man page every time I get away from the twenty or so
+commands I use on a regular basis. But we all recognize how hard it is
+to change software that&#39;s been in widespread use. Backwards
+compatibility is important.&lt;/p&gt;
+&lt;p&gt;So there we were as a whole software industry, faced with a rare
+opportunity to break free from a legacy decision...&lt;/p&gt;
+&lt;p&gt;And we picked &lt;code&gt;main&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Main? &lt;em&gt;Main!?&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;The correct answer was &lt;code&gt;trunk&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Obviously.&lt;/p&gt;
+&lt;p&gt;Choosing &lt;code&gt;main&lt;/code&gt; is exactly the sort of short-term local-maxima
+thinking I&#39;ve come to expect from the industry. It&#39;s short, and it
+preserves some muscle memory from &lt;code&gt;master&lt;/code&gt;. So you&#39;re saving typing
+one (1) character over &lt;code&gt;trunk&lt;/code&gt;, assuming you&#39;re not a professional
+with shell completion. And you&#39;re preserving muscle memory, which only
+makes a difference during the month or so after your team has switched
+away from &lt;code&gt;master&lt;/code&gt;, and only for the &lt;em&gt;set of people who are currently
+using git&lt;/em&gt;. It means nothing to the umpteen million people who will be
+coming into the industry over the next several decades (at least!)
+that we&#39;ll be using git.&lt;/p&gt;
+&lt;p&gt;Instead, we could have chosen &lt;code&gt;trunk&lt;/code&gt; and made some tiny marginal
+improvement in the beginner&#39;s mental model for all those people. And
+calling the default branch &lt;code&gt;trunk&lt;/code&gt; is &lt;em&gt;fun&lt;/em&gt;. Have some fun for fuck&#39;s
+sake. A &lt;code&gt;main&lt;/code&gt; branch is dry toast.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
       <title>Exec from Your start.sh</title>
       <link>https://blog.0x74696d.com/posts/exec-from-your-start-script/</link>
       <pubDate>Mon, 25 Jan 2021 12:00:00 +0000</pubDate>
@@ -1593,18 +1640,6 @@ $ ./target/debug/demo
 Found person Person &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt; id: 1, name: &lt;span class=&#34;s2&#34;&gt;&amp;#34;Steven&amp;#34;&lt;/span&gt;,
 time_created: Timespec &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt; sec: 1458435347, nsec: &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;, data: None &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</description>
-    </item>
-    
-    <item>
-      <title>Production Docker logs on Triton</title>
-      <link>https://blog.0x74696d.com/posts/docker-log-drivers/</link>
-      <pubDate>Fri, 18 Mar 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/docker-log-drivers/</guid>
-      <description>&lt;p&gt;In a &lt;a href=&#34;https://blog.0x74696d.com/posts/docker-logging/&#34;&gt;previous post&lt;/a&gt; I talked about an approach I took getting logs out of Docker containers when I first started using Docker way back at the end of 2013. But Docker has done a lot of growing up since then!&lt;/p&gt;
-&lt;p&gt;Using &lt;code&gt;docker logs&lt;/code&gt; to get our container logs works in development but in production we need to centralize our logs. Triton has support for the syslog, Graylog, and Fluentd log drivers and we can use them to support production-ready log collection.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/docker-log-drivers&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-</description>
     </item>
     
   </channel>

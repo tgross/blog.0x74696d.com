@@ -5,10 +5,48 @@
     <description>Recent content in Posts on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Tue, 26 Jan 2021 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Wed, 27 Jan 2021 12:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Hugo 1-byte outputs</title>
+      <link>https://blog.0x74696d.com/posts/hugo-one-byte-outputs/</link>
+      <pubDate>Wed, 27 Jan 2021 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/hugo-one-byte-outputs/</guid>
+      <description>&lt;p&gt;A particularly annoying bug in Hugo that I&#39;ve been running into is
+that it will output 1-byte files for the index and other pages. This
+is not sparking joy.&lt;/p&gt;
+&lt;p&gt;What&#39;s particularly bad about it is that it&#39;s not at all
+consistent. Any given build will just randomly decide that the front
+page or the RSS feed should be empty. So every time I pushed to
+Netlify it&#39;d be a crap shoot as to whether or not the whole site would
+break. While I try to figure this out I&#39;ve been building locally,
+checking manually with &lt;code&gt;find -size 1c&lt;/code&gt;, and then pushing the whole
+build output directory to Netlify.&lt;/p&gt;
+&lt;p&gt;This is a good example of where a tool has made so much of their
+stated value proposition about performance that they seem to have
+forgotten to do the job correctly. It&#39;s the MongoDB of static website
+generator software. And it&#39;s totally undebuggable of course; they give
+you no tools except for ones that help you debug rendering performance
+(which, I am forced to admit, are &lt;a href=&#34;https://github.com/devopsdays/devopsdays-theme/issues/643&#34;&gt;pretty
+nice&lt;/a&gt;). I
+probably have some small template bug that&#39;s only triggering some
+interleaved concurrent rendering path in Hugo when the moon is waxing
+full, resulting in a file that contains only a single newline.&lt;/p&gt;
+&lt;p&gt;Of course I dug through their GitHub issues looking for anything
+similar and their answers always start with asking you to upgrade to
+the very latest version. Which would be fine except that every single
+time I&#39;ve updated Hugo they&#39;ve broken backwards compatibility in their
+templates. If I wanted that kind of pain I would just fix the damn bug
+myself. And hey it&#39;s open source so isn&#39;t that the beauty of it? But
+it&#39;s a static website renderer with acute featuritis, which is exactly
+the sort of nerd snipe that&#39;s going to find me writing my own from
+scratch. As one does.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Main Branch</title>
@@ -1532,115 +1570,6 @@ fallback:
       <description>&lt;p&gt;Application health checking is a key feature of ContainerPilot (formerly Containerbuddy). The user-defined health check gives us a binary way of determining whether the application is working. If the application is healthy, ContainerPilot sends a heartbeat to the discovery catalog, and if it&#39;s not, other ContainerPilot-enabled applications will stop sending requests to it. But automatic scaling of a service depends on more than just the pass/fail of a health check. Every application has key performance indicators that tell us if the service is nearing overload and should be scaled up or is under-utilized and can be scaled down.&lt;/p&gt;
 &lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/containerpilot-telemetry&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 </description>
-    </item>
-    
-    <item>
-      <title>Building sqlite for rust</title>
-      <link>https://blog.0x74696d.com/posts/building-sqlite-for-rust/</link>
-      <pubDate>Sat, 19 Mar 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/building-sqlite-for-rust/</guid>
-      <description>&lt;p&gt;I&#39;ve been playing around with Rust a bit lately and needed to build something with an embedded database, so I reached for SQLite. I need to build SQLite with some specific features enabled and that&#39;s hard to guarantee with system packages cross-platform. This gave me a chance to try out building a Rust project linked with some custom C code. The overall direction I&#39;m taking here is largely coming from &lt;a href=&#34;https://users.rust-lang.org/t/linking-with-custom-c-library/637/4&#34;&gt;this thread&lt;/a&gt; and the Cargo &lt;a href=&#34;http://doc.crates.io/build-script.html#case-study-building-some-native-code&#34;&gt;build script&lt;/a&gt; page. I&#39;m using &lt;a href=&#34;https://github.com/jgallagher/rusqlite&#34;&gt;rusqlite&lt;/a&gt; for the SQLite bindings, so I&#39;ll need to build that as well.&lt;/p&gt;
-&lt;h2 id=&#34;project-outline&#34;&gt;Project outline&lt;/h2&gt;
-&lt;p&gt;The other nice thing I got to try out here is how to build a sensible project structure for a project that might mix open source and private code. Cargo has some very minimal expectations about the source code directory, but doesn&#39;t dictate much past that. So unlike that &lt;em&gt;other&lt;/em&gt; language &lt;a href=&#34;https://blog.0x74696d.com/posts/go-get-considered-harmful/&#34;&gt;(&lt;em&gt;ahem&lt;/em&gt;)&lt;/a&gt; Rust is pretty chill about letting you decide what works for your project and organization. How this reflects on the culture of those two languages is left as an exercise for the reader.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;$ tree /src/tgross/demo
-.
-├── build.rs
-├── Cargo.toml
-├── .git/
-├── src/
-│   └── main.rs
-└── target/
-
-$ tree /src/jgallagher/rusqlite
-.
-├── Cargo.toml
-├── .git/
-├── libsqlite3-sys/
-│   ├── build.rs
-│   └── Cargo.toml
-│   └── src/
-├── src/
-│   └── main.rs
-└── target/
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;In this directory tree I&#39;ve got my own code namespaced under &lt;code&gt;tgross/&lt;/code&gt; and my library code in the &lt;code&gt;jgallagher/rusqlite&lt;/code&gt; directory. The &lt;code&gt;rusqlite&lt;/code&gt; developers in turn decided to &amp;quot;vendor&amp;quot; their &lt;code&gt;libsqlite3-sys&lt;/code&gt; crate because it&#39;s really just there to create bindings and doesn&#39;t stand on its own. I could just as easily take &lt;code&gt;rusqlite&lt;/code&gt; and vendor it as a Git submodule or subtree at an arbitrary location within my own project&#39;s directory structure. Rather than pretending that our packaging and dependency tree can be described entirely by &lt;code&gt;import&lt;/code&gt;s in our source code, Rust gives us Cargo, and we can give Cargo search paths for libraries.&lt;/p&gt;
-&lt;p&gt;This is really important if you want to have repeatable builds and to keep all your hair during development. It means that source control and the on-disk representation of source code is decoupled from the import paths in the source code. If every scrap of code you write and pull from third parties exists in a giant monorepo (like Google does it), maybe you won&#39;t notice. But this means I can start development by pulling from GitHub or &lt;a href=&#34;https://crates.io/&#34;&gt;crates.io&lt;/a&gt;, fork a local copy of a dependency for debugging, or mirror a third-party repository in my CI/CD workflow. (DevOps pro-tip: this means you can still ship software to customers when GitHub is down.) And all of that happens without running around my source tree rewriting imports, or worrying about tree-shaking, or fiddling with environment variables. &lt;em&gt;The Rust developers got this shit right.&lt;/em&gt;&lt;/p&gt;
-&lt;p&gt;Ok, rant over. Deep breaths...&lt;/p&gt;
-&lt;h2 id=&#34;cargotoml&#34;&gt;Cargo.toml&lt;/h2&gt;
-&lt;p&gt;This is just the &amp;quot;hello world&amp;quot; of &lt;code&gt;rusqlite&lt;/code&gt;, so our demonstration application will be &lt;a href=&#34;https://github.com/jgallagher/rusqlite/blob/master/README.md&#34;&gt;the example code from the rusqlite README&lt;/a&gt;. Here&#39;s our demo app&#39;s Cargo.toml:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;k&#34;&gt;[package]&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;name&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;demo&amp;#34;&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;version&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;0.1.0&amp;#34;&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;authors&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;[&amp;#34;Tim Gross &amp;lt;tim@0x74696d.com&amp;gt;&amp;#34;]&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;build&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;build.rs&amp;#34;&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;links&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;libsqlite&amp;#34;&lt;/span&gt;
-
-&lt;span class=&#34;k&#34;&gt;[dependencies]&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;time&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;~0.1.0&amp;#34;&lt;/span&gt;
-
-&lt;span class=&#34;k&#34;&gt;[dependencies.rusqlite]&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;path&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;/src/jgallagher/rusqlite&amp;#34;&lt;/span&gt;
-
-&lt;span class=&#34;k&#34;&gt;[build-dependencies]&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;gcc&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;0.3&amp;#34;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Note that I&#39;ve got four different dependencies here and each one is being added in a different way. The most straightforward is the &lt;code&gt;time&lt;/code&gt; crate, which our demonstration app uses to get the current time when inserting a row. We&#39;ve pinned it to a specific version with the &lt;code&gt;~&lt;/code&gt; flag, which means we&#39;ll accept patch version updates but not minor version increases (in the semver sense). When we build, Cargo will fetch this dependency from crates.io, compile it, and then cache the output of that compilation in our target directory for linking down the road.&lt;/p&gt;
-&lt;p&gt;We also have a separate &lt;code&gt;[dependencies.rusqlite]&lt;/code&gt; section here, where we&#39;ve specified a path. This path will be an on-disk location where Cargo will try to find the dependency, rather than going out to the Internet for it. This is convenient if I want to work up a patch of &lt;code&gt;rusqlite&lt;/code&gt; or if I&#39;ve got another private project that I want to link in here without fetching it from GitHub (i.e. from the mirror of repos on my CI/CD system). We can also pass feature flags or other compiler options to the dependency when we have it in its own section like this. Another option is to just have a &lt;code&gt;path&lt;/code&gt; field under your Cargo config and have Cargo search there first. But if you have a whole lot of code within those paths (as I do with a fairly flat &lt;code&gt;/src/tgross/&lt;/code&gt; directory), then you&#39;re going to be risking annoying collisions.&lt;/p&gt;
-&lt;p&gt;Next we have &lt;code&gt;gcc&lt;/code&gt;, which is marked under &lt;code&gt;[build-dependencies]&lt;/code&gt;. This feature lets you fetch crates for purposes of the build process (or for testing with &lt;code&gt;[dev-dependencies]&lt;/code&gt;), but these crates won&#39;t be linked into your final library or executable binary output. We&#39;re going to use the &lt;a href=&#34;http://alexcrichton.com/gcc-rs/gcc/index.html&#34;&gt;&lt;code&gt;gcc&lt;/code&gt; crate&lt;/a&gt; to assist us with building SQLite.&lt;/p&gt;
-&lt;p&gt;Lastly and perhaps less obviously, we have a &lt;code&gt;links&lt;/code&gt; and &lt;code&gt;build&lt;/code&gt; section under &lt;code&gt;[package]&lt;/code&gt;. This is how we&#39;re going to tell Cargo that we have to build and link an external library.&lt;/p&gt;
-&lt;h2 id=&#34;buildrs&#34;&gt;build.rs&lt;/h2&gt;
-&lt;p&gt;We still need to tell Cargo how to actually build SQLite, and is pretty straightforward with the &lt;code&gt;gcc&lt;/code&gt; crate. In our &lt;a href=&#34;http://doc.crates.io/build-script.html&#34;&gt;&lt;code&gt;build.rs&lt;/code&gt; script&lt;/a&gt; we just need to pass the appropriate arguments to the gcc methods and we&#39;ll get the expected output.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span class=&#34;k&#34;&gt;extern&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;crate&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;gcc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;fn&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;gcc&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;Config&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;new&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;SQLITE_ENABLE_FTS5&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;1&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;SQLITE_ENABLE_RTREE&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;1&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;SQLITE_ENABLE_JSON1&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;1&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;SQLITE_ENABLE_DBSTAT_VTAB&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;1&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;define&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;SQLITE_ENABLE_EXPLAIN_COMMENTS&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;Some&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;1&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;file&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;/src/sqlite/src/sqlite3.c&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;compile&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;libsqlite3.a&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This is the equivalent of doing:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;gcc -DSQLITE_ENABLE_FTS5&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
-&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;	-DSQLITE_ENABLE_RTREE&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
-&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;	-DSQLITE_ENABLE_JSON1&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
-&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;	-DSQLITE_ENABLE_DBSTAT_VTAB&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
-&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;	-DSQLITE_ENABLE_EXPLAIN_COMMENTS&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
-&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;	-c src/sqlite3.c &lt;span class=&#34;se&#34;&gt;\
-&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;	-lpthread -ldl &lt;span class=&#34;se&#34;&gt;\
-&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;	-o libsqlite3.a
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Note that the linked pthread and ld libs will be provided as part of our standard rust build. Optimization level and whether to include debug symbols will be set according to the Cargo build, but these can be overridden (see the &lt;a href=&#34;http://alexcrichton.com/gcc-rs/gcc/struct.Config.html#method.opt_level&#34;&gt;&lt;code&gt;gcc::Config&lt;/code&gt;&lt;/a&gt; docs).&lt;/p&gt;
-&lt;p&gt;Also note here that we&#39;re hard-coding the path to the &lt;a href=&#34;https://www.sqlite.org/amalgamation.html&#34;&gt;SQLite source amalgamation file&lt;/a&gt;, which kinda sucks. The &lt;code&gt;libsqlite3-sys&lt;/code&gt; crate handles this by taking an environment variable, or we could just vendor the &lt;code&gt;sqlite3.c&lt;/code&gt; source and header file alongside our code. If anyone knows a good workaround I&#39;d be interested to hear about it.&lt;/p&gt;
-&lt;p&gt;In any case, now we&#39;re ready to build!&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;$ cargo build
-cargo build
-    Compiling bitflags v0.1.1
-    Compiling winapi v0.2.6
-    Compiling libc v0.2.8
-    Compiling pkg-config v0.3.8
-    Compiling winapi-build v0.1.1
-    Compiling gcc v0.3.25
-    Compiling kernel32-sys v0.2.1
-    Compiling libsqlite3-sys v0.4.0 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;file:///src/tgross/demo&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
-    Compiling &lt;span class=&#34;nb&#34;&gt;time&lt;/span&gt; v0.1.34
-    Compiling demo v0.1.0 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;file:///src/tgross/demo&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
-    Compiling rusqlite v0.6.0 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;file:///src/tgross/demo&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
-
-$ ldd target/debug/demo
-    linux-vdso.so.1 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007ffdf7abe000&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
-    libdl.so.2 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libdl.so.2 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007f9404...
-    libpthread.so.0 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libpthread.so.0 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x...
-    libgcc_s.so.1 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libgcc_s.so.1 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x0000...
-    libc.so.6 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libc.so.6 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007f940385...
-    /lib64/ld-linux-x86-64.so.2 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007f94045b9000&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
-    libm.so.6 &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&amp;gt; /lib/x86_64-linux-gnu/libm.so.6 &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;0x00007f940355...
-
-$ ./target/debug/demo
-Found person Person &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt; id: 1, name: &lt;span class=&#34;s2&#34;&gt;&amp;#34;Steven&amp;#34;&lt;/span&gt;,
-time_created: Timespec &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt; sec: 1458435347, nsec: &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;, data: None &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</description>
     </item>
     
   </channel>

@@ -90,9 +90,9 @@ $ pkill -SIGHUP signals<span class="p">;</span> pkill -SIGHUP signals<span class
 </code></pre></div><p>This would be a catastrophic bug in an init system or process
 supervisor (and/or something like
 <a href="https://github.com/joyent/containerpilot">ContainerPilot</a>, where it
-actually was a bug in early versions). We need to catch
-<code>SIGWAIT</code> to reap zombie processes. It'd also cause dropped for an
-interactive terminal application, where we're probably masking
+actually was a bug in early versions). We need to catch <code>SIGWAIT</code> to
+reap zombie processes. It'd also cause dropped signals for an
+interactive terminal application, where we'd probably masking
 <code>SIGWINCH</code> to detect terminal window size changes.</p>
 <p>But for most web applications this isn't a huge deal. Typically where
 this bites us is if we have an orchestration layer that sends <code>SIGINT</code>

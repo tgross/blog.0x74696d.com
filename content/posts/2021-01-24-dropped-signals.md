@@ -73,9 +73,9 @@ $ pkill -SIGHUP signals; pkill -SIGHUP signals; pkill -SIGINT signals
 This would be a catastrophic bug in an init system or process
 supervisor (and/or something like
 [ContainerPilot](https://github.com/joyent/containerpilot), where it
-actually was a bug in early versions). We need to catch
-`SIGWAIT` to reap zombie processes. It'd also cause dropped for an
-interactive terminal application, where we're probably masking
+actually was a bug in early versions). We need to catch `SIGWAIT` to
+reap zombie processes. It'd also cause dropped signals for an
+interactive terminal application, where we'd probably masking
 `SIGWINCH` to detect terminal window size changes.
 
 But for most web applications this isn't a huge deal. Typically where

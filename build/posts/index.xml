@@ -335,9 +335,9 @@ $ pkill -SIGHUP signals&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; pkill -SIGHU
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This would be a catastrophic bug in an init system or process
 supervisor (and/or something like
 &lt;a href=&#34;https://github.com/joyent/containerpilot&#34;&gt;ContainerPilot&lt;/a&gt;, where it
-actually was a bug in early versions). We need to catch
-&lt;code&gt;SIGWAIT&lt;/code&gt; to reap zombie processes. It&#39;d also cause dropped for an
-interactive terminal application, where we&#39;re probably masking
+actually was a bug in early versions). We need to catch &lt;code&gt;SIGWAIT&lt;/code&gt; to
+reap zombie processes. It&#39;d also cause dropped signals for an
+interactive terminal application, where we&#39;d probably masking
 &lt;code&gt;SIGWINCH&lt;/code&gt; to detect terminal window size changes.&lt;/p&gt;
 &lt;p&gt;But for most web applications this isn&#39;t a huge deal. Typically where
 this bites us is if we have an orchestration layer that sends &lt;code&gt;SIGINT&lt;/code&gt;

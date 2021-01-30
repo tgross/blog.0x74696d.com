@@ -5,10 +5,91 @@
     <description>Recent content in Posts on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 27 Jan 2021 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 30 Jan 2021 12:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Single purpose visualization</title>
+      <link>https://blog.0x74696d.com/posts/single-purpose-visualization/</link>
+      <pubDate>Sat, 30 Jan 2021 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/single-purpose-visualization/</guid>
+      <description>&lt;p&gt;There&#39;s an enormous wealth of data analysis and visualization tools
+available, from full-fledged managed services like Honeycomb all the
+way down to Python libraries like Matplotlib. These days I&#39;m writing
+shrink-wrapped infrastructure software, so when I&#39;m debugging problems
+I&#39;ve been leaning way more to one end of that spectrum: writing single
+purpose tools.&lt;/p&gt;
+&lt;p&gt;I can just barely fool myself into thinking there&#39;s a Unix philosophy
+at work here about tools that do one thing and do it well. But if I&#39;m
+being honest most of these tools turn out to be throwaway because
+they&#39;re operating at the wrong level of abstraction. I&#39;m solving the
+problem immediately in front of me and not worrying about software
+architecture unless and until I need it again. Also we&#39;re
+overwhelmingly a golang shop, so trying to package up Python tools so
+that support folks can reuse them is a burden.&lt;/p&gt;
+&lt;p&gt;A recent example of this a tool I wrote for visualizing metrics from a
+Nomad debug bundle. Nomad&#39;s (&lt;a href=&#34;https://www.nomadproject.io/docs/commands/operator/debug&#34;&gt;&lt;code&gt;operator debug&lt;/code&gt;&lt;/a&gt;)
+gathers up a bunch of logs from the cluster and takes a series of
+snapshots of the raft state and cluster metrics, and then dump this
+whole thing into a tarball. Our support folks can use this for
+gathering a ton of data about a customer problem without having to do
+a long back-and-forth of questions, and when they need to escalate to
+engineers they can hand off the bundle and we can make a first pass at
+the problem without bothering the customer some more.&lt;/p&gt;
+&lt;p&gt;The challenge is that this data is basically just a bunch of Nomad&#39;s
+API responses or internal structs dumped out to JSON. A bundle for a
+complex problem with lots of snapshots can easily be 100MB of JSON to
+grub through.&lt;/p&gt;
+&lt;p&gt;So suppose I want to find how many goroutines are running over time. I
+look up the field name in the &lt;a href=&#34;https://www.nomadproject.io/docs/operations/metrics&#34;&gt;metrics
+docs&lt;/a&gt;, check the
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/api/operator_metrics.go#L8-L15&#34;&gt;&lt;code&gt;api.MetricsSummary&lt;/code&gt;&lt;/a&gt;
+output for which fields that&#39;s going to be under, and I incrementally
+massage my way through the JSON with trial and error and &lt;code&gt;jq&lt;/code&gt; until I
+get something like:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-sh&#34; data-lang=&#34;sh&#34;&gt;ls nomad/*/metrics.json &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt;
+    xargs jq &lt;span class=&#34;s1&#34;&gt;&amp;#39;
+&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;        .Gauges[]
+&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;        | select(.Name == &amp;#34;nomad.runtime.num_goroutines&amp;#34;)
+&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;        | .Value
+&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;        &amp;#39;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Yes, yes. I know I can use &lt;code&gt;find -exec&lt;/code&gt; instead. Take this and your
+&amp;quot;useless use of cat&amp;quot; and leave me alone.&lt;/p&gt;
+&lt;p&gt;The result is a list of numbers, and if I could understand the
+&lt;code&gt;gnuplot&lt;/code&gt; interface I&#39;d probably pipe those numbers there. But
+extracting timestamps from this data structure is really painful in
+&lt;code&gt;jq&lt;/code&gt; and I&#39;ll never remember how to do it next time unless I save it
+in a script somewhere, etc.&lt;/p&gt;
+&lt;p&gt;This time I wanted to be able to show this to our support folks, so I
+decided to turn it into a single purpose visualization tool that I
+knew they could build. I grabbed the &lt;code&gt;gonum/plot&lt;/code&gt; library, which is
+definitely not nearly as nice as Matplotlib but it got the job
+done. The resulting
+&lt;a href=&#34;https://github.com/tgross/nomad-metrics-plot&#34;&gt;&lt;code&gt;nomad-metrics-plot&lt;/code&gt;&lt;/a&gt;
+tool takes a list of metrics files and generates a simple SVG (which
+is pronounced &amp;quot;svig&amp;quot;, by the way) for one metric.&lt;/p&gt;
+&lt;p&gt;If I want to see the latency between the raft leader and its peers, I
+can pipe in the list of metrics files and search for that specific
+metric:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-sh&#34; data-lang=&#34;sh&#34;&gt;ls nomad/*/metrics.json &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt;
+    nomad-metrics-plot &lt;span class=&#34;s2&#34;&gt;&amp;#34;nomad.raft.leader.lastContact&amp;#34;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And the resulting visualization makes it obvious to me that this
+cluster is having latency issues between raft peers: the mean and
+maximum latency is well above what&#39;s recommended and they have spikes
+where the 500ms timeout is being hit, which forces a leader election.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://blog.0x74696d.com/images/20210130/metrics.svg&#34; alt=&#34;plot of raft.leader.lastContact metrics&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Note that the tool is terrible in many ways: the metric name has to be
+an exact match, it has to read in the entire data set every time it
+runs, there&#39;s no flag on where to send the output file, and it doesn&#39;t
+open the SVG in your browser for you. But I can put this in front of
+someone &lt;em&gt;today&lt;/em&gt; without it causing me a huge support burden to get
+them spun up on it. And then I can iterate on it over time or abandon
+it if something better comes along.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Hugo 1-byte outputs</title>
@@ -1558,17 +1639,6 @@ fallback:
       <guid>https://blog.0x74696d.com/posts/video-intro-autopilot-pattern/</guid>
       <description>&lt;p&gt;In this video I introduce the Autopilot Pattern with illustrated examples and a walkthrough of our Autopilot Pattern example application and how ContainerPilot makes it easier to containerize applications new and old.&lt;/p&gt;
 &lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/video-autopilot-pattern&#34;&gt;Check out the full article and the video on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Monitoring and scaling with ContainerPilot telemetry</title>
-      <link>https://blog.0x74696d.com/posts/monitoring-and-scaling-with-application-telemetry/</link>
-      <pubDate>Tue, 12 Apr 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/monitoring-and-scaling-with-application-telemetry/</guid>
-      <description>&lt;p&gt;Application health checking is a key feature of ContainerPilot (formerly Containerbuddy). The user-defined health check gives us a binary way of determining whether the application is working. If the application is healthy, ContainerPilot sends a heartbeat to the discovery catalog, and if it&#39;s not, other ContainerPilot-enabled applications will stop sending requests to it. But automatic scaling of a service depends on more than just the pass/fail of a health check. Every application has key performance indicators that tell us if the service is nearing overload and should be scaled up or is under-utilized and can be scaled down.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/containerpilot-telemetry&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 </description>
     </item>
     

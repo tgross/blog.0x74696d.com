@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Single purpose visualization</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Single purpose visualization</h1>
+  <section class="byline">January 30, 2021</section>
+  <p>There's an enormous wealth of data analysis and visualization tools
+available, from full-fledged managed services like Honeycomb all the
+way down to Python libraries like Matplotlib. These days I'm writing
+shrink-wrapped infrastructure software, so when I'm debugging problems
+I've been leaning way more to one end of that spectrum: writing single
+purpose tools.</p>
+<p>I can just barely fool myself into thinking there's a Unix philosophy
+at work here about tools that do one thing and do it well. But if I'm
+being honest most of these tools turn out to be throwaway because
+they're operating at the wrong level of abstraction. I'm solving the
+problem immediately in front of me and not worrying about software
+architecture unless and until I need it again. Also we're
+overwhelmingly a golang shop, so trying to package up Python tools so
+that support folks can reuse them is a burden.</p>
+<p>A recent example of this a tool I wrote for visualizing metrics from a
+Nomad debug bundle. Nomad's (<a href="https://www.nomadproject.io/docs/commands/operator/debug"><code>operator debug</code></a>)
+gathers up a bunch of logs from the cluster and takes a series of
+snapshots of the raft state and cluster metrics, and then dump this
+whole thing into a tarball. Our support folks can use this for
+gathering a ton of data about a customer problem without having to do
+a long back-and-forth of questions, and when they need to escalate to
+engineers they can hand off the bundle and we can make a first pass at
+the problem without bothering the customer some more.</p>
+<p>The challenge is that this data is basically just a bunch of Nomad's
+API responses or internal structs dumped out to JSON. A bundle for a
+complex problem with lots of snapshots can easily be 100MB of JSON to
+grub through.</p>
+<p>So suppose I want to find how many goroutines are running over time. I
+look up the field name in the <a href="https://www.nomadproject.io/docs/operations/metrics">metrics
+docs</a>, check the
+<a href="https://github.com/hashicorp/nomad/blob/v1.0.3/api/operator_metrics.go#L8-L15"><code>api.MetricsSummary</code></a>
+output for which fields that's going to be under, and I incrementally
+massage my way through the JSON with trial and error and <code>jq</code> until I
+get something like:</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh">ls nomad/*/metrics.json <span class="p">|</span>
+    xargs jq <span class="s1">&#39;
+</span><span class="s1">        .Gauges[]
+</span><span class="s1">        | select(.Name == &#34;nomad.runtime.num_goroutines&#34;)
+</span><span class="s1">        | .Value
+</span><span class="s1">        &#39;</span>
+</code></pre></div><p>Yes, yes. I know I can use <code>find -exec</code> instead. Take this and your
+&quot;useless use of cat&quot; and leave me alone.</p>
+<p>The result is a list of numbers, and if I could understand the
+<code>gnuplot</code> interface I'd probably pipe those numbers there. But
+extracting timestamps from this data structure is really painful in
+<code>jq</code> and I'll never remember how to do it next time unless I save it
+in a script somewhere, etc.</p>
+<p>This time I wanted to be able to show this to our support folks, so I
+decided to turn it into a single purpose visualization tool that I
+knew they could build. I grabbed the <code>gonum/plot</code> library, which is
+definitely not nearly as nice as Matplotlib but it got the job
+done. The resulting
+<a href="https://github.com/tgross/nomad-metrics-plot"><code>nomad-metrics-plot</code></a>
+tool takes a list of metrics files and generates a simple SVG (which
+is pronounced &quot;svig&quot;, by the way) for one metric.</p>
+<p>If I want to see the latency between the raft leader and its peers, I
+can pipe in the list of metrics files and search for that specific
+metric:</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh">ls nomad/*/metrics.json <span class="p">|</span>
+    nomad-metrics-plot <span class="s2">&#34;nomad.raft.leader.lastContact&#34;</span>
+</code></pre></div><p>And the resulting visualization makes it obvious to me that this
+cluster is having latency issues between raft peers: the mean and
+maximum latency is well above what's recommended and they have spikes
+where the 500ms timeout is being hit, which forces a leader election.</p>
+<p><img src="/images/20210130/metrics.svg" alt="plot of raft.leader.lastContact metrics"></p>
+<p>Note that the tool is terrible in many ways: the metric name has to be
+an exact match, it has to read in the entire data set every time it
+runs, there's no flag on where to send the output file, and it doesn't
+open the SVG in your browser for you. But I can put this in front of
+someone <em>today</em> without it causing me a huge support burden to get
+them spun up on it. And then I can iterate on it over time or abandon
+it if something better comes along.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fsingle-purpose-visualization%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

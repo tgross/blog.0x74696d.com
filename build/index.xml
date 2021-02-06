@@ -10,6 +10,114 @@
     
     
     <item>
+      <title>A ZFS Device Driver for Nomad, Part 0</title>
+      <link>https://blog.0x74696d.com/posts/zfs-device-driver-for-nomad-part0/</link>
+      <pubDate>Sat, 06 Feb 2021 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/zfs-device-driver-for-nomad-part0/</guid>
+      <description>&lt;p&gt;I&#39;ve been the primary maintainer of Nomad&#39;s various storage
+implementations since this past summer when the last other person
+who&#39;d worked on it left HashiCorp. That includes host volumes and the
+Container Storage Interface (CSI), both of which were originally
+designed by someone smarter than me.&lt;/p&gt;
+&lt;p&gt;But CSI is a bit of a mess in terms of providing any actual
+abstraction. The spec focuses almost entirely on the protobuf
+plumbing, several plugins don&#39;t comply with the specified concurrency
+requirements or otherwise have Kubernetes-specific quirks, and half
+the implementation in Kubernetes is out-of-tree or simply
+unimplemented. That leads to things like plugins having implementation
+bug in interfaces that no one has ever tested until Nomad came along
+and tried it, and the plugin authors don&#39;t really care to fix it.&lt;/p&gt;
+&lt;p&gt;Arguably the notion of having a storage abstraction that abstracts
+both the storage provider and the container orchestrator is ill
+conceived from the get-go. Operators aren&#39;t running multiple
+orchestrators and dozens of storage implementations; they&#39;re typically
+going to be responsible for one orchestrator and at most two or three
+semantically-incompatible storage providers (ex. a block storage, an
+object storage, and maybe a network file system). The interfaces are
+rightfully the storage vendor&#39;s or orchestrator developer&#39;s problem,
+not yours as an end user. Instead we&#39;ve dropped a steaming pile of
+operational gotchas on your plate. So CSI is the sort of thing that
+you&#39;d try to make a standard if you were a giant tech company with a
+history of pushing half-baked standards on the rest of the industry
+for purposes of cementing your market dominance. Hypothetically
+speaking, of course.&lt;/p&gt;
+&lt;p&gt;All that to say when I wanted to have a way to provide ZFS datasets to
+a Nomad workload, I definitely didn&#39;t want to implement a CSI storage
+provider for it. I have to deal with CSI during my day job. Yes, Nomad
+is also my day job. Point taken.&lt;/p&gt;
+&lt;p&gt;Most of my little experiments get worked on in private, but the scope
+of this is small and relevant to my employment so I thought I&#39;d share
+my process as I go. With only an hour or two here and there to spend,
+I&#39;m still hoping that this will take no more than a couple
+weeks. Despite having been on the Nomad team for a while now, I
+haven&#39;t had to dig into the device plugin system much. So expect
+plenty of exploration, dead ends, rework, and plain old mistakes.&lt;/p&gt;
+&lt;p&gt;Let&#39;s start with a design. At HashiCorp or Joyent this would be an RFC
+(Request For Comments) doc. While I don&#39;t need that level of formality
+here, it&#39;s worth having the outline of a story for what I&#39;m trying to
+do up front.&lt;/p&gt;
+&lt;p&gt;Nomad has two primary user personas: the cluster operator and the job
+submitter. In small orgs these will be the same people, but typically
+the cluster operators are the folks responsible for the underlying
+platform and have root on the Nomad hosts, whereas the job submitter
+will have the rights to submit jobs to Nomad and varied levels of
+access to debug them when things go wrong.&lt;/p&gt;
+&lt;p&gt;When I submit a job, I want to expose a ZFS dataset to my workload. I
+want that ZFS dataset to be backed up. And when my workload gets
+rescheduled I want the ZFS dataset to be available wherever the
+workload is placed. Immediately this brings to mind ZFS snapshots and
+ZFS send / receive. The existing
+&lt;a href=&#34;https://www.nomadproject.io/docs/job-specification/migrate&#34;&gt;&lt;code&gt;migrate&lt;/code&gt;&lt;/a&gt;
+feature in Nomad doesn&#39;t have any hooks for plugins, so I&#39;ll probably
+have to implement much of the ZFS send and receive workflow from
+scratch.&lt;/p&gt;
+&lt;p&gt;Putting on my operator hat, I want all datasets a job submitter can
+create to be children of a particular dataset given to Nomad. Of
+course I&#39;ll also want disk quotas.&lt;/p&gt;
+&lt;p&gt;The best fit for these requirements is a &lt;a href=&#34;https://www.nomadproject.io/docs/internals/plugins/devices&#34;&gt;device
+plugin&lt;/a&gt;,
+as I want to be able to mount data to arbitrary workloads, and not
+create a new workload type as I would with a driver plugin. Not many
+device plugins have been written; there&#39;s the baked-in Nvidia GPU
+plugin, a fun hack for an &lt;a href=&#34;https://github.com/cgbaker/nomad-device-raspberry-epaper-hat&#34;&gt;ePaper device
+plugin&lt;/a&gt;
+by my colleague &lt;a href=&#34;https://github.com/cgbaker&#34;&gt;Chris Baker&lt;/a&gt;, and a &lt;a href=&#34;https://gitlab.com/CarbonCollins/nomad-usb-device-plugin&#34;&gt;USB
+storage
+plugin&lt;/a&gt;
+developed by Steven Collins out in the Nomad community. That&#39;s about
+it. So I&#39;m going to assume I&#39;ll hit some sharp edges to workaround or
+that might need patches in Nomad proper if they&#39;re useful for other
+authors.&lt;/p&gt;
+&lt;p&gt;The plugin needs to talk to ZFS. The hacky way to do this would be to
+shell-out to the ZFS command line utilities. One advantage of this
+would be that I can use the existence of the command line utilities as
+part of our fingerprint, and I know those utilities will be compatible
+whatever ZFS is on the host. That also makes packaging nicer. On the
+other hand, it&#39;s awfully brittle to parse the command line output for
+tools the plugin doesn&#39;t own, especially in the case of Nomad which is
+running as a service and not interactively. So that&#39;s a detail to
+figure out.&lt;/p&gt;
+&lt;p&gt;The Nomad device plugin API I need to implement has just three
+methods: &lt;code&gt;Fingerprint&lt;/code&gt;, &lt;code&gt;Stats&lt;/code&gt;, and &lt;code&gt;Reserve&lt;/code&gt;. Nomad will fingerprint
+the device plugin to ask for the set of &lt;a href=&#34;https://pkg.go.dev/github.com/hashicorp/nomad@v1.0.3/plugins/device#FingerprintResponse&#34;&gt;available
+devices&lt;/a&gt;. This
+happens on client startup and then again periodically. The device
+plugin is expected to provide
+&lt;a href=&#34;https://pkg.go.dev/github.com/hashicorp/nomad@v1.0.3/plugins/device#DeviceStats&#34;&gt;stats&lt;/a&gt;
+for the devices it manages. And Nomad wants to send a list of device
+IDs to reserve, expecting the plugin to return a
+&lt;a href=&#34;https://pkg.go.dev/github.com/hashicorp/nomad@v1.0.3/plugins/device#ContainerReservation&#34;&gt;reservation&lt;/a&gt;
+object with the set of devices and mounts. Immediately I see our first
+challenge: the API expects a known set of device IDs, whereas our
+design wants the job submitter to be able to define datasets on the
+fly. Is this project dead on arrival? That would be embarrassing!&lt;/p&gt;
+&lt;p&gt;Next time, I&#39;ll look at the Nomad scheduler and see if I can come up
+with a reasonable approach to handling the device ID.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
       <title>Single purpose visualization</title>
       <link>https://blog.0x74696d.com/posts/single-purpose-visualization/</link>
       <pubDate>Sat, 30 Jan 2021 12:00:00 +0000</pubDate>
@@ -1627,17 +1735,6 @@ fallback:
       <guid>https://blog.0x74696d.com/posts/consul-etcd-on-triton/</guid>
       <description>&lt;p&gt;Applications developed with the Autopilot Pattern are self-operating and self-configuring but use an external service catalog like Consul or etcd to store and coordinate global state. ContainerPilot sends the service catalog heartbeats to record that an instance of an application is still up and running. Both Consul and etcd have interesting assumptions about their topology that end users deploying on Triton should be aware of.&lt;/p&gt;
 &lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/consul-etcd-on-triton&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Video - Introduction to the Autopilot Pattern</title>
-      <link>https://blog.0x74696d.com/posts/video-intro-autopilot-pattern/</link>
-      <pubDate>Wed, 06 Jul 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/video-intro-autopilot-pattern/</guid>
-      <description>&lt;p&gt;In this video I introduce the Autopilot Pattern with illustrated examples and a walkthrough of our Autopilot Pattern example application and how ContainerPilot makes it easier to containerize applications new and old.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/video-autopilot-pattern&#34;&gt;Check out the full article and the video on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 </description>
     </item>
     

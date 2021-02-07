@@ -158,6 +158,8 @@ h3 {
       background-color: #efefef;
   }
   .content p code {
+      font-family: monospace,monospace; /* size fix FF, Chrome, Safari */
+      font-size: .9em; /* size fix for IE, Opera */
       font-weight: 600;
   }
 

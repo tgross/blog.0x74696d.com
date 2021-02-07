@@ -27,9 +27,9 @@ you the hooks you need without hacks.&lt;/p&gt;
 plugin gets a list of device IDs in the
 &lt;a href=&#34;https://www.nomadproject.io/docs/internals/plugins/devices#reserve-deviceids-string-containerreservation-error&#34;&gt;&lt;code&gt;Reserve&lt;/code&gt;&lt;/a&gt;
 method, but the scheduler only knows what device IDs are available
-from the fingerprint. That&#39;s going to make it awfully challenging for
-the job submitter unless we create the datasets ahead of
-time. Coincidentally, this is similar to what we face with
+from the fingerprint. We can create the datasets ahead of time out of
+band, but that&#39;s not a great experience for the job
+submitter. Coincidentally, this is similar to what we face with
 &lt;a href=&#34;https://www.nomadproject.io/docs/internals/plugins/csi&#34;&gt;CSI&lt;/a&gt; in
 claiming a unique volume per allocation. That&#39;s going to require
 scheduler changes, which I&#39;m working on in

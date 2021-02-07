@@ -20,9 +20,9 @@ The first challenge I identified in the device plugin API was that the
 plugin gets a list of device IDs in the
 [`Reserve`](https://www.nomadproject.io/docs/internals/plugins/devices#reserve-deviceids-string-containerreservation-error)
 method, but the scheduler only knows what device IDs are available
-from the fingerprint. That's going to make it awfully challenging for
-the job submitter unless we create the datasets ahead of
-time. Coincidentally, this is similar to what we face with
+from the fingerprint. We can create the datasets ahead of time out of
+band, but that's not a great experience for the job
+submitter. Coincidentally, this is similar to what we face with
 [CSI](https://www.nomadproject.io/docs/internals/plugins/csi) in
 claiming a unique volume per allocation. That's going to require
 scheduler changes, which I'm working on in

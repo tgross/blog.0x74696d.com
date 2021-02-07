@@ -5,10 +5,175 @@
     <description>Recent content in Posts on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 06 Feb 2021 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 07 Feb 2021 12:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>A ZFS Device Driver for Nomad, Part 1</title>
+      <link>https://blog.0x74696d.com/posts/zfs-device-driver-for-nomad-part1/</link>
+      <pubDate>Sun, 07 Feb 2021 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/zfs-device-driver-for-nomad-part1/</guid>
+      <description>&lt;p&gt;After yesterday&#39;s post, my colleague Chris Baker
+&lt;a href=&#34;https://twitter.com/ScaredOfGeese/status/1358126170236203011&#34;&gt;Tweeted&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I&#39;m especially curious whether the device lifecycle is gonna give
+you the hooks you need without hacks.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Ominous foreshadowing.&lt;/p&gt;
+&lt;p&gt;The first challenge I identified in the device plugin API was that the
+plugin gets a list of device IDs in the
+&lt;a href=&#34;https://www.nomadproject.io/docs/internals/plugins/devices#reserve-deviceids-string-containerreservation-error&#34;&gt;&lt;code&gt;Reserve&lt;/code&gt;&lt;/a&gt;
+method, but the scheduler only knows what device IDs are available
+from the fingerprint. That&#39;s going to make it awfully challenging for
+the job submitter unless we create the datasets ahead of
+time. Coincidentally, this is similar to what we face with
+&lt;a href=&#34;https://www.nomadproject.io/docs/internals/plugins/csi&#34;&gt;CSI&lt;/a&gt; in
+claiming a unique volume per allocation. That&#39;s going to require
+scheduler changes, which I&#39;m working on in
+&lt;a href=&#34;https://github.com/hashicorp/nomad/issues/7877#issuecomment-772552412&#34;&gt;nomad/#7877&lt;/a&gt;. So
+maybe that implementation for volumes should take into account wanting
+to apply &amp;quot;unique per allocation&amp;quot; interpolation to other resources.&lt;/p&gt;
+&lt;p&gt;Assuming we somehow solve that problem, there&#39;s another that comes to
+mind. I&#39;m looking at the API for the device plugin and I see &lt;code&gt;Reserve&lt;/code&gt;
+without a mirrored method to release the claim when we&#39;re done with
+it. And if we&#39;re reserving a device, shouldn&#39;t it be for a particular
+allocation? Then I see this part of the
+&lt;a href=&#34;https://www.nomadproject.io/docs/internals/plugins/devices#lifecycle-and-state&#34;&gt;docs&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;After helping to provision a task with a scheduled device, a device
+plugin does not have any responsibility (or ability) to monitor the
+task.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Hold up. This is reminding me of the old Seinfeld bit about how anyone
+can just take reservations. How does this actually work?&lt;/p&gt;
+&lt;p&gt;Now at this point you might be asking yourself how an experienced
+engineer who&#39;s been working on a code base all day every day for a
+year and a half can simply &lt;em&gt;not know&lt;/em&gt; how a feature like this
+works. Some of that is size: Nomad is 400k lines of go code, plus
+another 50k or so of JavaScript, not counting vendored
+dependencies. Roughly half of that is tests. That&#39;s a lot to digest.&lt;/p&gt;
+&lt;p&gt;But Nomad is also reasonably well-architected (with plenty of room for
+improvement, of course!). Many features can be implemented as discrete
+&amp;quot;hooks&amp;quot; that get called by the various event loops. So once you get
+one of those features working you can mentally unload that context and
+it will need minimal maintenance. Abstraction of components isn&#39;t good
+just for the sake of it, but because it lets mere mortal developers
+like me build software solving galaxy brain problems.&lt;/p&gt;
+&lt;p&gt;With that out of the way, let&#39;s look at what&#39;s happening under the
+hood with the device plugin API. Note that throughout this section I&#39;m
+linking to a specific tag so that the line references don&#39;t change
+over time. If you&#39;re reading this much later, you may find you want to
+look for the same functions at different line numbers on the current
+version.&lt;/p&gt;
+&lt;p&gt;Each Nomad client has a device manager that runs the device
+plugins. Each instance it tracks runs a fingerprint: one at start and
+then periodically. The &lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/client/devicemanager/instance.go#L338&#34;&gt;instance
+fingerprint&lt;/a&gt;
+asks the plugin for a
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/plugins/device/device.go#L40-L48&#34;&gt;&lt;code&gt;FingerprintResponse&lt;/code&gt;&lt;/a&gt;.
+We get back a list of devices, which according to the docs we&#39;re
+supposed to assume are interchangeable from the perspective of the
+scheduler.&lt;/p&gt;
+&lt;p&gt;The fingerprint goes up to the device manager, which calls its
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/client/devicemanager/manager.go#L191&#34;&gt;&lt;code&gt;updater&lt;/code&gt;&lt;/a&gt;
+to add the fingerprint to the client node&#39;s state. This makes its way
+via the
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/nomad/node_endpoint.go#L375&#34;&gt;&lt;code&gt;Node.UpdateStatus&lt;/code&gt;&lt;/a&gt;
+RPC to the server, where it finally gets persisted as a
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/nomad/structs/structs.go#L3066-L3074&#34;&gt;&lt;code&gt;NodeDeviceResource&lt;/code&gt;&lt;/a&gt;
+in the state store along with the rest of the client&#39;s resources. At
+this point, the servers know what devices are available on the
+client. This is the root of our problem around unique device IDs; the
+plugin is telling the server what device IDs are available, and not
+the other way around.&lt;/p&gt;
+&lt;p&gt;Now let&#39;s see what happens when we try to schedule a job with one of
+these devices. I&#39;m going to skip past most of the scheduler logic here
+but check out my colleague
+&lt;a href=&#34;https://github.com/schmichael&#34;&gt;schmichael&#39;s&lt;/a&gt; awesome &lt;a href=&#34;https://www.youtube.com/watch?v=m6DnmVqoXvw&#34;&gt;deep
+dive&lt;/a&gt; if you want to
+learn more. tl;dr we eventually get to a point where the scheduler has
+to rank which nodes can best fulfill the request. In the ranking
+iterator we attempt to get an
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/scheduler/rank.go#L357-L360&#34;&gt;&amp;quot;offer&amp;quot;&lt;/a&gt;
+for that device. The
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/scheduler/device.go#L29-L32&#34;&gt;&lt;code&gt;AssignDevice&lt;/code&gt;&lt;/a&gt;
+method checks the placement&#39;s
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/scheduler/feasible.go#L1264-L1288&#34;&gt;feasibility&lt;/a&gt;,
+or whether the node has enough of the requested devices available that
+match our constraints. But note that the scheduler is checking that
+the &lt;em&gt;server&#39;s&lt;/em&gt; state of the world says that we have enough of the
+devices, and not communicating with the plugin at this point. Nomad&#39;s
+scheduler workers always work with an in-memory snapshot of the server
+state and don&#39;t perform I/O until they submit the plan to the leader.&lt;/p&gt;
+&lt;p&gt;So when do we talk to the device plugin? Once the plan is made and the
+client receives a placement for the allocation, the client fires a
+series of hooks for the allocation and all the tasks in the
+allocation. The &lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/client/allocrunner/taskrunner/device_hook.go&#34;&gt;device pre-start
+hook&lt;/a&gt;
+is what finally takes the list of device IDs and calls the plugin&#39;s
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/client/allocrunner/taskrunner/device_hook.go#L48-L49&#34;&gt;&lt;code&gt;Reserve&lt;/code&gt;&lt;/a&gt;
+method.&lt;/p&gt;
+&lt;p&gt;But just as we suspected from the plugin API, there&#39;s no matching
+post-stop hook. The Nomad server is responsible for keeping track of
+whether or not a device has been reserved. Which makes &lt;code&gt;Reserve&lt;/code&gt; a bit
+of a misnomer. Nomad is not expecting the device plugin to reserve the
+device, but it&#39;s telling the device plugin that Nomad &lt;em&gt;has reserved&lt;/em&gt;
+the device, and to tell the client where it&#39;s been mounted.&lt;/p&gt;
+&lt;p&gt;Which leaves us in a tricky spot.&lt;/p&gt;
+&lt;p&gt;The device plugin can only get the state of the device via the
+fingerprint, so unless there&#39;s a visible side-effect of the device
+being used by a task, the plugin doesn&#39;t know when a task is done with
+the device.&lt;/p&gt;
+&lt;p&gt;Well, I did warn you that this series would include mistakes and dead
+ends. Unfortunately it looks like we&#39;re beyond the point of &amp;quot;without
+hacks&amp;quot;, so what are my options?&lt;/p&gt;
+&lt;p&gt;First, I could certainly &amp;quot;cheat&amp;quot; and try to get a change in the device
+plugin behavior into Nomad itself. Perhaps the plugin should be sent a
+notice that the device isn&#39;t needed? Or maybe the &lt;code&gt;Reserve&lt;/code&gt; API should
+have more information about the allocation? But that&#39;s the riskiest
+approach because we&#39;re pretty serious about backwards compatibility in
+Nomad&#39;s APIs, so we&#39;d have to live with that change for a long
+time. And besides, our team has plenty of more important work on their
+plate than my silly experiments!&lt;/p&gt;
+&lt;p&gt;I could implement this whole workflow as a separate pre-start task
+using a
+&lt;a href=&#34;https://www.nomadproject.io/docs/job-specification/lifecycle&#34;&gt;&lt;code&gt;lifecycle&lt;/code&gt;&lt;/a&gt;
+block (this was suggested by
+&lt;a href=&#34;https://twitter.com/anapsix/status/1358339913868079105&#34;&gt;@anapsix&lt;/a&gt; on
+Twitter). We often recommend pre-start tasks because they make a great
+&amp;quot;escape hatch&amp;quot; for Nomad feature requests that we&#39;re unsure if we want
+to implement, or ones we just don&#39;t have the time for on the road
+map. But in this case it doesn&#39;t meet the design requirement of having
+a separate operator and job submitter persona. The pre-start task
+would have to be privileged and that lets a job submitter execute
+arbitrary code as root on the host.&lt;/p&gt;
+&lt;p&gt;A variant on that idea would be to implement a custom task driver that
+&lt;em&gt;only&lt;/em&gt; exposes a dataset for other tasks in the allocation. This would
+improve on the arbitrary pre-start task by having a &lt;a href=&#34;https://www.nomadproject.io/docs/configuration/plugin&#34;&gt;plugin
+configuration&lt;/a&gt;
+controlled by the operator. There are a few disadvantages to a task
+driver: there would be extra running processes for each dataset, and
+implementing a task driver is just a lot more work to implement. But a
+task driver already has hooks for the task&#39;s lifecycle, so it would
+let Nomad manage when the ZFS workflows happen.&lt;/p&gt;
+&lt;p&gt;Or I could implement a CSI plugin after all. I had wanted to steer
+away from that because of how painful I&#39;d found CSI plugins. But at
+least I know in this case the CSI plugin will be well-behaved with
+Nomad. Curses.&lt;/p&gt;
+&lt;p&gt;Lastly, just because the Nomad plugin API doesn&#39;t do what I want,
+doesn&#39;t mean my device plugin client couldn&#39;t also communicate with
+Nomad via its HTTP API. The plugin is already privileged code running
+as Nomad&#39;s user (typically root), so it could make blocking queries to
+the client to get allocation state on its own node.&lt;/p&gt;
+&lt;p&gt;Although weeks of coding can save hours of planning, I think I&#39;m at
+the point where it&#39;s time to do some small experiments to explore
+these options. But next post I want to take a short detour to talk
+about RFCs.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>A ZFS Device Driver for Nomad, Part 0</title>
@@ -1725,17 +1890,6 @@ fallback:
       <guid>https://blog.0x74696d.com/posts/secrets-management-in-the-autopilotpattern/</guid>
       <description>&lt;p&gt;No matter how we deploy our applications, managing secrets invokes the chicken-and-the-egg problem. Any system for secrets management has to answer the question of how the application authenticates to the system managing the secrets in the first place. Applications built with the Autopilot Pattern can be easily made to leverage secrets management services, but it&#39;s important to understand the security model and threat model of these services.&lt;/p&gt;
 &lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/secrets-management-in-the-autopilotpattern&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Consul and etcd in the Autopilot Pattern</title>
-      <link>https://blog.0x74696d.com/posts/consul-etcd-on-triton/</link>
-      <pubDate>Tue, 02 Aug 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/consul-etcd-on-triton/</guid>
-      <description>&lt;p&gt;Applications developed with the Autopilot Pattern are self-operating and self-configuring but use an external service catalog like Consul or etcd to store and coordinate global state. ContainerPilot sends the service catalog heartbeats to record that an instance of an application is still up and running. Both Consul and etcd have interesting assumptions about their topology that end users deploying on Triton should be aware of.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/consul-etcd-on-triton&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 </description>
     </item>
     

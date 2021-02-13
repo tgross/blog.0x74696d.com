@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Small Design Up Front</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Small Design Up Front</h1>
+  <section class="byline">February 13, 2021</section>
+  <p>At my current gig and several before that, the initial engineering
+design document is the Request for Comments (RFC), sometimes called
+the <a href="https://github.com/joyent/rfd">Request for Discussion</a> (RFD).</p>
+<p>If you've been reading the series on building a ZFS plugin for Nomad,
+you might have asked yourself if this kind of stumbling through the
+design is typical of the RFC documents I've written. But that series
+is really about all the design work that happens before the initial
+design is documented. It's brainstorming, hypothesizing, and
+exploration. The first draft of a RFC is the output of that work, so
+typically by the time anyone else has seen it hopefully the obviously
+dumb ideas and dead ends have been weeded out.</p>
+<p>The RFC ends up being a good &quot;sandbox&quot; for a small up-front design
+process. I suspect it's especially valuable for system software where
+even a minimal experiment can be costly. And the structure discourages
+you from trying to come up with a rigid specification that's doomed to
+be invalid the moment you start implementing it.</p>
+<p>In some sense you're writing a RFC to communicate to your peers what
+you've already figured out about the problem. Their time is a gift,
+and the most valuable feedback to get is that which you couldn't think
+of on your own. So you should invest the time to ensure they're not
+just going to tell what you should already know. In a healthy
+organization, writing is a way to collectively discover the design,
+rather than persuade the team.</p>
+<p>The phrase &quot;in a healthy organization&quot; is doing a lot of work
+here. I've worked places where RFC discussions were more of a battle
+ground for interpersonal conflict and office politics than meaningful
+engineering discussion. In that environment you end up writing
+defensively to head off debate and hide implementation details that
+will trigger objections. These documents are better named Request for
+Permission. And if you're in this situation... well, writing RFCs ain't
+gonna save you.</p>
+<p>I'm probably a weird outlier, but I even write RFCs for personal
+projects. Call it writing as structured thought experiment. It's a
+tool, and one that supplements rather than replaces a whiteboard
+diagram or a throwaway spike. I could easily throw it out as soon as
+it's done, but why not keep it?</p>
+<p>There can be a few audiences for those artifacts. A project might get
+completed to the point where it could be open sourced, in which case
+having those early design documents would be valuable to users or
+contributors. But the most important audience is Future Me. My level
+of interest or volume of work on these projects ebbs and flows. I
+might take a project through the initial design, feel like I've
+explored the problem well enough to learn what I wanted to learn, and
+set it aside for months. The RFC is like a well-written commit message
+for the project as a whole.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fsmall-design-up-front%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

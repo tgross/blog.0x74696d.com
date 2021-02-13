@@ -1,13 +1,68 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>0x74696d</title>
-    <link>https://blog.0x74696d.com/index.html</link>
+    <link>https://blog.0x74696d.com/</link>
     <description>Recent content on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
+    <lastBuildDate>Sat, 13 Feb 2021 12:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Small Design Up Front</title>
+      <link>https://blog.0x74696d.com/posts/small-design-up-front/</link>
+      <pubDate>Sat, 13 Feb 2021 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/small-design-up-front/</guid>
+      <description>&lt;p&gt;At my current gig and several before that, the initial engineering
+design document is the Request for Comments (RFC), sometimes called
+the &lt;a href=&#34;https://github.com/joyent/rfd&#34;&gt;Request for Discussion&lt;/a&gt; (RFD).&lt;/p&gt;
+&lt;p&gt;If you&#39;ve been reading the series on building a ZFS plugin for Nomad,
+you might have asked yourself if this kind of stumbling through the
+design is typical of the RFC documents I&#39;ve written. But that series
+is really about all the design work that happens before the initial
+design is documented. It&#39;s brainstorming, hypothesizing, and
+exploration. The first draft of a RFC is the output of that work, so
+typically by the time anyone else has seen it hopefully the obviously
+dumb ideas and dead ends have been weeded out.&lt;/p&gt;
+&lt;p&gt;The RFC ends up being a good &amp;quot;sandbox&amp;quot; for a small up-front design
+process. I suspect it&#39;s especially valuable for system software where
+even a minimal experiment can be costly. And the structure discourages
+you from trying to come up with a rigid specification that&#39;s doomed to
+be invalid the moment you start implementing it.&lt;/p&gt;
+&lt;p&gt;In some sense you&#39;re writing a RFC to communicate to your peers what
+you&#39;ve already figured out about the problem. Their time is a gift,
+and the most valuable feedback to get is that which you couldn&#39;t think
+of on your own. So you should invest the time to ensure they&#39;re not
+just going to tell what you should already know. In a healthy
+organization, writing is a way to collectively discover the design,
+rather than persuade the team.&lt;/p&gt;
+&lt;p&gt;The phrase &amp;quot;in a healthy organization&amp;quot; is doing a lot of work
+here. I&#39;ve worked places where RFC discussions were more of a battle
+ground for interpersonal conflict and office politics than meaningful
+engineering discussion. In that environment you end up writing
+defensively to head off debate and hide implementation details that
+will trigger objections. These documents are better named Request for
+Permission. And if you&#39;re in this situation... well, writing RFCs ain&#39;t
+gonna save you.&lt;/p&gt;
+&lt;p&gt;I&#39;m probably a weird outlier, but I even write RFCs for personal
+projects. Call it writing as structured thought experiment. It&#39;s a
+tool, and one that supplements rather than replaces a whiteboard
+diagram or a throwaway spike. I could easily throw it out as soon as
+it&#39;s done, but why not keep it?&lt;/p&gt;
+&lt;p&gt;There can be a few audiences for those artifacts. A project might get
+completed to the point where it could be open sourced, in which case
+having those early design documents would be valuable to users or
+contributors. But the most important audience is Future Me. My level
+of interest or volume of work on these projects ebbs and flows. I
+might take a project through the initial design, feel like I&#39;ve
+explored the problem well enough to learn what I wanted to learn, and
+set it aside for months. The RFC is like a well-written commit message
+for the project as a whole.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>A ZFS Device Driver for Nomad, Part 1</title>
@@ -1878,17 +1933,6 @@ fallback:
 &lt;h2 id=&#34;so-whats-happening-here&#34;&gt;So what&#39;s happening here?&lt;/h2&gt;
 &lt;p&gt;So why is there a difference between Docker for Mac and all the other environments? If it&#39;s something specific to the Mac why don&#39;t we see it without Docker? There&#39;s one more wrench in this story, and that&#39;s Hypervisor Framework and &lt;a href=&#34;https://github.com/mist64/xhyve&#34;&gt;xhyve&lt;/a&gt;. Unlike all the other cases, in Docker for Mac we&#39;re using xhyve, which runs entirely in userspace. Presumably somewhere in the userspace emulation we&#39;re losing a lot of our performance to virtualization.&lt;/p&gt;
 &lt;p&gt;This is unfortunately where my enthusiasm for following this to the end starts to flag. That&#39;s probably a disappointing finish, but in fairness I totally warned you! If you want to tackle this further, xhyve is open source and developed on GitHub. The real conclusion is to be careful that you&#39;re benchmarking what you really think you are. Even in cases where you&#39;ve got &amp;quot;pure&amp;quot; CPU benchmarks you can be caught by surprise!&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Secrets Management in the Autopilot Pattern</title>
-      <link>https://blog.0x74696d.com/posts/secrets-management-in-the-autopilotpattern/</link>
-      <pubDate>Thu, 26 Jan 2017 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/secrets-management-in-the-autopilotpattern/</guid>
-      <description>&lt;p&gt;No matter how we deploy our applications, managing secrets invokes the chicken-and-the-egg problem. Any system for secrets management has to answer the question of how the application authenticates to the system managing the secrets in the first place. Applications built with the Autopilot Pattern can be easily made to leverage secrets management services, but it&#39;s important to understand the security model and threat model of these services.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/secrets-management-in-the-autopilotpattern&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 </description>
     </item>
     

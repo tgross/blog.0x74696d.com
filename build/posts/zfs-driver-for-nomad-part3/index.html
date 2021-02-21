@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | A ZFS Driver for Nomad, Part 3</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>A ZFS Driver for Nomad, Part 3</h1>
+  <section class="byline">February 21, 2021</section>
+  <p>Last time we implemented the Container Storage Interface (CSI)
+<strong>Identity</strong> service, so now it's time to look at the <strong>Controller</strong> and
+<strong>Node</strong> services. The CSI spec has a lot of detail as to the
+protocol, but leaves a lot of the intentions behind each service left
+unsaid for the implementer to discover.</p>
+<p>The spec tells us that
+<a href="https://github.com/container-storage-interface/spec/blob/master/spec.md#node-service-rpc">Node</a>
+service RPCs shall run on the node where the volume is used. There are
+only a few required RPCs: <code>NodeGetCapabilities</code> that tells us which
+RPCs are implemented, and <code>NodePublishVolume</code> and
+<code>NodeUnpublishVolume</code> that are call when the orchestrator has a
+workload that wants to use the volume. The <code>NodeStageVolume</code> and
+<code>NodeUnstageVolume</code> are optional, and are for preparing the volume for
+its first use on the node where the volume is used. These definitions
+are pretty vague, but that's required for the CSI authors to cover a
+very broad range of storage providers.</p>
+<p>The optional
+<a href="https://github.com/container-storage-interface/spec/blob/master/spec.md#controller-service-rpc">Controller</a>
+service RPCs include <code>CreateVolume</code>, <code>ControllerPublishVolume</code>, and
+<code>CreateSnapshot</code>, so at first glance this sounds like I'll want this
+for the ZFS plugin. But the Controller RPCs differ in one important
+respect: they don't necessarily happen on the same node where we're
+going to use the volume! Unfortunately the <a href="https://kubernetes-csi.github.io/docs/developing.html">Kubernetes CSI development
+guide</a> doesn't
+describe the purpose of the Controller, but we can piece it together
+from the requirements of its component RPCs.</p>
+<p>The Controller service is for workflows with the storage provider
+infrastructure APIs, whereas the Node service is for workflows
+specific to a given host. If we use AWS Elastic Block Storage (EBS)
+volumes as an example, the Controller service tells AWS to create the
+EBS volume (<code>CreateVolume</code>) and attach the volume to the EC2 virtual
+machine (<code>ControllerPublishVolume</code>), whereas the Node service formats
+the volume (<code>NodeStageVolume</code>) and mounts it for the container
+(<code>NodePublishVolume</code>).</p>
+<p>In the case of the ZFS plugin, there's no &quot;remote ZFS API&quot;. I'll
+ultimately need some sort of service to store the snapshots that I
+<code>zfs send</code>, but all the workflows for this will need to be driven from
+the host where the volume is in use. So I can drop the Controller
+service entirely.</p>
+<p>With that in mind, I want to get the plugin to the point where it
+registers as healthy with Nomad. The last error we got was because
+the <code>NodeGetInfo</code> service wasn't implemented:</p>
+<blockquote>
+<p>2021-02-15T15:47:33.839-0500 [WARN] client.csi-zfs: finished client
+unary call: grpc.code=Unimplemented duration=357.548µs
+grpc.service=csi.v1.Node grpc.method=NodeGetInfo</p>
+</blockquote>
+<p>First, I'll do a bit of refactoring and move the Identity service into
+its own file. I can remove the controller capability from
+<code>GetPluginCapabilities</code>, and I can change out the &quot;monolith&quot; for
+&quot;node&quot; in my jobspec for the plugin. Next I'll implement the
+<a href="https://pkg.go.dev/github.com/container-storage-interface/spec@v1.3.0/lib/go/csi#NodeServer"><code>NodeServer</code></a>
+interface, just by dropping a bunch of empty function bodies in a new
+<code>node.go</code> file. All that is commit
+<a href="https://github.com/tgross/zfs-csi-driver/commit/b77e1fe20cb5e58411bcc09a28d87a81815a4aee">b77e1fe</a>.</p>
+<p>I compile and run that, but still get the same error. So I check the
+allocation logs and find the following:</p>
+<blockquote>
+<p>ERROR: 2021/02/21 18:17:22 [core] grpc: server failed to encode response:  rpc error: code = Internal desc = grpc: error while marshaling: proto: Marshal called with nil</p>
+</blockquote>
+<p>Let's look at the spec for
+<a href="https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo"><code>NodeGetInfo</code></a>
+and the
+<a href="https://pkg.go.dev/github.com/container-storage-interface/spec@v1.3.0/lib/go/csi#NodeGetInfoResponse"><code>NodeGetInfoResponse</code></a>
+in a little more detail.</p>
+<p>The fields look oriented towards cloud storage use cases, where cloud
+vendor storage volumes will be attached to cloud vendor VMs over cloud
+vendor networks. We can see this comment for the <code>node_id</code> field:</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">// The identifier of the node as understood by the SP.
+</span><span class="c1">// This field is REQUIRED.
+</span><span class="c1">// This field MUST contain enough information to uniquely identify
+</span><span class="c1">// this specific node vs all other nodes supported by this plugin.
+</span><span class="c1">// This field SHALL be used by the CO in subsequent calls, including
+</span><span class="c1">// `ControllerPublishVolume`, to refer to this node.
+</span><span class="c1">// The SP is NOT responsible for global uniqueness of node_id across
+</span><span class="c1">// multiple SPs.
+</span></code></pre></div><p>Well using the hostname probably isn't a great option here. I'll let
+the operator set this value, assuming they'll want to use the Nomad
+node ID via <a href="https://www.nomadproject.io/docs/runtime/interpolation">attribute
+interpolation</a>.</p>
+<p>For the <code>max_volumes_per_node</code> field, I see:</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">// Maximum number of volumes that controller can publish to the node.
+</span></code></pre></div><p>Curious.<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup> Well, we have no controller. So I can skip this.</p>
+<p>The <code>Topology</code> works out to be a map of strings. We could have these
+automatically pick up values from the environment Nomad provides, but
+in the interest of portability, I'll have the user provide these as a
+list of <code>--topology</code> flags. I'm building up enough config now that
+I'll pull that out into its own struct, file, and a <code>newConfig</code>
+function that hides it away from us. That commit is
+<a href="https://github.com/tgross/zfs-csi-driver/commit/128b9365a53725be346dd84cd28bae79e82fc7ec">128b936</a>.</p>
+<p>But wait a sec... what's this comment at the top of <a href="https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo"><code>NodeGetInfo</code></a>?</p>
+<blockquote>
+<p>A Node Plugin MUST implement this RPC call if the plugin has
+<code>PUBLISH_UNPUBLISH_VOLUME</code> controller capability.</p>
+</blockquote>
+<p>We <em>don't</em> have that capability, as we removed it earlier. So that RPC
+shouldn't be getting hit. It's a bug in Nomad! When the Nomad client
+fingerprints the plugin, it checks <code>NodeGetInfo</code> if
+<a href="https://github.com/hashicorp/nomad/blob/v1.0.3/client/pluginmanager/csimanager/fingerprint.go#L110-L111"><code>p.fingerprintNode</code></a>
+is set, which is set if the plugin is of type
+<a href="https://github.com/hashicorp/nomad/blob/v1.0.3/client/pluginmanager/csimanager/instance.go#L58"><code>PluginCSITypeNode</code></a>. That
+check for <code>NodeGetInfo</code> should be for <code>p.fingerprintController</code>, not
+<code>p.fingerprintNode</code>. Oops! I'll take a quick detour to open
+<a href="https://github.com/hashicorp/nomad/issues/10055">nomad/#10055</a>, but
+in the meantime we'll keep our implementation in place and we can rip
+it out once that's been fixed in Nomad.</p>
+<p>With <code>NodeGetInfo</code> implemented, I compile and run on Nomad again. I
+see the client starts it with all the arguments I'd expect, but now I
+get an error for <code>NodeGetCapabilities</code>:</p>
+<blockquote>
+<p>2021-02-21T14:06:44.840-0500 [DEBUG] client.driver_mgr.docker: setting container startup command: driver=docker task_name=plugin command=&quot;/bin/zfs-csi-driver --csi-address /csi/csi.sock --node-id cd132867-54c2-d993-9a62-cf88deb5945c --topology region=global --topology datacenter=dc1 --topology class=rack&quot;
+...
+2021-02-21T14:15:28.170-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
+2021-02-21T14:15:28.181-0500 [WARN]  client.csi-zfs: finished client unary call: grpc.code=Internal duration=2.401155ms grpc.service=csi.v1.Node grpc.method=NodeGetCapabilities</p>
+</blockquote>
+<p>Armed with the
+<a href="https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetcapabilities"><code>NodeGetCapabilities</code></a>
+spec and the
+<a href="https://pkg.go.dev/github.com/container-storage-interface/spec@v1.3.0/lib/go/csi#NodeGetCapabilitiesResponse"><code>NodeGetCapabilitiesResponse</code></a>
+doc, I can work up an empty response body:</p>
+<div class="highlight"><pre class="chroma"><code class="language-diff" data-lang="diff"> func (n *NodeServer) NodeGetCapabilities(context.Context, *csipb.NodeGetCapabilitiesRequest) (
+        *csipb.NodeGetCapabilitiesResponse, error) {
+<span class="gd">-       return nil, nil
+</span><span class="gd"></span><span class="gi">+       return &amp;csipb.NodeGetCapabilitiesResponse{}, nil
+</span><span class="gi"></span> }
+</code></pre></div><p>That silences the error:</p>
+<blockquote>
+<p>2021-02-21T14:20:21.541-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
+2021-02-21T14:20:21.543-0500 [DEBUG] client.csi-zfs: volume manager setup complete</p>
+</blockquote>
+<p>But this endpoint is what advertises the plugins capabilities, so I'll
+return the capabilities instead:</p>
+<div class="highlight"><pre class="chroma"><code class="language-diff" data-lang="diff"> func (n *NodeServer) NodeGetCapabilities(context.Context, *csipb.NodeGetCapabilitiesRequest) (
+        *csipb.NodeGetCapabilitiesResponse, error) {
+<span class="gd">-       return nil, nil
+</span><span class="gd"></span><span class="gi">+
+</span><span class="gi">+       return &amp;csipb.NodeGetCapabilitiesResponse{
+</span><span class="gi">+               Capabilities: []*csipb.NodeServiceCapability{
+</span><span class="gi">+                       {
+</span><span class="gi">+                               Type: &amp;csipb.NodeServiceCapability_Rpc{
+</span><span class="gi">+                                       Rpc: &amp;csipb.NodeServiceCapability_RPC{
+</span><span class="gi">+                                               Type: csipb.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+</span><span class="gi">+                                       },
+</span><span class="gi">+                               },
+</span><span class="gi">+                       },
+</span><span class="gi">+               },
+</span><span class="gi">+       }, nil
+</span><span class="gi"></span> }
+</code></pre></div><p>If I build and run the new plugin, it registers itself and is marked
+as healthy by the Nomad server, ready to publish volumes. That's
+commit
+<a href="https://github.com/tgross/zfs-csi-driver/commit/02ef228886042f3f524d2a8429829b15bd94f53e">02ef228</a>.</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ nomad plugin status csi-zfs
+ID                   = csi-zfs
+Provider             = zfs.csi.0x74696d.com
+Version              = 0.0.1
+Controllers Healthy  = 0
+Controllers Expected = 0
+Nodes Healthy        = 1
+Nodes Expected       = 1
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+f73abbe3  9c559244  plugin      0        run      running  16s ago  4s ago
+</code></pre></div><p>Once I get into performing ZFS workflows, I'm going to want to observe
+them. So one last item before I wrap up today's work is to add some
+logging. I'm fond of the API for
+<a href="https://pkg.go.dev/github.com/apex/log"><code>apex/log</code></a>, so I'll configure a
+logger in <code>config.go</code>.</p>
+<div class="highlight"><pre class="chroma"><code class="language-diff" data-lang="diff"><span class="gi">+       var logLevel = flag.String(&#34;log-level&#34;, &#34;debug&#34;, `Logging level. One of:
+</span><span class="gi">+debug, info, warn, error, fatal`)
+</span><span class="gi"></span>
+        flag.Parse()
+
+<span class="gi">+       log.SetLevelFromString(*logLevel)
+</span><span class="gi">+       log.SetHandler(jsonlog.Default)
+</span><span class="gi">+
+</span><span class="gi"></span>        return config{
+                socketPath: *sockPath,
+                nodeID:     *nodeID,
+</code></pre></div><p>And then thread that through the RPC servers.</p>
+<div class="highlight"><pre class="chroma"><code class="language-diff" data-lang="diff"> type NodeServer struct {
+<span class="gd">-       NodeID   string
+</span><span class="gd">-       Topology map[string]string
+</span><span class="gd"></span><span class="gi">+       nodeID   string
+</span><span class="gi">+       topology map[string]string
+</span><span class="gi">+       log      *log.Entry
+</span><span class="gi">+}
+</span><span class="gi">+
+</span><span class="gi">+func NewNodeServer(nodeID string, topology map[string]string) *NodeServer {
+</span><span class="gi">+       return &amp;NodeServer{
+</span><span class="gi">+               nodeID:   nodeID,
+</span><span class="gi">+               topology: topology,
+</span><span class="gi">+               log:      log.WithFields(log.Fields{&#34;service&#34;: &#34;Node&#34;}),
+</span><span class="gi">+       }
+</span><span class="gi"></span> }
+</code></pre></div><p>The resulting structured logs look like the following when I do <code>nomad alloc logs -stderr :alloc_id</code>. I'm not wild about the timing traces
+being at <code>INFO</code> but I can live with it. That's committed as
+<a href="https://github.com/tgross/zfs-csi-driver/commit/6b0de82c0dde3ded8b310b97b3bb5ca7267fc3b3">6b0de82</a>.</p>
+<div class="highlight"><pre class="chroma"><code class="language-json" data-lang="json"><span class="p">{</span><span class="nt">&#34;fields&#34;</span><span class="p">:{</span><span class="nt">&#34;duration&#34;</span><span class="p">:</span><span class="mi">0</span><span class="p">},</span><span class="nt">&#34;level&#34;</span><span class="p">:</span><span class="s2">&#34;info&#34;</span><span class="p">,</span><span class="nt">&#34;timestamp&#34;</span><span class="p">:</span><span class="s2">&#34;2021-02-21T20:58:58.462860527Z&#34;</span><span class="p">,</span><span class="nt">&#34;message&#34;</span><span class="p">:</span><span class="s2">&#34;GetPluginCapabilities&#34;</span><span class="p">}</span>
+</code></pre></div><p>Next time, I'll finally start making some ZFS datasets!</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>If you find yourself saying this, stop and check what you're
+doing. As we'll discover in a moment. <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fzfs-driver-for-nomad-part3%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

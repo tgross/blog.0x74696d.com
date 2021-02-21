@@ -5,10 +5,229 @@
     <description>Recent content in Posts on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 15 Feb 2021 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 21 Feb 2021 08:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>A ZFS Driver for Nomad, Part 3</title>
+      <link>https://blog.0x74696d.com/posts/zfs-driver-for-nomad-part3/</link>
+      <pubDate>Sun, 21 Feb 2021 08:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/zfs-driver-for-nomad-part3/</guid>
+      <description>&lt;p&gt;Last time we implemented the Container Storage Interface (CSI)
+&lt;strong&gt;Identity&lt;/strong&gt; service, so now it&#39;s time to look at the &lt;strong&gt;Controller&lt;/strong&gt; and
+&lt;strong&gt;Node&lt;/strong&gt; services. The CSI spec has a lot of detail as to the
+protocol, but leaves a lot of the intentions behind each service left
+unsaid for the implementer to discover.&lt;/p&gt;
+&lt;p&gt;The spec tells us that
+&lt;a href=&#34;https://github.com/container-storage-interface/spec/blob/master/spec.md#node-service-rpc&#34;&gt;Node&lt;/a&gt;
+service RPCs shall run on the node where the volume is used. There are
+only a few required RPCs: &lt;code&gt;NodeGetCapabilities&lt;/code&gt; that tells us which
+RPCs are implemented, and &lt;code&gt;NodePublishVolume&lt;/code&gt; and
+&lt;code&gt;NodeUnpublishVolume&lt;/code&gt; that are call when the orchestrator has a
+workload that wants to use the volume. The &lt;code&gt;NodeStageVolume&lt;/code&gt; and
+&lt;code&gt;NodeUnstageVolume&lt;/code&gt; are optional, and are for preparing the volume for
+its first use on the node where the volume is used. These definitions
+are pretty vague, but that&#39;s required for the CSI authors to cover a
+very broad range of storage providers.&lt;/p&gt;
+&lt;p&gt;The optional
+&lt;a href=&#34;https://github.com/container-storage-interface/spec/blob/master/spec.md#controller-service-rpc&#34;&gt;Controller&lt;/a&gt;
+service RPCs include &lt;code&gt;CreateVolume&lt;/code&gt;, &lt;code&gt;ControllerPublishVolume&lt;/code&gt;, and
+&lt;code&gt;CreateSnapshot&lt;/code&gt;, so at first glance this sounds like I&#39;ll want this
+for the ZFS plugin. But the Controller RPCs differ in one important
+respect: they don&#39;t necessarily happen on the same node where we&#39;re
+going to use the volume! Unfortunately the &lt;a href=&#34;https://kubernetes-csi.github.io/docs/developing.html&#34;&gt;Kubernetes CSI development
+guide&lt;/a&gt; doesn&#39;t
+describe the purpose of the Controller, but we can piece it together
+from the requirements of its component RPCs.&lt;/p&gt;
+&lt;p&gt;The Controller service is for workflows with the storage provider
+infrastructure APIs, whereas the Node service is for workflows
+specific to a given host. If we use AWS Elastic Block Storage (EBS)
+volumes as an example, the Controller service tells AWS to create the
+EBS volume (&lt;code&gt;CreateVolume&lt;/code&gt;) and attach the volume to the EC2 virtual
+machine (&lt;code&gt;ControllerPublishVolume&lt;/code&gt;), whereas the Node service formats
+the volume (&lt;code&gt;NodeStageVolume&lt;/code&gt;) and mounts it for the container
+(&lt;code&gt;NodePublishVolume&lt;/code&gt;).&lt;/p&gt;
+&lt;p&gt;In the case of the ZFS plugin, there&#39;s no &amp;quot;remote ZFS API&amp;quot;. I&#39;ll
+ultimately need some sort of service to store the snapshots that I
+&lt;code&gt;zfs send&lt;/code&gt;, but all the workflows for this will need to be driven from
+the host where the volume is in use. So I can drop the Controller
+service entirely.&lt;/p&gt;
+&lt;p&gt;With that in mind, I want to get the plugin to the point where it
+registers as healthy with Nomad. The last error we got was because
+the &lt;code&gt;NodeGetInfo&lt;/code&gt; service wasn&#39;t implemented:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;2021-02-15T15:47:33.839-0500 [WARN] client.csi-zfs: finished client
+unary call: grpc.code=Unimplemented duration=357.548µs
+grpc.service=csi.v1.Node grpc.method=NodeGetInfo&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;First, I&#39;ll do a bit of refactoring and move the Identity service into
+its own file. I can remove the controller capability from
+&lt;code&gt;GetPluginCapabilities&lt;/code&gt;, and I can change out the &amp;quot;monolith&amp;quot; for
+&amp;quot;node&amp;quot; in my jobspec for the plugin. Next I&#39;ll implement the
+&lt;a href=&#34;https://pkg.go.dev/github.com/container-storage-interface/spec@v1.3.0/lib/go/csi#NodeServer&#34;&gt;&lt;code&gt;NodeServer&lt;/code&gt;&lt;/a&gt;
+interface, just by dropping a bunch of empty function bodies in a new
+&lt;code&gt;node.go&lt;/code&gt; file. All that is commit
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/b77e1fe20cb5e58411bcc09a28d87a81815a4aee&#34;&gt;b77e1fe&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I compile and run that, but still get the same error. So I check the
+allocation logs and find the following:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;ERROR: 2021/02/21 18:17:22 [core] grpc: server failed to encode response:  rpc error: code = Internal desc = grpc: error while marshaling: proto: Marshal called with nil&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Let&#39;s look at the spec for
+&lt;a href=&#34;https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo&#34;&gt;&lt;code&gt;NodeGetInfo&lt;/code&gt;&lt;/a&gt;
+and the
+&lt;a href=&#34;https://pkg.go.dev/github.com/container-storage-interface/spec@v1.3.0/lib/go/csi#NodeGetInfoResponse&#34;&gt;&lt;code&gt;NodeGetInfoResponse&lt;/code&gt;&lt;/a&gt;
+in a little more detail.&lt;/p&gt;
+&lt;p&gt;The fields look oriented towards cloud storage use cases, where cloud
+vendor storage volumes will be attached to cloud vendor VMs over cloud
+vendor networks. We can see this comment for the &lt;code&gt;node_id&lt;/code&gt; field:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// The identifier of the node as understood by the SP.
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// This field is REQUIRED.
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// This field MUST contain enough information to uniquely identify
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// this specific node vs all other nodes supported by this plugin.
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// This field SHALL be used by the CO in subsequent calls, including
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// `ControllerPublishVolume`, to refer to this node.
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// The SP is NOT responsible for global uniqueness of node_id across
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// multiple SPs.
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Well using the hostname probably isn&#39;t a great option here. I&#39;ll let
+the operator set this value, assuming they&#39;ll want to use the Nomad
+node ID via &lt;a href=&#34;https://www.nomadproject.io/docs/runtime/interpolation&#34;&gt;attribute
+interpolation&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;For the &lt;code&gt;max_volumes_per_node&lt;/code&gt; field, I see:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// Maximum number of volumes that controller can publish to the node.
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Curious.&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; Well, we have no controller. So I can skip this.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;Topology&lt;/code&gt; works out to be a map of strings. We could have these
+automatically pick up values from the environment Nomad provides, but
+in the interest of portability, I&#39;ll have the user provide these as a
+list of &lt;code&gt;--topology&lt;/code&gt; flags. I&#39;m building up enough config now that
+I&#39;ll pull that out into its own struct, file, and a &lt;code&gt;newConfig&lt;/code&gt;
+function that hides it away from us. That commit is
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/128b9365a53725be346dd84cd28bae79e82fc7ec&#34;&gt;128b936&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;But wait a sec... what&#39;s this comment at the top of &lt;a href=&#34;https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo&#34;&gt;&lt;code&gt;NodeGetInfo&lt;/code&gt;&lt;/a&gt;?&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;A Node Plugin MUST implement this RPC call if the plugin has
+&lt;code&gt;PUBLISH_UNPUBLISH_VOLUME&lt;/code&gt; controller capability.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;We &lt;em&gt;don&#39;t&lt;/em&gt; have that capability, as we removed it earlier. So that RPC
+shouldn&#39;t be getting hit. It&#39;s a bug in Nomad! When the Nomad client
+fingerprints the plugin, it checks &lt;code&gt;NodeGetInfo&lt;/code&gt; if
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/client/pluginmanager/csimanager/fingerprint.go#L110-L111&#34;&gt;&lt;code&gt;p.fingerprintNode&lt;/code&gt;&lt;/a&gt;
+is set, which is set if the plugin is of type
+&lt;a href=&#34;https://github.com/hashicorp/nomad/blob/v1.0.3/client/pluginmanager/csimanager/instance.go#L58&#34;&gt;&lt;code&gt;PluginCSITypeNode&lt;/code&gt;&lt;/a&gt;. That
+check for &lt;code&gt;NodeGetInfo&lt;/code&gt; should be for &lt;code&gt;p.fingerprintController&lt;/code&gt;, not
+&lt;code&gt;p.fingerprintNode&lt;/code&gt;. Oops! I&#39;ll take a quick detour to open
+&lt;a href=&#34;https://github.com/hashicorp/nomad/issues/10055&#34;&gt;nomad/#10055&lt;/a&gt;, but
+in the meantime we&#39;ll keep our implementation in place and we can rip
+it out once that&#39;s been fixed in Nomad.&lt;/p&gt;
+&lt;p&gt;With &lt;code&gt;NodeGetInfo&lt;/code&gt; implemented, I compile and run on Nomad again. I
+see the client starts it with all the arguments I&#39;d expect, but now I
+get an error for &lt;code&gt;NodeGetCapabilities&lt;/code&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;2021-02-21T14:06:44.840-0500 [DEBUG] client.driver_mgr.docker: setting container startup command: driver=docker task_name=plugin command=&amp;quot;/bin/zfs-csi-driver --csi-address /csi/csi.sock --node-id cd132867-54c2-d993-9a62-cf88deb5945c --topology region=global --topology datacenter=dc1 --topology class=rack&amp;quot;
+...
+2021-02-21T14:15:28.170-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
+2021-02-21T14:15:28.181-0500 [WARN]  client.csi-zfs: finished client unary call: grpc.code=Internal duration=2.401155ms grpc.service=csi.v1.Node grpc.method=NodeGetCapabilities&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Armed with the
+&lt;a href=&#34;https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetcapabilities&#34;&gt;&lt;code&gt;NodeGetCapabilities&lt;/code&gt;&lt;/a&gt;
+spec and the
+&lt;a href=&#34;https://pkg.go.dev/github.com/container-storage-interface/spec@v1.3.0/lib/go/csi#NodeGetCapabilitiesResponse&#34;&gt;&lt;code&gt;NodeGetCapabilitiesResponse&lt;/code&gt;&lt;/a&gt;
+doc, I can work up an empty response body:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-diff&#34; data-lang=&#34;diff&#34;&gt; func (n *NodeServer) NodeGetCapabilities(context.Context, *csipb.NodeGetCapabilitiesRequest) (
+        *csipb.NodeGetCapabilitiesResponse, error) {
+&lt;span class=&#34;gd&#34;&gt;-       return nil, nil
+&lt;/span&gt;&lt;span class=&#34;gd&#34;&gt;&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+       return &amp;amp;csipb.NodeGetCapabilitiesResponse{}, nil
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;&lt;/span&gt; }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;That silences the error:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;2021-02-21T14:20:21.541-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
+2021-02-21T14:20:21.543-0500 [DEBUG] client.csi-zfs: volume manager setup complete&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;But this endpoint is what advertises the plugins capabilities, so I&#39;ll
+return the capabilities instead:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-diff&#34; data-lang=&#34;diff&#34;&gt; func (n *NodeServer) NodeGetCapabilities(context.Context, *csipb.NodeGetCapabilitiesRequest) (
+        *csipb.NodeGetCapabilitiesResponse, error) {
+&lt;span class=&#34;gd&#34;&gt;-       return nil, nil
+&lt;/span&gt;&lt;span class=&#34;gd&#34;&gt;&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+       return &amp;amp;csipb.NodeGetCapabilitiesResponse{
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+               Capabilities: []*csipb.NodeServiceCapability{
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+                       {
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+                               Type: &amp;amp;csipb.NodeServiceCapability_Rpc{
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+                                       Rpc: &amp;amp;csipb.NodeServiceCapability_RPC{
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+                                               Type: csipb.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+                                       },
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+                               },
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+                       },
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+               },
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+       }, nil
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;&lt;/span&gt; }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If I build and run the new plugin, it registers itself and is marked
+as healthy by the Nomad server, ready to publish volumes. That&#39;s
+commit
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/02ef228886042f3f524d2a8429829b15bd94f53e&#34;&gt;02ef228&lt;/a&gt;.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ nomad plugin status csi-zfs
+ID                   = csi-zfs
+Provider             = zfs.csi.0x74696d.com
+Version              = 0.0.1
+Controllers Healthy  = 0
+Controllers Expected = 0
+Nodes Healthy        = 1
+Nodes Expected       = 1
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+f73abbe3  9c559244  plugin      0        run      running  16s ago  4s ago
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Once I get into performing ZFS workflows, I&#39;m going to want to observe
+them. So one last item before I wrap up today&#39;s work is to add some
+logging. I&#39;m fond of the API for
+&lt;a href=&#34;https://pkg.go.dev/github.com/apex/log&#34;&gt;&lt;code&gt;apex/log&lt;/code&gt;&lt;/a&gt;, so I&#39;ll configure a
+logger in &lt;code&gt;config.go&lt;/code&gt;.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-diff&#34; data-lang=&#34;diff&#34;&gt;&lt;span class=&#34;gi&#34;&gt;+       var logLevel = flag.String(&amp;#34;log-level&amp;#34;, &amp;#34;debug&amp;#34;, `Logging level. One of:
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+debug, info, warn, error, fatal`)
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;&lt;/span&gt;
+        flag.Parse()
+
+&lt;span class=&#34;gi&#34;&gt;+       log.SetLevelFromString(*logLevel)
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+       log.SetHandler(jsonlog.Default)
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;&lt;/span&gt;        return config{
+                socketPath: *sockPath,
+                nodeID:     *nodeID,
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And then thread that through the RPC servers.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-diff&#34; data-lang=&#34;diff&#34;&gt; type NodeServer struct {
+&lt;span class=&#34;gd&#34;&gt;-       NodeID   string
+&lt;/span&gt;&lt;span class=&#34;gd&#34;&gt;-       Topology map[string]string
+&lt;/span&gt;&lt;span class=&#34;gd&#34;&gt;&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+       nodeID   string
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+       topology map[string]string
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+       log      *log.Entry
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+}
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+func NewNodeServer(nodeID string, topology map[string]string) *NodeServer {
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+       return &amp;amp;NodeServer{
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+               nodeID:   nodeID,
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+               topology: topology,
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+               log:      log.WithFields(log.Fields{&amp;#34;service&amp;#34;: &amp;#34;Node&amp;#34;}),
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+       }
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;&lt;/span&gt; }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The resulting structured logs look like the following when I do &lt;code&gt;nomad alloc logs -stderr :alloc_id&lt;/code&gt;. I&#39;m not wild about the timing traces
+being at &lt;code&gt;INFO&lt;/code&gt; but I can live with it. That&#39;s committed as
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/6b0de82c0dde3ded8b310b97b3bb5ca7267fc3b3&#34;&gt;6b0de82&lt;/a&gt;.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-json&#34; data-lang=&#34;json&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;fields&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:{&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;duration&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;level&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;info&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;timestamp&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;2021-02-21T20:58:58.462860527Z&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;message&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;GetPluginCapabilities&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Next time, I&#39;ll finally start making some ZFS datasets!&lt;/p&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;If you find yourself saying this, stop and check what you&#39;re
+doing. As we&#39;ll discover in a moment. &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+</description>
+    </item>
     
     <item>
       <title>A ZFS Driver for Nomad, Part 2</title>
@@ -1665,56 +1884,6 @@ METHOD                                                                  # CALLS
 &lt;ol start=&#34;0&#34;&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;Part 1: Build for Reliability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Software Defined Culture, Part 0</title>
-      <link>https://blog.0x74696d.com/posts/software-defined-culture/</link>
-      <pubDate>Sun, 18 Feb 2018 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/software-defined-culture/</guid>
-      <description>&lt;p&gt;This five-part series of posts covers a talk titled &lt;em&gt;Software Defined Culture&lt;/em&gt; that I gave at &lt;a href=&#34;https://www.devopsdays.org/events/2016-philadelphia/program/tim-gross/&#34;&gt;DevOps Days Philadelphia 2016&lt;/a&gt;, &lt;a href=&#34;https://gotochgo.com/2017/sessions/43&#34;&gt;GOTO Chicago 2017&lt;/a&gt;, and &lt;a href=&#34;https://vimeo.com/228067673&#34;&gt;Velocity San Jose 2017&lt;/a&gt;. I think the talk got better and each time I iterated on it. The talk was full of dumb jokes and silly gifs, whereas these posts will remove most of the gags and maybe clarify a couple of points. As a talk there&#39;s a limit to how deep I could go on any given topic, but having this here in blog format will give me a framework on which to hang some upcoming topics.&lt;/p&gt;
-&lt;p&gt;First, a warning. These posts will get a bit ranty. I&#39;m talking about culture and the decisions we make around technical choices. But we have to be careful talking about culture. It&#39;s easy (especially as technologists) to be incredibly tone deaf when talking about culture. It&#39;s easy to make assumptions that your experiences are the same as other people&#39;s experiences. So for these posts, keep in mind that they&#39;re based on my experiences working mostly in small and mid-size organizations, working with enterprise developers in customer organizations, and being part of the technical communities I&#39;ve been a part of personally. Your mileage may vary.&lt;/p&gt;
-&lt;p&gt;Second, some disclaimers. I&#39;m going to quote a few people in these posts, but none of these people would necessarily endorse any particular position I&#39;m making here. I&#39;m also going to poke some fun at various technologies. These are all technologies I&#39;ve personally worked with. So if I&#39;m not making fun of your favorite technology, it&#39;s not because it&#39;s necessarily any good but just that I haven&#39;t worked with it before.&lt;/p&gt;
-&lt;p&gt;If you&#39;d like to skip ahead to the rest of the series:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h2 id=&#34;shipping-the-org-chart&#34;&gt;Shipping the Org Chart&lt;/h2&gt;
-&lt;p&gt;My friend and former colleague Bridget Kromhout is fond of saying &lt;a href=&#34;https://queue.acm.org/detail.cfm?id=3185224&#34;&gt;&amp;quot;containers won&#39;t fix your broken culture&amp;quot;&lt;/a&gt;. And she&#39;s right. Ryn Daniels, one of the authors of &lt;em&gt;Effective DevOps&lt;/em&gt;, said in their &lt;a href=&#34;https://www.oreilly.com/ideas/building-bridges-with-devops-velocity-ny-2016&#34;&gt;keynote at Velocity NY 2016&lt;/a&gt; that &amp;quot;tools won&#39;t fix your broken culture.&amp;quot; And they&#39;re right.&lt;/p&gt;
-&lt;p&gt;This is the essence of the problem we face as technologists trying to improve our organizations. We have an embarrassment of technical tooling and best practices, but none of it really fixes our human problems. Hell, most of the time it barely fixes our technical problems, so how would we expect it to fix our technical problems?&lt;/p&gt;
-&lt;p&gt;I live in Philadelphia, and like many communities we have a Slack, and there&#39;s a devops channel. And every few months it seems we get an exchange like this:&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;https://blog.0x74696d.com/images/20180218/slack-devops.png&#34; alt=&#34;Slack channel&#34;&gt;&lt;/p&gt;
-&lt;p&gt;And, sure, maybe this response could be a little more constructive. But the point is that many people are confusing &amp;quot;devops tools&amp;quot; for a model of working. Simply using the tools by themselves doesn&#39;t mean you&#39;re going to make the cultural transformation you might be looking to make. So often tooling is treated like a kind of a spiritual bypass — &amp;quot;I&#39;m using Docker, so I&#39;m doing The DevOps&amp;quot;.&lt;/p&gt;
-&lt;p&gt;Part of the reason this doesn&#39;t work is because of something called &lt;em&gt;Conway&#39;s Law&lt;/em&gt;, which was coined by Melvin Conway in his 1967 paper &lt;em&gt;How Do Committees Invent?&lt;/em&gt;&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;&amp;quot;Any organization that designs a system (defined more broadly here than just information systems) will inevitably produce a design whose structure is a copy of the organization&#39;s communication structure.&amp;quot;&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;It&#39;s important to keep in mind here that &amp;quot;system&amp;quot; doesn&#39;t just mean the technical system it also means the cultural system.&lt;/p&gt;
-&lt;h2 id=&#34;chaotic-feedback&#34;&gt;Chaotic Feedback&lt;/h2&gt;
-&lt;p&gt;Human beings are the biggest distributed system. Or as &lt;a href=&#34;https://twitter.com/littleidea&#34;&gt;Andrew Clay Shafer&lt;/a&gt; likes to say, organizations are a &amp;quot;socio-technical system.&amp;quot; But like all complex systems, cultural systems are subject to chaotic feedback mechanisms. Subtle disturbances in equilibrium over time can build up to have outsized effects. Could we use these mechanisms to make technical choices to improve our culture?&lt;/p&gt;
-&lt;p&gt;Instinctively we all know that making bad technical choices can influence our culture. We know that if we don&#39;t build for observability, the operations team will be frustrated with the developers who are making them fly blind. We know that if don&#39;t build for self-serviceability, the development teams will hate the operations team for saying &amp;quot;no&amp;quot; all the time. We know that we don&#39;t build for flexibility, the production management team will frustrated with the inability of the development team to react quickly to changing market conditions.&lt;/p&gt;
-&lt;p&gt;If you were up all night every night over the weekend because PagerDuty was sending alerts over some crap deployments, then on Monday the team is going to be tired and maybe even cranky with each other. In an org where there&#39;s a separate operations team, the operators trust will be eroded every time they get paged unnecessarily. That erosion of trust is a technical decision influencing your culture.&lt;/p&gt;
-&lt;p&gt;Last April, Bill Higgins at IBM had a &lt;a href=&#34;https://medium.com/@BillHiggins/tools-as-a-catalyst-for-culture-change-f012b2c0b527&#34;&gt;great blog post&lt;/a&gt; where he was talking about bringing new tools to a project team to catalyze a change in the way the team organized. He had great results, and it leads to him using the word &amp;quot;magic&amp;quot; a lot to describe the impact:&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;&amp;quot;The magic is in the new, better practices that the tools enable. A tool is a vehicle for practices. Practices directly shape habits and tacit assumptions. Habits and tacit assumptions are the foundations of culture.&amp;quot;&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;The idea that he keeps coming back to was that all these tools had amazing surface usability but the magic was actually about the new methods and collaboration that they generated. GitHub is &amp;quot;just a pretty web UI on git&amp;quot;, right? But what it enables is a workflow around peer review, collaborative software development, and communal ownership of code. Slack is &amp;quot;just a pretty web UI on IRC&amp;quot;, right? But unlike IRC, you can get non-technical people to use it. Slack channels become a place where technical teams (and their bots!) and non-technical teams can share a common medium of communication.&lt;/p&gt;
-&lt;p&gt;Culture influences tools but we can clearly see that tools can influence culture as well. This back-and-forth was illustrated nicely by Avi Vig in an AMA on Reddit (of all places) about his experience as an operations engineer at Etsy:&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;&amp;quot;A lot of CD is to do with culture, much more than tools... Once you have the culture moving in the right direction, where developers are happy pushing code and owning software problems, and operations teams are OK letting go of the control and working with developers, the tools become less important.&amp;quot;&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;If we know our technical choices can influence our culture, how can we make technical choices that will reinforce the values that we want in our organizations? I&#39;ve come up with four guidelines for technical decision making which I&#39;m going to grandiosely call the &amp;quot;4 principles of software defined culture.&amp;quot; The remaining posts in this series will hit on each of these:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;

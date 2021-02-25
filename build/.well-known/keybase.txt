@@ -1,0 +1,56 @@
+==================================================================
+https://keybase.io/tgross
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://blog.0x74696d.com
+  * I am tgross (https://keybase.io/tgross) on keybase.
+  * I have a public key ASBkr5QXPfZ8YHaM4yjIRRHc0Jwq8Ne3cHxkdbhAjgUgXwo
+
+To do so, I am signing this object:
+
+{
+  "body": {
+    "key": {
+      "eldest_kid": "012064af94173df67c60768ce328c84511dcd09c2af0d7b7707c6475b8408e05205f0a",
+      "host": "keybase.io",
+      "kid": "012064af94173df67c60768ce328c84511dcd09c2af0d7b7707c6475b8408e05205f0a",
+      "uid": "703f38b1f026d6a61bbcdc7dac3a2a19",
+      "username": "tgross"
+    },
+    "merkle_root": {
+      "ctime": 1614220075,
+      "hash": "dcb364bfe9907c7f549939676c6bc7df172e9abb6156bed89ccbac24f491ed17376657b63058ffe9c1bb77e2710a75865a1322cde8952dcdef8fecae59ca9809",
+      "hash_meta": "d05a80fec76c14dffd7f682e859bab2b14ede167c4c183fde19631d9c0d4bedb",
+      "seqno": 19215424
+    },
+    "service": {
+      "entropy": "QEyE7fgR5LuCYEUYXfQIGKdJ",
+      "hostname": "blog.0x74696d.com",
+      "protocol": "https:"
+    },
+    "type": "web_service_binding",
+    "version": 2
+  },
+  "client": {
+    "name": "keybase.io go client",
+    "version": "5.6.1"
+  },
+  "ctime": 1614220107,
+  "expire_in": 504576000,
+  "prev": "bd193471fea7ff400205941509d95d203465f6b8dc3551fe6607647710aef782",
+  "seqno": 5,
+  "tag": "signature"
+}
+
+which yields the signature:
+
+hKRib2R5hqhkZXRhY2hlZMOpaGFzaF90eXBlCqNrZXnEIwEgZK+UFz32fGB2jOMoyEUR3NCcKvDXt3B8ZHW4QI4FIF8Kp3BheWxvYWTESpcCBcQgvRk0cf6n/0ACBZQVCdldIDRl9rjcNVH+ZgdkdxCu94LEIIijjYpSBYc2fV9Fb50vbZkZhYtu0YU1DIu2GEXmmFXaAgHCo3NpZ8RAKZQKRwQUC/RWeW0yAY9slojYqgVG2ImBvfjIf/Km9ZoGEjblfitHbWYjbKCitNulsoqQ0bWXVspqKQmCbtHVAKhzaWdfdHlwZSCkaGFzaIKkdHlwZQildmFsdWXEIMnsJ63UoZi56263rvx2XnAYKlVFmwuFKrItFvH79p+do3RhZ80CAqd2ZXJzaW9uAQ==
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/tgross
+
+==================================================================

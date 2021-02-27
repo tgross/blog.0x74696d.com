@@ -93,7 +93,9 @@ interface, just by dropping a bunch of empty function bodies in a new
 <p>I compile and run that, but still get the same error. So I check the
 allocation logs and find the following:</p>
 <blockquote>
-<p>ERROR: 2021/02/21 18:17:22 [core] grpc: server failed to encode response:  rpc error: code = Internal desc = grpc: error while marshaling: proto: Marshal called with nil</p>
+<p>ERROR: 2021/02/21 18:17:22 [core] grpc: server failed to encode
+response: rpc error: code = Internal desc = grpc: error while
+marshaling: proto: Marshal called with nil</p>
 </blockquote>
 <p>Let's look at the spec for
 <a href="https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo"><code>NodeGetInfo</code></a>
@@ -145,10 +147,9 @@ it out once that's been fixed in Nomad.</p>
 see the client starts it with all the arguments I'd expect, but now I
 get an error for <code>NodeGetCapabilities</code>:</p>
 <blockquote>
-<p>2021-02-21T14:06:44.840-0500 [DEBUG] client.driver_mgr.docker: setting container startup command: driver=docker task_name=plugin command=&quot;/bin/zfs-csi-driver --csi-address /csi/csi.sock --node-id cd132867-54c2-d993-9a62-cf88deb5945c --topology region=global --topology datacenter=dc1 --topology class=rack&quot;
-...
-2021-02-21T14:15:28.170-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
-2021-02-21T14:15:28.181-0500 [WARN]  client.csi-zfs: finished client unary call: grpc.code=Internal duration=2.401155ms grpc.service=csi.v1.Node grpc.method=NodeGetCapabilities</p>
+<p>2021-02-21T14:15:28.181-0500 [WARN] client.csi-zfs: finished client
+unary call: grpc.code=Internal duration=2.401155ms
+grpc.service=csi.v1.Node grpc.method=NodeGetCapabilities</p>
 </blockquote>
 <p>Armed with the
 <a href="https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetcapabilities"><code>NodeGetCapabilities</code></a>
@@ -162,8 +163,8 @@ doc, I can work up an empty response body:</p>
 </span><span class="gi"></span> }
 </code></pre></div><p>That silences the error:</p>
 <blockquote>
-<p>2021-02-21T14:20:21.541-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
-2021-02-21T14:20:21.543-0500 [DEBUG] client.csi-zfs: volume manager setup complete</p>
+<p>2021-02-21T14:20:21.541-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node</p>
+<p>2021-02-21T14:20:21.543-0500 [DEBUG] client.csi-zfs: volume manager setup complete</p>
 </blockquote>
 <p>But this endpoint is what advertises the plugins capabilities, so I'll
 return the capabilities instead:</p>
@@ -234,8 +235,10 @@ logger in <code>config.go</code>.</p>
 </code></pre></div><p>The resulting structured logs look like the following when I do <code>nomad alloc logs -stderr :alloc_id</code>. I'm not wild about the timing traces
 being at <code>INFO</code> but I can live with it. That's committed as
 <a href="https://github.com/tgross/zfs-csi-driver/commit/6b0de82c0dde3ded8b310b97b3bb5ca7267fc3b3">6b0de82</a>.</p>
-<div class="highlight"><pre class="chroma"><code class="language-json" data-lang="json"><span class="p">{</span><span class="nt">&#34;fields&#34;</span><span class="p">:{</span><span class="nt">&#34;duration&#34;</span><span class="p">:</span><span class="mi">0</span><span class="p">},</span><span class="nt">&#34;level&#34;</span><span class="p">:</span><span class="s2">&#34;info&#34;</span><span class="p">,</span><span class="nt">&#34;timestamp&#34;</span><span class="p">:</span><span class="s2">&#34;2021-02-21T20:58:58.462860527Z&#34;</span><span class="p">,</span><span class="nt">&#34;message&#34;</span><span class="p">:</span><span class="s2">&#34;GetPluginCapabilities&#34;</span><span class="p">}</span>
-</code></pre></div><p>Next time, I'll finally start making some ZFS datasets!</p>
+<blockquote>
+<p>{&quot;fields&quot;:{&quot;duration&quot;:0},&quot;level&quot;:&quot;info&quot;,&quot;timestamp&quot;:&quot;2021-02-21T20:58:58.462860527Z&quot;,&quot;message&quot;:&quot;GetPluginCapabilities&quot;}</p>
+</blockquote>
+<p>Next time, I'll finally start making some ZFS datasets!</p>
 <section class="footnotes" role="doc-endnotes">
 <hr>
 <ol>

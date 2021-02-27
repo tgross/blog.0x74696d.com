@@ -72,7 +72,9 @@ interface, just by dropping a bunch of empty function bodies in a new
 I compile and run that, but still get the same error. So I check the
 allocation logs and find the following:
 
-> ERROR: 2021/02/21 18:17:22 [core] grpc: server failed to encode response:  rpc error: code = Internal desc = grpc: error while marshaling: proto: Marshal called with nil
+> ERROR: 2021/02/21 18:17:22 [core] grpc: server failed to encode
+> response: rpc error: code = Internal desc = grpc: error while
+> marshaling: proto: Marshal called with nil
 
 Let's look at the spec for
 [`NodeGetInfo`](https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo)
@@ -137,10 +139,9 @@ With `NodeGetInfo` implemented, I compile and run on Nomad again. I
 see the client starts it with all the arguments I'd expect, but now I
 get an error for `NodeGetCapabilities`:
 
-> 2021-02-21T14:06:44.840-0500 [DEBUG] client.driver_mgr.docker: setting container startup command: driver=docker task_name=plugin command="/bin/zfs-csi-driver --csi-address /csi/csi.sock --node-id cd132867-54c2-d993-9a62-cf88deb5945c --topology region=global --topology datacenter=dc1 --topology class=rack"
-> ...
-> 2021-02-21T14:15:28.170-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
-> 2021-02-21T14:15:28.181-0500 [WARN]  client.csi-zfs: finished client unary call: grpc.code=Internal duration=2.401155ms grpc.service=csi.v1.Node grpc.method=NodeGetCapabilities
+> 2021-02-21T14:15:28.181-0500 [WARN] client.csi-zfs: finished client
+> unary call: grpc.code=Internal duration=2.401155ms
+> grpc.service=csi.v1.Node grpc.method=NodeGetCapabilities
 
 Armed with the
 [`NodeGetCapabilities`](https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetcapabilities)
@@ -159,6 +160,7 @@ doc, I can work up an empty response body:
 That silences the error:
 
 > 2021-02-21T14:20:21.541-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
+>
 > 2021-02-21T14:20:21.543-0500 [DEBUG] client.csi-zfs: volume manager setup complete
 
 
@@ -251,9 +253,7 @@ alloc logs -stderr :alloc_id`. I'm not wild about the timing traces
 being at `INFO` but I can live with it. That's committed as
 [6b0de82](https://github.com/tgross/zfs-csi-driver/commit/6b0de82c0dde3ded8b310b97b3bb5ca7267fc3b3).
 
-```json
-{"fields":{"duration":0},"level":"info","timestamp":"2021-02-21T20:58:58.462860527Z","message":"GetPluginCapabilities"}
-```
+> {"fields":{"duration":0},"level":"info","timestamp":"2021-02-21T20:58:58.462860527Z","message":"GetPluginCapabilities"}
 
 Next time, I'll finally start making some ZFS datasets!
 

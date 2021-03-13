@@ -18,7 +18,7 @@ with two main options:
 * [mistifyio/go-zfs](https://github.com/mistifyio/go-zfs), which wraps
   the ZFS CLI.
 * [bicomsystems/go-libzfs](https://github.com/bicomsystems/go-libzfs),
-  which wraps the unstable libzfs.
+  which wraps the unstable `libzfs`.
 
 Both are permissively licensed. The `go-libzfs` library has a fork by
 Canonical at [ubuntu/go-libzfs](https://github.com/ubuntu/go-libzfs),
@@ -95,7 +95,7 @@ $ ldd zfsspike
         libuuid.so.1 => /lib/x86_64-linux-gnu/libuuid.so.1 (0x00007ff2531e7000)
 ```
 
-The Debian Buster container image I was using doesn't have a libzfs
+The Debian Buster container image I was using doesn't have a `libzfs`
 package at all, and Stretch only has 0.6.5, whereas I've got 0.7.x on
 my machine. So I'll start from the same Ubuntu base as my target:
 

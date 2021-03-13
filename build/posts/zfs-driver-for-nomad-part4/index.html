@@ -45,7 +45,7 @@ with two main options:</p>
 <li><a href="https://github.com/mistifyio/go-zfs">mistifyio/go-zfs</a>, which wraps
 the ZFS CLI.</li>
 <li><a href="https://github.com/bicomsystems/go-libzfs">bicomsystems/go-libzfs</a>,
-which wraps the unstable libzfs.</li>
+which wraps the unstable <code>libzfs</code>.</li>
 </ul>
 <p>Both are permissively licensed. The <code>go-libzfs</code> library has a fork by
 Canonical at <a href="https://github.com/ubuntu/go-libzfs">ubuntu/go-libzfs</a>,
@@ -105,7 +105,7 @@ libraries:</p>
         libdl.so.2 =&gt; /lib/x86_64-linux-gnu/libdl.so.2 (0x00007ff2533ee000)
         /lib64/ld-linux-x86-64.so.2 (0x00007ff255401000)
         libuuid.so.1 =&gt; /lib/x86_64-linux-gnu/libuuid.so.1 (0x00007ff2531e7000)
-</code></pre><p>The Debian Buster container image I was using doesn't have a libzfs
+</code></pre><p>The Debian Buster container image I was using doesn't have a <code>libzfs</code>
 package at all, and Stretch only has 0.6.5, whereas I've got 0.7.x on
 my machine. So I'll start from the same Ubuntu base as my target:</p>
 <div class="highlight"><pre class="chroma"><code class="language-Dockerfile" data-lang="Dockerfile"><span class="k">FROM</span><span class="s"> ubuntu:bionic</span><span class="err">

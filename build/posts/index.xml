@@ -5,10 +5,409 @@
     <description>Recent content in Posts on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 21 Feb 2021 08:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 13 Mar 2021 08:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>A ZFS Driver for Nomad, Part 4</title>
+      <link>https://blog.0x74696d.com/posts/zfs-driver-for-nomad-part4/</link>
+      <pubDate>Sat, 13 Mar 2021 08:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/zfs-driver-for-nomad-part4/</guid>
+      <description>&lt;p&gt;It&#39;s time to start talking to ZFS, so the first decision I need to
+make it whether I want to use a binding to &lt;code&gt;libzfs&lt;/code&gt; or wrap the
+command line tools. There&#39;s a &lt;code&gt;libzfs-core&lt;/code&gt; library that&#39;s intended to
+be the stable interface to ZFS, but I wasn&#39;t able to find a golang
+binding to it and didn&#39;t feel like writing my own. These leaves us
+with two main options:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/mistifyio/go-zfs&#34;&gt;mistifyio/go-zfs&lt;/a&gt;, which wraps
+the ZFS CLI.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/bicomsystems/go-libzfs&#34;&gt;bicomsystems/go-libzfs&lt;/a&gt;,
+which wraps the unstable libzfs.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Both are permissively licensed. The &lt;code&gt;go-libzfs&lt;/code&gt; library has a fork by
+Canonical at &lt;a href=&#34;https://github.com/ubuntu/go-libzfs&#34;&gt;ubuntu/go-libzfs&lt;/a&gt;,
+and both seem active which is good news. So first I did a quick spike
+with &lt;code&gt;go-libzfs&lt;/code&gt;, which as we&#39;ll see below turned out to be the right
+move.&lt;/p&gt;
+&lt;p&gt;For the final code listing of the spike see &lt;a href=&#34;https://gist.github.com/tgross/bac0fe124015afec4f68d19a167a6be0&#34;&gt;this
+gist&lt;/a&gt;. In
+my first pass at building this, I ran into this mysterious error:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ go build -o zfsspike
+# github.com/bicomsystems/go-libzfs
+../go-libzfs/zpool.go:1108:39: could not determine kind of name for C.pool_initialize_func_t
+../go-libzfs/zpool.go:1108:5: could not determine kind of name for C.zpool_initialize
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And that&#39;s the point at which I realized that I need bindings to a
+specific version of &lt;code&gt;libzfs&lt;/code&gt;. In my environment I&#39;m not on the
+bleeding edge either.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ dpkg -l libzfslinux-dev
+Desired=Unknown/Install/Remove/Purge/Hold
+| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend
+|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)
+||/ Name                        Version            Architecture       Description
++++-===========================-==================-==================-============================================================
+ii  libzfslinux-dev             0.7.5-1ubuntu16.10 amd64              OpenZFS filesystem development files for Linux
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Fortunately, unlike &lt;code&gt;mistifyio/go-zfs&lt;/code&gt;, the &lt;code&gt;go-libzfs&lt;/code&gt; library has
+tags for different versions of ZFS. The tags don&#39;t match the version
+of &lt;code&gt;libzfs&lt;/code&gt; you might have, so there&#39;s a bit of experimentation to
+find the right version. In my case, I ended up with
+&lt;a href=&#34;https://pkg.go.dev/github.com/bicomsystems/go-libzfs@v0.2.3-5&#34;&gt;v.0.2.3-5&lt;/a&gt;.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ go build -o zfsspike &amp;amp;&amp;amp; sudo ./zfsspike -name test1
+Created zfs dataset rpool/home/tim/test1
+         size =&amp;gt; &amp;quot;1614445176&amp;quot;
+         free =&amp;gt; &amp;quot;lz4&amp;quot;
+    [prop 47] =&amp;gt; &amp;quot;0&amp;quot;
+    [prop 63] =&amp;gt; &amp;quot;26624&amp;quot;
+         name =&amp;gt; &amp;quot;volume&amp;quot;
+       health =&amp;gt; &amp;quot;57344&amp;quot;
+    [prop 44] =&amp;gt; &amp;quot;all&amp;quot;
+    [prop 58] =&amp;gt; &amp;quot;standard&amp;quot;
+...
+etc.
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;That works, buts adds a new complication to our development cycle: we
+need to make sure that the container has access to the appropriate
+libraries:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ ldd zfsspike
+        linux-vdso.so.1 (0x00007ffc741fe000)
+        libzfs.so.2 =&amp;gt; /lib/libzfs.so.2 (0x00007ff2551b9000)
+        libzpool.so.2 =&amp;gt; /lib/libzpool.so.2 (0x00007ff254c3c000)
+        libnvpair.so.1 =&amp;gt; /lib/libnvpair.so.1 (0x00007ff254a29000)
+        libpthread.so.0 =&amp;gt; /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007ff25480a000)
+        libc.so.6 =&amp;gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007ff254419000)
+        libzfs_core.so.1 =&amp;gt; /lib/libzfs_core.so.1 (0x00007ff254214000)
+        libuutil.so.1 =&amp;gt; /lib/libuutil.so.1 (0x00007ff254002000)
+        libm.so.6 =&amp;gt; /lib/x86_64-linux-gnu/libm.so.6 (0x00007ff253c64000)
+        libblkid.so.1 =&amp;gt; /lib/x86_64-linux-gnu/libblkid.so.1 (0x00007ff253a17000)
+        libz.so.1 =&amp;gt; /lib/x86_64-linux-gnu/libz.so.1 (0x00007ff2537fa000)
+        librt.so.1 =&amp;gt; /lib/x86_64-linux-gnu/librt.so.1 (0x00007ff2535f2000)
+        libdl.so.2 =&amp;gt; /lib/x86_64-linux-gnu/libdl.so.2 (0x00007ff2533ee000)
+        /lib64/ld-linux-x86-64.so.2 (0x00007ff255401000)
+        libuuid.so.1 =&amp;gt; /lib/x86_64-linux-gnu/libuuid.so.1 (0x00007ff2531e7000)
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The Debian Buster container image I was using doesn&#39;t have a libzfs
+package at all, and Stretch only has 0.6.5, whereas I&#39;ve got 0.7.x on
+my machine. So I&#39;ll start from the same Ubuntu base as my target:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-Dockerfile&#34; data-lang=&#34;Dockerfile&#34;&gt;&lt;span class=&#34;k&#34;&gt;FROM&lt;/span&gt;&lt;span class=&#34;s&#34;&gt; ubuntu:bionic&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;RUN&lt;/span&gt; apt-get update &lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; apt-get install -y libzfslinux-dev&lt;span class=&#34;err&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;COPY&lt;/span&gt; zfsspike /bin/zfsspike&lt;span class=&#34;err&#34;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;After building that image I can test it and get the same results. At
+some point I&#39;ll probably want to have a process to release separate
+container images for separate versions of &lt;code&gt;libzfs&lt;/code&gt;, and I certainly
+don&#39;t want to haul around all of Ubuntu if I don&#39;t have to. We&#39;ll put
+a pin in that for later. Our spike has proved the concept, so now to
+wire this all up in the CSI plugin.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ docker run -it --privileged --rm test:latest /bin/zfsspike -name test1
+Created zfs dataset rpool/home/tim/test1
+     failmode =&amp;gt; &amp;quot;4096&amp;quot;
+    [prop 49] =&amp;gt; &amp;quot;0&amp;quot;
+    [prop 53] =&amp;gt; &amp;quot;latency&amp;quot;
+    [prop 68] =&amp;gt; &amp;quot;18446744073709551615&amp;quot;
+    cachefile =&amp;gt; &amp;quot;10485760&amp;quot;
+   expandsize =&amp;gt; &amp;quot;off&amp;quot;
+    [prop 63] =&amp;gt; &amp;quot;26624&amp;quot;
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Because I like to work clean, I&#39;ll first remove the configuration that
+supports the &lt;code&gt;NodeGetInfo&lt;/code&gt; RPC. We discovered last time that&#39;s really
+only there to support controllers. The &lt;code&gt;NodeGetInfo&lt;/code&gt; RPC can return a
+mostly empty body to make Nomad happy, and I can get rid of the
+topology flags. That&#39;s commit
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/a594409117d61a2cd6aa43d325db181673c168af&#34;&gt;a594409&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The Node RPCs map 1:1 to some specific operations in ZFS, so I&#39;ll
+define an interface and implement an empty body for it. Then I&#39;ll want
+to call this from the Node RPCs. Remember that &lt;code&gt;NodeStageVolume&lt;/code&gt;
+happens when the node first gets the volume, and the
+&lt;code&gt;NodePublishVolume&lt;/code&gt; is called when a workload wants to mount it.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kd&#34;&gt;type&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ZFS&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;interface&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nf&#34;&gt;Create&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ZFSCreateOptions&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;
+    &lt;span class=&#34;nf&#34;&gt;Mount&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ZFSMountOptions&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;
+    &lt;span class=&#34;nf&#34;&gt;Unmount&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ZFSUnmountOptions&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;
+    &lt;span class=&#34;nf&#34;&gt;Destroy&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ZFSDestroyOptions&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;I&#39;m using an interface here because creating and destroying datasets
+requires root privileges and modifies the host environment. So if I
+want to ever test the rest of the code, I&#39;ll want to be able to swap
+that out for a side-effect free mock. Also, at some point I&#39;ll want
+the ZFS client to be able to perform a bunch of other operations that
+don&#39;t map to Node RPCs, so having the RPC code depend on a smaller
+slice of interface reduces the size of whatever test mocks I&#39;ll need.&lt;/p&gt;
+&lt;p&gt;That&#39;s all committed as
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/de756510ecc8af168329e80616bb323c7fa61cc0&#34;&gt;de75651&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Next I want to start creating datasets, but I need to figure out how
+to configure all the parameters. There&#39;s going to be 3 sources of
+configuration for every mounted dataset:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Configuration we set for the plugin. This could be passed as
+configuration flags or a config file for the plugin. The cluster
+operator is the one who sets these configs.&lt;/li&gt;
+&lt;li&gt;Configuration we set when registering the volume as part of the
+&lt;code&gt;VolumeContext&lt;/code&gt;. These values could come from either the cluster
+operator or the job submitter, if they have &lt;code&gt;write-volume&lt;/code&gt; too.&lt;/li&gt;
+&lt;li&gt;Configuration we set when mounting the volume. This is set on a
+per-job basis, so should be limited to those options that can change
+between mounts.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I don&#39;t want job submitters to control the root dataset path or the
+maximum size (quota) of a dataset, and I&#39;ll probably want to provide a
+configurable default quota. So I&#39;ll wire up configuration for those
+values and provide some basic validation that the root ZFS dataset
+exists. That&#39;s
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/f4bdf44d9709ccc12f6a71c03311cb0458041564&#34;&gt;f4bdf44&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Next I&#39;m going to look at what parameters the
+&lt;a href=&#34;https://github.com/container-storage-interface/spec/blob/master/spec.md#nodestagevolume&#34;&gt;&lt;code&gt;NodeStageVolume&lt;/code&gt;&lt;/a&gt;
+and
+&lt;a href=&#34;https://github.com/container-storage-interface/spec/blob/master/spec.md#nodepublishvolume&#34;&gt;&lt;code&gt;NodePublishVolume&lt;/code&gt;&lt;/a&gt;
+RPCs are going to give me.&lt;/p&gt;
+&lt;p&gt;For &lt;code&gt;NodeStageVolume&lt;/code&gt; I&#39;ve got a volume ID and a staging path
+controlled by the orchestrator. This staging path is where it should
+be mounted during staging but we can safely ignore that for ZFS where
+we can stage without mounting. The publish context field is only used
+if there&#39;s a controller, so I can safely ignore that. Secrets are of
+no use here either.&lt;/p&gt;
+&lt;p&gt;The volume capability is a little hairy to unpack: it has a bunch of
+structs with empty bodies currently used as flags (presumably because
+the spec authors expect to fill them out in the future). So I&#39;ll have
+to nil-check those. I&#39;m planning on only exposing ZFS &lt;code&gt;filesystem&lt;/code&gt;
+datasets and not &lt;code&gt;volume&lt;/code&gt;, so I&#39;ll validate that the request isn&#39;t
+asking for a raw block volume. And don&#39;t want to let the user set the
+a filesystem type, because it&#39;s always ZFS.&lt;/p&gt;
+&lt;p&gt;But I also want to let the user pass mount flags. These will show up
+as a slice of strings. The volume context is a map of properties that
+the orchestrator will pass to the mount step from when the volume was
+created. In Nomad we&#39;ve differentiated between creating the volume and
+registering it, which allows us to set all the creation parameters
+even for plugins that don&#39;t support the Controller&#39;s &lt;code&gt;CreateVolume&lt;/code&gt;
+RPC. So I want to pass the parameters that we recorded during volume
+registration as a map to the plugin. I&#39;ll use these to set the
+per-volume quota and any other option that can&#39;t be changed after the
+dataset is created. They should override any mount flags. I&#39;ll parse
+these fields from the request and add it to the create options struct.&lt;/p&gt;
+&lt;p&gt;For &lt;code&gt;NodePublishVolume&lt;/code&gt; I have most of the same fields, with the extra
+quirk of the &amp;quot;read only&amp;quot; field and a target path, which is what we
+really care about for making available for the workload. And lastly
+for the &lt;code&gt;NodeUnpublishVolume&lt;/code&gt; and &lt;code&gt;NodeUnstageVolume&lt;/code&gt; RPCs there&#39;s
+just the name and path to deal with.&lt;/p&gt;
+&lt;p&gt;I don&#39;t want the ZFS client to have to worry about serialization
+concerns, so I&#39;ll do some basic validation of the inputs and ditch the
+protobuffers in the RPC handlers before passing down options into the
+ZFS client. This is all committed as
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/5cf96ace406a0684492a88420acf497da62487c0&#34;&gt;5cf96ac&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Now that I&#39;ve got those parameters, how do I pass them to the ZFS
+client?&lt;/p&gt;
+&lt;p&gt;ZFS supports &lt;em&gt;lots&lt;/em&gt; of properties (see
+&lt;a href=&#34;https://openzfs.github.io/openzfs-docs/man/8/zfsprops.8.html&#34;&gt;&lt;code&gt;zfsprops(8)&lt;/code&gt;&lt;/a&gt;). These
+get passed as a map to the
+&lt;a href=&#34;https://pkg.go.dev/github.com/bicomsystems/go-libzfs#DatasetCreate&#34;&gt;&lt;code&gt;DatasetCreate&lt;/code&gt;&lt;/a&gt;
+function, but they&#39;re typed a little unexpectedly:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;nx&#34;&gt;props&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;make&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Prop&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Property&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;nx&#34;&gt;props&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;DatasetPropVolsize&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Property&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;strSize&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The library doesn&#39;t have a set of string constants that map to the
+properties, because this is wrapping &lt;code&gt;libzfs&lt;/code&gt; and not the command line
+tools. Unfortunately although they have a
+&lt;a href=&#34;https://pkg.go.dev/github.com/bicomsystems/go-libzfs#DatasetPropertyToName&#34;&gt;&lt;code&gt;DatasetPropertyToName&lt;/code&gt;&lt;/a&gt;
+function they don&#39;t have the reverse. You can create whatever mapping
+you&#39;d like and the library &amp;quot;resolves&amp;quot; them into the real
+properties. This turns out to make debugging during development a
+little challenging if you&#39;ve got a lot of properties; if the property
+doesn&#39;t successfully resolve it won&#39;t have a name you can
+&lt;code&gt;fmt.Printf&lt;/code&gt;, just a number to look up. In any case, there&#39;ll be a bit
+of code to map the inputs to those properties.&lt;/p&gt;
+&lt;p&gt;On top of that, I don&#39;t want the user to be able to set properties
+that are read-only to the operator, like &amp;quot;mounted&amp;quot;, so I&#39;ll need to
+filter all those out.&lt;/p&gt;
+&lt;p&gt;First I&#39;ll sketch out a &lt;code&gt;Create&lt;/code&gt; method that gives me an idea of the shape of the API:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;z&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ZFSClient&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Create&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;opts&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ZFSCreateOptions&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;dcPath&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;z&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;path&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;opts&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;props&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;z&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;createProperties&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;opts&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;StagingPath&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;opts&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Params&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;opts&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;MountFlags&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Errorf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;validation error: %v&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+    &lt;span class=&#34;nx&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;DatasetCreate&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;dcPath&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;DatasetTypeFilesystem&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;props&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Close&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;z&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ZFSClient&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;createProperties&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;stagingPath&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;params&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;mountFlags&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+    &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Prop&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Property&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+
+    &lt;span class=&#34;nx&#34;&gt;props&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Prop&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Property&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{}&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;props&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;So I know I&#39;ll most likely end up with a giant switch statement that
+validates the parameters and merges them on top of the plugin
+defaults. So far almost everything in the code has been &amp;quot;plumbing&amp;quot;:
+serializing and deserializing, shuffling protobufs around, setting up
+config, etc. Nothing worth writing unit tests for. But now that I&#39;ve
+got some logic to worry about, I&#39;ll start writing some tests. Note
+that for unit testing, I don&#39;t want to have real ZFS datasets created,
+so I need to keep the validation logic cleanly factored away from the
+side-effects.&lt;/p&gt;
+&lt;p&gt;I start with a failing test like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;TestZFS_CreateProperties&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;testing&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;zclient&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;testZFSClient&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;())&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;require&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;NotNil&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;zclient&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+
+    &lt;span class=&#34;nx&#34;&gt;testCases&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;desc&lt;/span&gt;        &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;params&lt;/span&gt;      &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;mountFlags&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;expected&lt;/span&gt;    &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Prop&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Property&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;expectedErr&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}{&lt;/span&gt;
+        &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;desc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;quota parameter overrides default&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;params&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+                &lt;span class=&#34;s&#34;&gt;&amp;#34;quota&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;30M&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+            &lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;mountFlags&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{},&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;expected&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Prop&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Property&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+                &lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;DatasetPropQuota&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;zfs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Property&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;30M&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+            &lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;expectedErr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;testCases&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Run&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;desc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;testing&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+            &lt;span class=&#34;nx&#34;&gt;t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Parallel&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+
+            &lt;span class=&#34;nx&#34;&gt;props&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;zclient&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;createProperties&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;desc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;params&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;mountFlags&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+            &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;expectedErr&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+                &lt;span class=&#34;nx&#34;&gt;require&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;EqualError&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;expectedErr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;())&lt;/span&gt;
+            &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+                &lt;span class=&#34;nx&#34;&gt;require&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;NoError&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+                &lt;span class=&#34;nx&#34;&gt;require&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;EqualValues&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;tc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;expected&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;props&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+            &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;In my first attempt I tried to generate a string-to-ZFS properties
+function to reverse &lt;code&gt;DatasetPropertyToName&lt;/code&gt;, only to realize the pool
+properties and dataset properties were implemented as the same set,
+but without distinct names. This resulted in a big old switch
+statement with duplicate keys, so I had to toss that and just
+hand-roll a function for the properties I care about.&lt;/p&gt;
+&lt;p&gt;There&#39;s a crapton of code here for parsing the configuration,
+parameters, etc. Once I&#39;ve got most of this, it becomes obvious that
+the &lt;code&gt;Create&lt;/code&gt; isn&#39;t going to use the &lt;code&gt;mountFlags&lt;/code&gt;, so I toss those out
+and keep them only for the &lt;code&gt;Mount&lt;/code&gt; method that gets called from the
+&lt;code&gt;NodePublishVolume&lt;/code&gt; RPC.&lt;/p&gt;
+&lt;p&gt;Then I got a little stuck when looking at &lt;a href=&#34;https://pkg.go.dev/github.com/bicomsystems/go-libzfs@v0.2.3-5#Dataset.Mount&#34;&gt;this
+method&lt;/a&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;d&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Dataset&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Mount&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;options&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;flags&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The flags aren&#39;t documented in &lt;code&gt;go-libzfs&lt;/code&gt;, so I had to do a little
+spelunking in the ZFS source code. The
+&lt;a href=&#34;https://github.com/openzfs/zfs/blob/zfs-0.7.5/lib/libspl/include/sys/mount.h#L89&#34;&gt;&lt;code&gt;mount.h&lt;/code&gt;&lt;/a&gt;
+header file defines them. Later versions of this code add encryption
+flags, but I can&#39;t test those on the environment where I&#39;m working so
+I&#39;m going to leave these out for now.&lt;/p&gt;
+&lt;p&gt;All that mess is commit
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/3ab18f1691b988829803f66781efa9af26714158&#34;&gt;3ab18f1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;At this point I decide I want to run that build on Nomad so I can do
+some testing with it. We saw earlier that we needed a new base to work
+with. That&#39;s
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/e1dca208753fe90d863143b33ddb0ecdcd43000e&#34;&gt;e1dca20&lt;/a&gt;
+for now, but I&#39;d like to revisit that with a leaner container image
+later on.&lt;/p&gt;
+&lt;p&gt;Unfortunately the development cycle of spinning up Nomad, running the
+plugin, registering the volume, and deploying a job that wants that
+volume is a little longer than I&#39;d like. So I ended up temporarily
+hacking in a testing flag option like the one below (in
+&lt;code&gt;main.go&lt;/code&gt;). That&#39;s not committed but I&#39;ll want to come back to revisit
+it for integration testing later:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;cfg&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;testing&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;zclient&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Create&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ZFSCreateOptions&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;Name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;        &lt;span class=&#34;s&#34;&gt;&amp;#34;test-volume-0&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;StagingPath&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;/csi/staging/test-volume[0]/rw-file-system-single-node-writer&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;MountFlags&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;readonly&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;-O&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;Params&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;      &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;})&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;After a bit of testing I find some bugs. There are some default properties that weren&#39;t compatible with my environment. And I forgot to defer closing the dataset in the &lt;code&gt;Mount&lt;/code&gt;, &lt;code&gt;Unmount&lt;/code&gt;, and &lt;code&gt;Destroy&lt;/code&gt; methods. Those fixes are &lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/84cc719d5a6a3f6a3d207fbe6f5d88411065e116&#34;&gt;84cc719&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;At this point I was ready to work up an example job for consuming the
+volume to test the plugin end-to-end. That&#39;s when I realized the
+plugin job specification wasn&#39;t marked with &lt;code&gt;privileged = true&lt;/code&gt;, even
+though I was the one to write the giant warning about that on the
+Nomad
+&lt;a href=&#34;https://www.nomadproject.io/docs/job-specification/csi_plugin#csi_plugin-parameters&#34;&gt;&lt;code&gt;csi_plugin&lt;/code&gt;&lt;/a&gt;
+parameters documentation. How embarrassing! That&#39;s in
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/f0fd028663ec382826e527543f5516a7ee2f08a2&#34;&gt;f0fd028&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;At this point I get the following error when Nomad&#39;s CSI hook tries to mount the volume:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;2021-03-13T13:30:55-05:00  Driver Failure   failed to create container: API error (400): invalid mount config for type &amp;quot;bind&amp;quot;: bind source path does not exist: /tmp/NomadClient194408044/csi/node/csi-zfs/per-alloc/b7995d2d-5afc-bcf3-d171-e23767ccaeff/test-volume[0]/rw-file-system-single-node-writer&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This path looks ridiculous but it breaks down to
+&lt;code&gt;${nomad_data_dir}/csi/node/${plugin_id}/per-alloc/${alloc_id}/${volume_id}/${mount_type}&lt;/code&gt;. If
+I add some
+&lt;a href=&#34;https://pkg.go.dev/github.com/davecgh/go-spew/spew&#34;&gt;&lt;code&gt;go-spew&lt;/code&gt;&lt;/a&gt;
+debugging, I see the following in the plugin&#39;s allocation logs:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ nomad alloc logs 1fd
+(*main.ZFSMountOptions)(0xc00010fe00)({
+ Name: (string) (len=13) &amp;quot;test-volume-0&amp;quot;,
+ StagingPath: (string) (len=61) &amp;quot;/csi/staging/test-volume[0]/rw-file-system-single-node-writer&amp;quot;,
+ TargetPath: (string) (len=100) &amp;quot;/csi/per-alloc/fa664bfb-30a5-3104-9999-b6defe5e1c41/test-volume[0]/rw-file-system-single-node-writer&amp;quot;,
+ MountFlags: ([]string) (len=2 cap=2) {
+  (string) (len=8) &amp;quot;readonly&amp;quot;,
+  (string) (len=2) &amp;quot;-O&amp;quot;
+ },
+ Params: (map[string]string) &amp;lt;nil&amp;gt;
+})
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;That made me realize we hadn&#39;t yet made the target path the dataset&#39;s
+mount point, so that&#39;s done in
+&lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/654140a5f7914be78ebd670db9055a0a2584e42f&#34;&gt;654140a&lt;/a&gt;. Now
+when I test the example job, I can see the dataset get created:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ zfs list | grep test-volume
+rpool/home/tim/test-volume-0                                                               96K   355G    96K  /csi/per-alloc/ca4c08e7-eaab-5ebd-6582-1ef254a39b77/test-volume[0]/rw-file-system-single-node-writer
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;If I exec into the job&#39;s allocation and write to the location in the
+&lt;code&gt;volume_mount&lt;/code&gt;, I can take a ZFS snapshot of it, clone that snapshot,
+and verify that the dataset had been properly mounted to the
+container:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ nomad alloc exec ca4 /bin/sh
+/ # touch /srv/test.txt
+/ # exit
+
+$ sudo zfs snapshot rpool/home/tim/test-volume-0@test1
+$ sudo zfs clone rpool/home/tim/test-volume-0@test1  rpool/home/tim/restored
+$ ls ~/restored
+test.txt
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;At this point if I try to stop the job, I&#39;ll get the following error
+in the Nomad client logs:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;2021-03-13T13:50:30.474-0500 [ERROR] client.alloc_runner: postrun
+failed: alloc_id=ca4c08e7-eaab-5ebd-6582-1ef254a39b77 error=&amp;quot;hook
+&amp;quot;csi_hook&amp;quot; failed: 1 error occurred: rpc error: could not detach
+from node: node detach volume: rpc error: code = Unknown desc =
+Cannot destroy dataset rpool/home/tim/test-volume-0: filesystem has
+children&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;That&#39;s because the dataset has child datasets because of my
+snapshot. I&#39;ll have to clean that up manually for the moment, but
+that&#39;ll be something to figure out when I implement the snapshot
+workflow.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ sudo zfs destroy rpool/home/tim/test-volume-0
+cannot destroy &#39;rpool/home/tim/test-volume-0&#39;: filesystem has children
+use &#39;-r&#39; to destroy the following datasets:
+rpool/home/tim/test-volume-0@test1
+$ sudo zfs destroy -r rpool/home/tim/test-volume-0
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;At this point the plugin can create, mount, unmount, and delete ZFS
+datasets. But right now we&#39;re destroying every dataset as soon as
+we&#39;re done with it! And we haven&#39;t yet touched upon migrating the
+datasets between nodes. In the next post in this series, I&#39;ll work
+through a design for coordinating the plugins for peer-to-peer backup
+and migration of data.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>A ZFS Driver for Nomad, Part 3</title>
@@ -74,7 +473,9 @@ interface, just by dropping a bunch of empty function bodies in a new
 &lt;p&gt;I compile and run that, but still get the same error. So I check the
 allocation logs and find the following:&lt;/p&gt;
 &lt;blockquote&gt;
-&lt;p&gt;ERROR: 2021/02/21 18:17:22 [core] grpc: server failed to encode response:  rpc error: code = Internal desc = grpc: error while marshaling: proto: Marshal called with nil&lt;/p&gt;
+&lt;p&gt;ERROR: 2021/02/21 18:17:22 [core] grpc: server failed to encode
+response: rpc error: code = Internal desc = grpc: error while
+marshaling: proto: Marshal called with nil&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;p&gt;Let&#39;s look at the spec for
 &lt;a href=&#34;https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo&#34;&gt;&lt;code&gt;NodeGetInfo&lt;/code&gt;&lt;/a&gt;
@@ -126,10 +527,9 @@ it out once that&#39;s been fixed in Nomad.&lt;/p&gt;
 see the client starts it with all the arguments I&#39;d expect, but now I
 get an error for &lt;code&gt;NodeGetCapabilities&lt;/code&gt;:&lt;/p&gt;
 &lt;blockquote&gt;
-&lt;p&gt;2021-02-21T14:06:44.840-0500 [DEBUG] client.driver_mgr.docker: setting container startup command: driver=docker task_name=plugin command=&amp;quot;/bin/zfs-csi-driver --csi-address /csi/csi.sock --node-id cd132867-54c2-d993-9a62-cf88deb5945c --topology region=global --topology datacenter=dc1 --topology class=rack&amp;quot;
-...
-2021-02-21T14:15:28.170-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
-2021-02-21T14:15:28.181-0500 [WARN]  client.csi-zfs: finished client unary call: grpc.code=Internal duration=2.401155ms grpc.service=csi.v1.Node grpc.method=NodeGetCapabilities&lt;/p&gt;
+&lt;p&gt;2021-02-21T14:15:28.181-0500 [WARN] client.csi-zfs: finished client
+unary call: grpc.code=Internal duration=2.401155ms
+grpc.service=csi.v1.Node grpc.method=NodeGetCapabilities&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;p&gt;Armed with the
 &lt;a href=&#34;https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetcapabilities&#34;&gt;&lt;code&gt;NodeGetCapabilities&lt;/code&gt;&lt;/a&gt;
@@ -143,8 +543,8 @@ doc, I can work up an empty response body:&lt;/p&gt;
 &lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;&lt;/span&gt; }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;That silences the error:&lt;/p&gt;
 &lt;blockquote&gt;
-&lt;p&gt;2021-02-21T14:20:21.541-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node
-2021-02-21T14:20:21.543-0500 [DEBUG] client.csi-zfs: volume manager setup complete&lt;/p&gt;
+&lt;p&gt;2021-02-21T14:20:21.541-0500 [DEBUG] client: detected new CSI plugin: name=csi-zfs type=csi-node&lt;/p&gt;
+&lt;p&gt;2021-02-21T14:20:21.543-0500 [DEBUG] client.csi-zfs: volume manager setup complete&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;p&gt;But this endpoint is what advertises the plugins capabilities, so I&#39;ll
 return the capabilities instead:&lt;/p&gt;
@@ -215,8 +615,10 @@ logger in &lt;code&gt;config.go&lt;/code&gt;.&lt;/p&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The resulting structured logs look like the following when I do &lt;code&gt;nomad alloc logs -stderr :alloc_id&lt;/code&gt;. I&#39;m not wild about the timing traces
 being at &lt;code&gt;INFO&lt;/code&gt; but I can live with it. That&#39;s committed as
 &lt;a href=&#34;https://github.com/tgross/zfs-csi-driver/commit/6b0de82c0dde3ded8b310b97b3bb5ca7267fc3b3&#34;&gt;6b0de82&lt;/a&gt;.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-json&#34; data-lang=&#34;json&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;fields&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:{&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;duration&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;level&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;info&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;timestamp&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;2021-02-21T20:58:58.462860527Z&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;#34;message&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;GetPluginCapabilities&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Next time, I&#39;ll finally start making some ZFS datasets!&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;{&amp;quot;fields&amp;quot;:{&amp;quot;duration&amp;quot;:0},&amp;quot;level&amp;quot;:&amp;quot;info&amp;quot;,&amp;quot;timestamp&amp;quot;:&amp;quot;2021-02-21T20:58:58.462860527Z&amp;quot;,&amp;quot;message&amp;quot;:&amp;quot;GetPluginCapabilities&amp;quot;}&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Next time, I&#39;ll finally start making some ZFS datasets!&lt;/p&gt;
 &lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
 &lt;hr&gt;
 &lt;ol&gt;
@@ -1844,47 +2246,6 @@ METHOD                                                                  # CALLS
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;Part 2: Build for Operability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Software Defined Culture, Part 1 - Reliability</title>
-      <link>https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/</link>
-      <pubDate>Sun, 18 Feb 2018 01:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/</guid>
-      <description>&lt;p&gt;This five-part series of posts covers a talk titled &lt;em&gt;Software Defined Culture&lt;/em&gt; that I gave at &lt;a href=&#34;https://www.devopsdays.org/events/2016-philadelphia/program/tim-gross/&#34;&gt;DevOps Days Philadelphia 2016&lt;/a&gt;, &lt;a href=&#34;https://gotochgo.com/2017/sessions/43&#34;&gt;GOTO Chicago 2017&lt;/a&gt;, and &lt;a href=&#34;https://vimeo.com/228067673&#34;&gt;Velocity San Jose 2017&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 1: Build for Reliability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;hr&gt;
-&lt;h1 id=&#34;building-for-reliability&#34;&gt;Building for Reliability&lt;/h1&gt;
-&lt;p&gt;Failure to build for reliability means we develop a culture of firefighting. Firefighting becomes a rut for organizations. Things are broken, we rush out fixes, and we pile on technical debt. The &amp;quot;temporary&amp;quot; hacks lead to problems that come back, grow, and cascade. Urgency starts to supercede importance. That is, the thing that needs to be fixed &lt;em&gt;right now&lt;/em&gt; sets back the mission of the organization as a whole. Problems become crises, and the organization simply starts lurching from crisis to crisis. This has insidious effects on the organization&#39;s culture as we start rewarding our best firefighters. We misalign incentives away from the creation of value and towards the prevention of largely self-inflicted harm.&lt;/p&gt;
-&lt;p&gt;This is going to burn out your team. People don&#39;t like getting paged. They want to sleep. They want to spend time with their families. They want to spend their working hours tackling the cool &amp;quot;hard problems&amp;quot; you sold them on when you recruited them. Ironically, the best firefighters will be the ones to burn out, and then you&#39;ll be without them as they either quit or their burnout starts to affect their personalities and performance. (Speaking from personal hard-won experience here!)&lt;/p&gt;
-&lt;p&gt;So given that we want to build for reliability, how do we get there? Far smarter people than me have given this serious detailed treatment, but from a high level view there are some obvious rough guidelines.&lt;/p&gt;
-&lt;h2 id=&#34;no-more-resume-driven-development&#34;&gt;No More Resume Driven Development&lt;/h2&gt;
-&lt;p&gt;Bleeding-edge technology is broken all. the. time. It&#39;s great that your engineers want to learn about Elixir or Vue JS or AerospikeDB. They should do that on their own time, or at least in your internal systems and dev tooling. Don&#39;t #YOLO that shit into production!&lt;/p&gt;
-&lt;p&gt;Not only is this bad for reliability it also tells people that this is good engineering decision making — that it&#39;s okay to push untrusted systems into production. In fact, in many organizations you&#39;ll be rewarded for this behavior because you&#39;ve &amp;quot;shipped&amp;quot;. Pay no attention to the unmaintainable tire fire afterwards!&lt;/p&gt;
-&lt;p&gt;It&#39;s not just rewarding the behavior on your team, but it&#39;s also a problem for hiring. If your job listings look like a Markov chain from the front page of HackerNews, what kind of developer is this attracting to your organization?&lt;/p&gt;
-&lt;p&gt;This sort of thing creates a vicious cycle. There are certain people within our profession who never really want to maintain anything. They want to chase the new shiny and then move on to the next thing. If one of these folks lands in your organization and they&#39;re allowed free rein, they&#39;ll bring in all their friends as well. I&#39;ve witnessed these roving gangs of locust developers coming in, dropping a new framework or programming language on an organization, and heading off to the next organization to screw up.&lt;/p&gt;
-&lt;p&gt;Lack of reliability biases your organization against experienced hires. If you&#39;ve been through a couple of cycles of burnout already (aside: that&#39;s super fucked up that this is even a thing), you&#39;re going to see a stack of shiny new tech in a job posting and immediately toss it out, because you know there&#39;s no way you want to live through that again. It also biases your organization against older folks in general, who will tend to have families at home — particularly women as they still manage a disproportionate share of household duties. They don&#39;t want to be up all night helping you debug MongoDB because you decided to switch to the new storage engine after only a couple of days of testing.&lt;/p&gt;
-&lt;h2 id=&#34;choose-boring-tech&#34;&gt;Choose Boring Tech&lt;/h2&gt;
-&lt;p&gt;We should have a strong bias towards &lt;a href=&#34;http://mcfunley.com/choose-boring-technology&#34;&gt;choosing boring technology&lt;/a&gt;. You have a limited amount of time and energy to pour into innovation. That energy should be spent on the things that will have the biggest positive impact for your organization&#39;s mission.&lt;/p&gt;
-&lt;p&gt;Building for reliability encourages the development of a certain set of cultural values. It builds a culture trust between developers and operators. It builds a culture of inclusivity. It builds a culture of sensible attitudes towards risk. And it builds a culture of work-life balance.&lt;/p&gt;
-&lt;hr&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 1: Build for Reliability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;

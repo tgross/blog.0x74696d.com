@@ -69,10 +69,8 @@ This time I wanted to be able to show this to our support folks, so I
 decided to turn it into a single purpose visualization tool that I
 knew they could build. I grabbed the `gonum/plot` library, which is
 definitely not nearly as nice as Matplotlib but it got the job
-done. The resulting
-[`nomad-metrics-plot`](https://github.com/tgross/nomad-metrics-plot)
-tool takes a list of metrics files and generates a simple SVG (which
-is pronounced "svig", by the way) for one metric.
+done. The resulting tool takes a list of metrics files and generates a
+simple SVG (which is pronounced "svig", by the way) for one metric.
 
 If I want to see the latency between the raft leader and its peers, I
 can pipe in the list of metrics files and search for that specific
@@ -97,3 +95,7 @@ open the SVG in your browser for you. But I can put this in front of
 someone _today_ without it causing me a huge support burden to get
 them spun up on it. And then I can iterate on it over time or abandon
 it if something better comes along.
+
+[^1]: This repo that originally went with this article unfortunately had
+    to be removed to due overreaching GitHub account policy claims by
+    my employer.

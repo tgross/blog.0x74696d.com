@@ -130,10 +130,8 @@ in a script somewhere, etc.&lt;/p&gt;
 decided to turn it into a single purpose visualization tool that I
 knew they could build. I grabbed the &lt;code&gt;gonum/plot&lt;/code&gt; library, which is
 definitely not nearly as nice as Matplotlib but it got the job
-done. The resulting
-&lt;a href=&#34;https://github.com/tgross/nomad-metrics-plot&#34;&gt;&lt;code&gt;nomad-metrics-plot&lt;/code&gt;&lt;/a&gt;
-tool takes a list of metrics files and generates a simple SVG (which
-is pronounced &amp;quot;svig&amp;quot;, by the way) for one metric.&lt;/p&gt;
+done. The resulting tool takes a list of metrics files and generates a
+simple SVG (which is pronounced &amp;quot;svig&amp;quot;, by the way) for one metric.&lt;/p&gt;
 &lt;p&gt;If I want to see the latency between the raft leader and its peers, I
 can pipe in the list of metrics files and search for that specific
 metric:&lt;/p&gt;

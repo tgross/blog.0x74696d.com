@@ -86,8 +86,9 @@ in a script somewhere, etc.</p>
 decided to turn it into a single purpose visualization tool that I
 knew they could build. I grabbed the <code>gonum/plot</code> library, which is
 definitely not nearly as nice as Matplotlib but it got the job
-done. The resulting tool takes a list of metrics files and generates a
-simple SVG (which is pronounced &quot;svig&quot;, by the way) for one metric.</p>
+done. The resulting tool<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup> takes a list of metrics files and
+generates a simple SVG (which is pronounced &quot;svig&quot;, by the way) for
+one metric.</p>
 <p>If I want to see the latency between the raft leader and its peers, I
 can pipe in the list of metrics files and search for that specific
 metric:</p>
@@ -105,6 +106,16 @@ open the SVG in your browser for you. But I can put this in front of
 someone <em>today</em> without it causing me a huge support burden to get
 them spun up on it. And then I can iterate on it over time or abandon
 it if something better comes along.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>This repo that originally went with this article unfortunately had
+to be removed to due overreaching GitHub account policy claims by
+my employer. <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
 
   <div class="share">
   <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fsingle-purpose-visualization%2f&via=0x74696d"

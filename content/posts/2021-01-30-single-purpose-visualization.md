@@ -69,8 +69,9 @@ This time I wanted to be able to show this to our support folks, so I
 decided to turn it into a single purpose visualization tool that I
 knew they could build. I grabbed the `gonum/plot` library, which is
 definitely not nearly as nice as Matplotlib but it got the job
-done. The resulting tool takes a list of metrics files and generates a
-simple SVG (which is pronounced "svig", by the way) for one metric.
+done. The resulting tool[^1] takes a list of metrics files and
+generates a simple SVG (which is pronounced "svig", by the way) for
+one metric.
 
 If I want to see the latency between the raft leader and its peers, I
 can pipe in the list of metrics files and search for that specific

@@ -10,7 +10,7 @@ At my current gig and several before that, the initial engineering
 design document is the Request for Comments (RFC), sometimes called
 the [Request for Discussion](https://github.com/joyent/rfd) (RFD).
 
-If you've been reading the series on building a ZFS plugin for Nomad,
+If you've been reading the series on building a ZFS plugin for Nomad[^1],
 you might have asked yourself if this kind of stumbling through the
 design is typical of the RFC documents I've written. But that series
 is really about all the design work that happens before the initial
@@ -57,3 +57,6 @@ might take a project through the initial design, feel like I've
 explored the problem well enough to learn what I wanted to learn, and
 set it aside for months. The RFC is like a well-written commit message
 for the project as a whole.
+
+[^1]: This series unfortunately had to be removed to due overreaching
+    GitHub account policy claims by my employer.

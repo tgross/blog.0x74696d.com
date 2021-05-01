@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Strictly Aspirational Engineering Values</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Strictly Aspirational Engineering Values</h1>
+  <section class="byline">May 1, 2021</section>
+  <p>It was before lunch on my first day when I found myself in a
+conference room during a total service outage, with thirty or so other
+men yelling over each other <sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>.</p>
+<p>This was particularly alarming because during my interviews we'd
+talked a lot about building disciplined incident response culture,
+developing deep insight about the platform, and avoiding normalization
+of deviance. Clearly, I'd thought, this was going to be a team of
+serious professionals. But this was a few years back now and maybe
+I've learned a lot since then about seeing through interviewer
+bullshit.</p>
+<p>Needless to say I didn't even have production access at this point or
+know much about the architecture. I'd just gotten my laptop and some
+swag from the HR goons, and went to greet my new teammates when some
+dude rolled into the office and dragged every man who looked older
+than thirty into a &quot;war room.&quot; Yeah, only men. Maybe I'll come back to
+that in another story.</p>
+<p>I found myself reading over some stranger's shoulder, someone who was
+yelling less than the others and who had some of the monitoring up on
+their machine. There was something definitely memcached related or at
+least memcached adjacent going on judging by the conversation in the
+room. Without much else to do, I offered my shoulder-surfee help
+looking at memcached. I'd had plenty of previous adventures with it,
+so if nothing else I could help eliminate it as the source of the
+problem.</p>
+<p>As it turned out they were using a fully managed memcached service and
+only had the metrics that the provider emitted, which wasn't a
+lot. The service was definitely in trouble with high latency. The
+downstream consumers were a bunch of different web services running on
+pre-fork application servers <sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>. The application server processes
+could each handle only a single concurrent request at a time, so
+latency in upstream services like memcached quickly cascaded into a
+full outage.</p>
+<p>I noticed the number of connections looked high relative to the number
+of processes I'd expect to see running, and then noticed that the
+number of <em>new</em> connections was roughly equal to the number of current
+connections. A hypothesis started to form that the applications
+weren't keeping open their connections and was churning them out so
+fast that memcached was burning time queuing those connections.</p>
+<p>Without shell access to the memcached host, I asked what monitoring
+there was on outbound connections from the clients so we could figure
+out which services were causing the problem. There was none. Ok, I
+suggested, we'll just script something to ssh onto all the application
+cluster nodes, scrape the connections being made to the memcached IPs
+for a short window, and then we'll know if it's just one service.</p>
+<p>This suggestion was not taken well. One did not simply ssh onto a
+host. As it turned out, I was one of only three people in the room who
+even had sufficient permissions to ssh onto a host, and two of us were
+currently getting hungry waiting for our first day onboarding lunch. I
+was getting a serious stink eye from the senior-most engineer in the
+room. Even the CTO managed to shut up for, like, ten whole seconds
+<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>.</p>
+<p>Many many dollars were being burned every minute, so I gently
+suggested I could take my new best friend and we could go poke at the
+memcached client out of the way of everyone else. We got the go ahead
+and I scrambled to get my laptop properly authorized so we could shell
+into an application server node.</p>
+<p>The dude who I'd been shoulder surfing was now shoulder surfing me. We
+were looking at <code>netstat</code>, querying memcached stats via <code>telnet</code>,
+measuring <code>connect</code> syscalls via BPF, and getting good confirmation of
+the hypothesis. You'd have thought I'd introduced fire to this guy. To
+be clear, this was an organization with lots of senior talent that
+proudly hired tons of folks from Google (and was quick to remind you
+of it). But asking the operating system what was wrong was just not
+something people did here.</p>
+<p>We'd found which service was causing the problem, and now the trick
+was to figure out what was wrong with it. Here's where I think the
+various expense but very powerful observability services
+(ex. Honeycomb) would have come in handy, but we didn't have anything
+like that. Most of the war room broke off to isolate the buggy service
+and clean up the damage. My buddy and I started digging into the
+service's memcached client. Naturally this was a third party library
+selected in ages past by the company founder, primarily on the basis
+of GitHub stars. And as far as anyone knew, no one had ever reviewed
+its internals. Which was unfortunate because I wasn't even familiar
+with the language and we found a bug in the connection pool logic
+within fifteen minutes of looking at it. This wasn't even <em>the</em>
+problem though. That was so much worse.</p>
+<p>The logs querying service was truly wretched and I can only assume was
+chosen on the basis of price and price alone. But now that we knew
+what service was misbehaving, we could get the log volume to search
+over down to something reasonable. Only to immediately find that the
+application server's worker processes were in a slow restart loop.</p>
+<p>Pre-fork application servers for interpreted languages often have an
+interesting design feature where they just blithely assume you're
+going to leak references all over the place, and so they let you
+configure a limit on the number of requests or amount of memory for a
+given worker. When the process reaches that limit, the main process
+signals it to stop and replaces it with a fresh one. This is fun if
+you're running the application server in a container (which we were),
+because the memory limit of the container needs to match the sum of
+the memory limits of the workers, plus enough for the main process, or
+it'll randomly OOM instead.</p>
+<p>The application server was starting a worker, the worker would eagerly
+open a pool of memcached connections (for the single threaded
+program!) and proceed to request a whole mess of <em>huge</em> blobs of
+cached data at startup. The cached data would get deserialized to
+giant in-memory hashmaps. The application would manage to serve only a
+handful of requests before blowing the top off the worker memory limit. The
+main process would kill it, and start another one to replace
+it. Repeat until outage.</p>
+<p>It's a cheap shot to point out that this wasn't being
+monitored. Applications and the OS and machine that hosts them can
+produce nearly arbitrary volumes of metrics and logs. The cost to
+ingest and analyze <em>all</em> that data could easily exceed the business
+value of the service, so you have to make compromises. But... I feel
+like it's not unreasonable to draw the line well before &quot;we're not
+going to notice if the application is constantly restarting&quot;.</p>
+<p>In any case, I say to the room &quot;well there's yer problem.&quot; The
+consensus in the room was that the solution was to bump the limit on
+the application server and its container. It gets doubled, and the
+outage is over.</p>
+<p>I finally get to have my onboarding lunch with my team, and I ask how
+we typically notify the team that owns the misbehaving service to fix
+it. The answer was that we didn't. Service teams didn't care to know
+what resources they were using, and the platform team didn't care to
+know what the normal behavior was supposed to be. All over the
+organization, there were dozens of services in this state. They'd just
+continue to consume more and more resources until they caused an
+outage, and that was it. We were adding many more developers and many
+more services, without adding any additional observability or
+incentive to care about the problem. The platform and infrastructure
+teams were getting paged two and three times a day as a
+result. Deviance had been completely normalized, at the expense of
+both the business and the human beings who had to clean up the mess.</p>
+<p>It should come as no surprise that this was the first of many such
+incidents during my tenure. The yawning gap between the team's
+aspirational values and their practice never closed. When an
+organization shows you who they are, believe them.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>Some small details of this story have been altered to protect
+the innocent, to paper over gaps in my memory, or for comedic
+effect. Unfortunately the first sentence of this post is not one
+of those details and is absolutely true. <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p>I'm being deliberately vague here but if you've used Django on
+gunicorn without gevent or Rails on unicorn rather than puma,
+that's the sort of thing I'm talking about. <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:3" role="doc-endnote">
+<p>This is an example of changing details for comedic effect. He
+actually shut up for five seconds, at most. <a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fstrictly-aspirational-engineering-values%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

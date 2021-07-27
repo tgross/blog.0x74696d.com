@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Networking for a Firecracker Lab</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Networking for a Firecracker Lab</h1>
+  <section class="byline">July 27, 2021</section>
+  <p>Several of my personal projects require creating and destroying a lot
+of virtual machines, so I've started porting them over from QEMU to
+<a href="https://firecracker-microvm.github.io/">Firecracker</a> to speed up
+development. I'm now at the point where I need to make some of these
+VMs accessible from the internet and other machines on the LAN. My
+scenario is that I have three physical machines (2 NUCs and my
+development laptop) that act as virtual machine hosts. Some of them
+are currently running services on QEMU virtual machines, which I
+intend to migrate over to Firecracker eventually but I don't want a
+flag day for migration.</p>
+<p>The obvious question given that I was a
+<a href="https://www.nomadproject.io/">Nomad</a> maintainer is why I wouldn't use
+a Nomad <a href="https://github.com/cneira/firecracker-task-driver">Firecracker task
+driver</a> and it
+turns out I'm not running a Nomad cluster across these machines. The
+NUCs are powered off most of the day; if I happen to need them I fire
+a wake-on-LAN to boot them and wait for their services to come
+up. Nomad's control plane doesn't tolerate having peers offline for
+extended periods of time, so it's just the wrong use case for this
+home lab.</p>
+<p><a href="https://gruchalski.com/about/">Radek Gruchalski</a> has a great series
+(<a href="https://gruchalski.com/posts/2021-02-06-taking-firecracker-for-a-spin/">I</a>,
+<a href="https://gruchalski.com/posts/2021-02-07-vault-on-firecracker-with-cni-plugins-and-nomad/">II</a>,
+<a href="https://gruchalski.com/posts/2021-02-17-bridging-the-firecracker-network-gap/">III</a>)
+where he explores Firecracker, tries it out with Nomad and CNI, and
+gets bridge networking going after forking
+<a href="https://github.com/firecracker-microvm/firectl"><code>firectl</code></a>. Gruchalski's
+approach builds on top of a
+<a href="https://jvns.ca/blog/2021/01/23/firecracker--start-a-vm-in-less-than-a-second/">post</a>
+by the always-delightful Julia Evans
+(<a href="https://twitter.com/b0rk">@b0rk</a>).</p>
+<p>Evans configures the networking of the VM guests by passing boot
+arguments (TIL! See also this section from the <a href="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/sec-configuring_ip_networking_from_the_kernel_command_line">RHEL networking
+guide</a>),
+and creates the tuntap device in her script. Gruchalski instead uses
+<a href="https://www.cni.dev/">Container Network Interface (CNI)</a> plugins to
+create a bridge network, assign an IP, and create the required tuntap
+device via the
+<a href="https://github.com/awslabs/tc-redirect-tap"><code>tc-redirect-tap</code></a>
+plugin. Two areas where my requirements are different are the jailer
+and persistent IP addressing.</p>
+<p>Because I may end up with some VMs exposed to the internet, I want to
+tighten up their isolation using the
+<a href="https://github.com/firecracker-microvm/firecracker/blob/main/docs/jailer.md">jailer</a>. The
+jailer runs in a network namespace and containerizes itself by
+unsharing its PID namespace and running in a pivot root. (That's
+right, it's a VM running in a container!)</p>
+<p>I'd like for VM IPs to be persistent so that I can register DNS
+entries for their services and set up any forwarding rules I need at
+the router. These need to persist across reboots of the underlying
+host.</p>
+<p>So I built on top of Evans' and Gruchalski's approaches by adding
+support for the jailer and ensuring that I can have persistent IP
+addresses, and of course the extra bits that need to happen to make
+these IPs routable on my LAN. I wrapped this all up in a control
+script I'm calling
+<a href="https://gist.github.com/tgross/8aa33b65cba1850ebe430f33fafd6e41"><code>vmctl</code></a>
+which gets invoked as follows:</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh">vmctl create --id <span class="k">$(</span>uuidgen<span class="k">)</span> --template ./vmconfigs/example.json
+</code></pre></div><p>This creates a network namespace named after the <code>$id</code> and runs the
+CNI plugins to allocate an IP address from the network bridge and
+create a tuntap device. The output from CNI gets saved as a JSON file
+to disk, so that if we run <code>vmctl create</code> again with the same <code>$id</code> we
+can look for that file and skip creating the network and reuse the
+same IP address. Then <code>vmctl</code> creates a chroot containing the kernel
+and root filesystem for the VM, and starts up the jailer. The jailer
+isolates itself, drops privileges, and exec's into the Firecracker
+process to boot the VM.</p>
+<p>(Aside: <code>vmctl</code> is pronounced &quot;vm-cuddle&quot;. Obviously.)</p>
+<h2 id="bridge-interface">Bridge Interface</h2>
+<p>I have an Ansible template that looks something like the following,
+where <code>{{ prefix }}</code> gets rendered with a &quot;subnet prefix&quot; for each of
+the three physical machines. For example, one machine's prefix is
+<code>&quot;192.168.30&quot;</code>, which gets rendered as an IP of <code>192.168.30.1/24</code> with
+an IP range of <code>192.168.30.2</code> to <code>192.168.30.254</code>:</p>
+<div class="highlight"><pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&lt;network&gt;</span>
+  <span class="nt">&lt;name&gt;</span>default<span class="nt">&lt;/name&gt;</span>
+  <span class="nt">&lt;bridge</span> <span class="na">name=</span><span class="s">&#39;virbr0&#39;</span> <span class="na">stp=</span><span class="s">&#39;on&#39;</span> <span class="na">delay=</span><span class="s">&#39;0&#39;</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;forward</span> <span class="na">mode=</span><span class="s">&#39;route&#39;</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;ip</span> <span class="na">address=</span><span class="s">&#39;{{ prefix }}.1&#39;</span> <span class="na">netmask=</span><span class="s">&#39;255.255.255.0&#39;</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;dhcp&gt;</span>
+      <span class="nt">&lt;range</span> <span class="na">start=</span><span class="s">&#39;{{ prefix }}.2&#39;</span> <span class="na">end=</span><span class="s">&#39;{{ prefix }}.254&#39;</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/dhcp&gt;</span>
+  <span class="nt">&lt;/ip&gt;</span>
+<span class="nt">&lt;/network&gt;</span>
+</code></pre></div><p>A handler in the Ansible role configures this bridge as follows:</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh">virsh net-define ./virbr0.xml
+virsh net-autostart default
+virsh net-start default
+</code></pre></div><p>And that results in a bridge interface named <code>virbr0</code> with the IP
+<code>192.168.30.1/24</code> on our example machine.</p>
+<h2 id="cni">CNI</h2>
+<p>Next I have a CNI configuration file in <code>/etc/cni/net.d</code>. When CNI
+invokes this configuration, it creates the bridge if it doesn't exist
+(although we've already created it for the QEMU VMs above). It then
+allocates an IP address from the given range. Note that the range
+starts at <code>192.168.30.32</code> so that I have some room at the bottom for
+QEMU VMs. Next it sets up the appropriate iptables ingress rules, and
+creates a tuntap device.</p>
+<div class="highlight"><pre class="chroma"><code class="language-json" data-lang="json"><span class="p">{</span>
+  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;firecracker&#34;</span><span class="p">,</span>
+  <span class="nt">&#34;cniVersion&#34;</span><span class="p">:</span> <span class="s2">&#34;0.4.0&#34;</span><span class="p">,</span>
+  <span class="nt">&#34;plugins&#34;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;bridge&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;firecracker-bridge&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;bridge&#34;</span><span class="p">:</span> <span class="s2">&#34;virbr0&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;ipam&#34;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;host-local&#34;</span><span class="p">,</span>
+        <span class="nt">&#34;resolvConf&#34;</span><span class="p">:</span> <span class="s2">&#34;/etc/resolv.conf&#34;</span><span class="p">,</span>
+        <span class="nt">&#34;dataDir&#34;</span><span class="p">:</span> <span class="s2">&#34;/srv/vm/networks&#34;</span><span class="p">,</span>
+        <span class="nt">&#34;subnet&#34;</span><span class="p">:</span> <span class="s2">&#34;192.168.30.0/24&#34;</span><span class="p">,</span>
+        <span class="nt">&#34;rangeStart&#34;</span><span class="p">:</span> <span class="s2">&#34;192.168.30.32&#34;</span><span class="p">,</span>
+        <span class="nt">&#34;gateway&#34;</span><span class="p">:</span> <span class="s2">&#34;192.168.30.1&#34;</span>
+      <span class="p">}</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;firewall&#34;</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;tc-redirect-tap&#34;</span>
+    <span class="p">}</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div><p>The CNI plugin is running as root inside the network namespace, before
+we start the jailer. But the tuntap device will be opened by the
+unprivileged Firecracker process the jailer starts. CNI plugin authors
+understandably focus on the use case of K8s so it took me a bit of
+digging to figure out how to get the <code>tc-redirect-tap</code> plugin to
+create a device accessible to the jailer user. There are undocumented
+arguments to set the user ID, group ID, and tap name. The
+<a href="https://www.cni.dev/docs/cnitool/"><code>cnitool</code></a> doesn't accept
+arbitrary arguments for plugins but does accept a <code>CNI_ARGS</code>
+environment variable. These arguments get passed to <em>every</em> plugin in
+a chain of plugins, so you need to pass another argument
+<code>IgnoreUnknown=1</code> that by convention the plugin authors are supposed
+to respect. The resulting <code>vmctl</code> code looks something like the
+following (some error handling and setting the <code>$uid</code> and <code>$gid</code> of
+the jailer user have been elided for brevity).</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="k">if</span> <span class="o">[</span> ! -f <span class="s2">&#34;/var/run/netns/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">&#34;</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+    sudo ip netns add <span class="s2">&#34;</span><span class="nv">$id</span><span class="s2">&#34;</span>
+<span class="k">fi</span>
+
+<span class="c1"># I&#39;ve named the device tap1 because the default is tap0</span>
+<span class="c1"># and it makes it easier to verify args have been passed</span>
+<span class="c1"># through to the CNI plugin correctly; we can reuse the</span>
+<span class="c1"># name safely because each device ends up in its own netns</span>
+<span class="nv">cniArgs</span><span class="o">=</span><span class="s2">&#34;IgnoreUnknown=1&#34;</span>
+<span class="nv">cniArgs</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">cniArgs</span><span class="si">}</span><span class="s2">;TC_REDIRECT_TAP_UID=</span><span class="nv">$uid</span><span class="s2">&#34;</span>
+<span class="nv">cniArgs</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">cniArgs</span><span class="si">}</span><span class="s2">;TC_REDIRECT_TAP_GID=</span><span class="nv">$gid</span><span class="s2">&#34;</span>
+<span class="nv">cniArgs</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">cniArgs</span><span class="si">}</span><span class="s2">;TC_REDIRECT_TAP_NAME=tap1&#34;</span>
+
+<span class="nv">result</span><span class="o">=</span><span class="k">$(</span>sudo <span class="nv">CNI_PATH</span><span class="o">=</span><span class="s2">&#34;/opt/cni/bin&#34;</span> <span class="se">\
+</span><span class="se"></span>              <span class="nv">NETCONFPATH</span><span class="o">=</span><span class="s2">&#34;/etc/cni/net.d&#34;</span> <span class="se">\
+</span><span class="se"></span>              <span class="nv">CNI_ARGS</span><span class="o">=</span><span class="s2">&#34;</span><span class="nv">$cniArgs</span><span class="s2">&#34;</span> <span class="se">\
+</span><span class="se"></span>              cnitool add firecracker <span class="se">\
+</span><span class="se"></span>              <span class="s2">&#34;/var/run/netns/</span><span class="nv">$id</span><span class="s2">&#34;</span><span class="k">)</span>
+
+<span class="c1"># we don&#39;t pipe the cnitool straight into the file because</span>
+<span class="c1"># we want to return early if we get an error without writing</span>
+<span class="c1"># this file that we use to check for idempotency</span>
+<span class="nb">echo</span> <span class="s2">&#34;</span><span class="nv">$result</span><span class="s2">&#34;</span> <span class="p">|</span> sudo tee <span class="s2">&#34;/srv/vm/networks/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">.json&#34;</span>
+</code></pre></div><p>The <code>firecracker</code> argument to <code>add</code> refers to the name of the CNI
+configuration.</p>
+<h2 id="firecracker-configuration">Firecracker Configuration</h2>
+<p>The next step for <code>vmctl</code> is to create the chroot environment for the
+jailer and to create a Firecracker configuration file from the
+<code>$template</code> argument. A minimal template looks like the following JSON
+file.</p>
+<div class="highlight"><pre class="chroma"><code class="language-json" data-lang="json"><span class="p">{</span>
+  <span class="nt">&#34;boot-source&#34;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&#34;kernel_image_path&#34;</span><span class="p">:</span> <span class="s2">&#34;vmlinux-5.8&#34;</span><span class="p">,</span>
+    <span class="nt">&#34;boot_args&#34;</span><span class="p">:</span> <span class="s2">&#34;console=ttyS0 reboot=k panic=1 pci=off&#34;</span>
+  <span class="p">},</span>
+  <span class="nt">&#34;drives&#34;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;drive_id&#34;</span><span class="p">:</span> <span class="s2">&#34;rootfs&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;path_on_host&#34;</span><span class="p">:</span> <span class="s2">&#34;alpine-rootfs.ext4&#34;</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="nt">&#34;machine-config&#34;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&#34;vcpu_count&#34;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="nt">&#34;mem_size_mib&#34;</span><span class="p">:</span> <span class="mi">512</span>
+  <span class="p">},</span>
+  <span class="nt">&#34;network-interfaces&#34;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;iface_id&#34;</span><span class="p">:</span> <span class="s2">&#34;eth0&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;guest_mac&#34;</span><span class="p">:</span> <span class="s2">&#34;$MAC&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;host_dev_name&#34;</span><span class="p">:</span> <span class="s2">&#34;$TAP&#34;</span>
+    <span class="p">}</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div><p>For the kernel, initrd, and any drives, <code>vmctl</code> looks for the file in
+a well-known location and, creates a hardlink from there to the
+jailer's chroot, and ensures the target is owned by the jailer user
+and group. In this example, <code>/srv/vm/kernels/vmlinux-5.8</code> will be
+hardlinked to <code>/srv/vm/jailer/$id/root/vmlinux-5.8</code>.</p>
+<p>The template file is rendered with the CNI configuration. We get the
+MAC address and append a <code>ip</code> argument to the boot arguments and do
+some fairly gross things with <code>jq</code> to write that configuration to
+<code>/srv/vm/configs/$id.json</code>. That configuration is hardlinked to the
+chroot at <code>/srv/vm/jailer/$id/root/config.json</code> and owned by root.</p>
+<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash"><span class="c1"># read from the CNI ouput</span>
+<span class="nv">netcfg</span><span class="o">=</span><span class="s2">&#34;/srv/vm/networks/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">.json&#34;</span>
+<span class="nv">ip</span><span class="o">=</span><span class="k">$(</span>jq -r <span class="s1">&#39;.ips[0].address | rtrimstr(&#34;/24&#34;)&#39;</span> &lt; <span class="s2">&#34;</span><span class="nv">$netcfg</span><span class="s2">&#34;</span><span class="k">)</span>
+<span class="nv">gateway_ip</span><span class="o">=</span><span class="k">$(</span>jq -r <span class="s1">&#39;.ips[0].gateway&#39;</span> &lt; <span class="s2">&#34;</span><span class="nv">$netcfg</span><span class="s2">&#34;</span><span class="k">)</span>
+<span class="nv">mac</span><span class="o">=</span><span class="k">$(</span>jq -r <span class="s1">&#39;.interfaces[] | select(.name == &#34;eth0&#34;).mac&#39;</span> &lt; <span class="s2">&#34;</span><span class="nv">$netcfg</span><span class="s2">&#34;</span><span class="k">)</span>
+<span class="nv">mask</span><span class="o">=</span><span class="s2">&#34;255.255.255.0&#34;</span>
+
+<span class="c1"># shorten the uuid to something reasonable</span>
+<span class="nv">hostname</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span> <span class="s2">&#34;</span><span class="nv">$id</span><span class="s2">&#34;</span> <span class="p">|</span> tr -d <span class="s1">&#39;-&#39;</span> <span class="p">|</span> head -c 16<span class="k">)</span>
+
+<span class="c1"># capture the args from the template</span>
+<span class="nv">boot_args</span><span class="o">=</span><span class="k">$(</span>jq -r <span class="s1">&#39;.&#34;boot-source&#34;.boot-args&#39;</span> &lt; <span class="s2">&#34;</span><span class="nv">$template</span><span class="s2">&#34;</span><span class="k">)</span>
+
+<span class="c1"># append our ip configuration:</span>
+<span class="c1"># guest-ip:[server-ip]:gateway-ip:netmask:hostname:iface:state</span>
+<span class="nv">boot_args</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">boot_args</span><span class="si">}</span><span class="s2"> ip=</span><span class="si">${</span><span class="nv">ip</span><span class="si">}</span><span class="s2">::</span><span class="si">${</span><span class="nv">gateway_ip</span><span class="si">}</span><span class="s2">:</span><span class="si">${</span><span class="nv">mask</span><span class="si">}</span><span class="s2">:</span><span class="si">${</span><span class="nv">hostname</span><span class="si">}</span><span class="s2">:eth0:off&#34;</span>
+
+<span class="c1"># render the template</span>
+jq <span class="s2">&#34;(.\&#34;boot-source\&#34;.boot_args) |= \&#34;</span><span class="nv">$boot_args</span><span class="s2">\&#34;
+</span><span class="s2">    | (.\&#34;network-interfaces\&#34;[0].guest_mac) |= \&#34;</span><span class="nv">$mac</span><span class="s2">\&#34;
+</span><span class="s2">      &#34;</span> &lt; <span class="s2">&#34;</span><span class="nv">$template</span><span class="s2">&#34;</span> <span class="p">|</span> <span class="se">\
+</span><span class="se"></span>          sudo tee <span class="s2">&#34;/srv/vm/config/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">.json&#34;</span>
+</code></pre></div><p>Lastly <code>vmctl</code> ties this all together by invoking jailer like I've
+shown below. To get the <code>firecracker</code> binary I need to use <code>readlink</code>
+so that I can chase a symlink from <code>/usr/local/bin</code> to my local build
+from source.</p>
+<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash">sudo jailer <span class="se">\
+</span><span class="se"></span>     --id <span class="s2">&#34;</span><span class="nv">$id</span><span class="s2">&#34;</span> <span class="se">\
+</span><span class="se"></span>     --daemonize <span class="se">\
+</span><span class="se"></span>     --exec-file <span class="k">$(</span>readlink <span class="k">$(</span>which firecracker<span class="k">))</span> <span class="se">\
+</span><span class="se"></span>     --uid <span class="s2">&#34;</span><span class="nv">$uid</span><span class="s2">&#34;</span> <span class="se">\
+</span><span class="se"></span>     --gid <span class="s2">&#34;</span><span class="nv">$gid</span><span class="s2">&#34;</span> <span class="se">\
+</span><span class="se"></span>     --chroot-base-dir <span class="s2">&#34;/srv/vm/jailer&#34;</span> <span class="se">\
+</span><span class="se"></span>     --netns <span class="s2">&#34;/var/run/netns/</span><span class="nv">$id</span><span class="s2">&#34;</span> <span class="se">\
+</span><span class="se"></span>     --new-pid-ns <span class="se">\
+</span><span class="se"></span>     -- <span class="se">\
+</span><span class="se"></span>     --config-file <span class="s2">&#34;config.json&#34;</span>
+</code></pre></div><h2 id="stopping-a-vm">Stopping a VM</h2>
+<p>To stop one of the VMs without destroying it entirely, I need to send
+it a graceful shutdown, and then clean up the runtime files in the
+jailer's chroot. The next time I create the VM, <code>vmctl</code> will see that
+we already have the network, VM configuration, and hardlinks in place
+and will skip to calling jailer.</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nv">jail</span><span class="o">=</span><span class="s2">&#34;/srv/vm/jailer/firecracker/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">/root&#34;</span>
+<span class="nv">pid</span><span class="o">=</span><span class="k">$(</span>sudo cat <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/firecracker.pid&#34;</span><span class="k">)</span>
+
+sudo curl <span class="se">\
+</span><span class="se"></span>     --unix-socket <span class="se">\
+</span><span class="se"></span>     <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/run/firecracker.socket&#34;</span> <span class="se">\
+</span><span class="se"></span>     -H <span class="s2">&#34;accept: application/json&#34;</span> <span class="se">\
+</span><span class="se"></span>     -H <span class="s2">&#34;Content-Type: application/json&#34;</span> <span class="se">\
+</span><span class="se"></span>     -X PUT <span class="s2">&#34;http://localhost/actions&#34;</span> <span class="se">\
+</span><span class="se"></span>     -d <span class="s2">&#34;{ \&#34;action_type\&#34;: \&#34;SendCtrlAltDel\&#34; }&#34;</span>
+
+<span class="k">while</span> :
+<span class="k">do</span>
+    ps <span class="s2">&#34;</span><span class="nv">$pid</span><span class="s2">&#34;</span> &gt; /dev/null <span class="o">||</span> <span class="nb">break</span>
+    sleep <span class="m">1</span>
+    <span class="nb">echo</span> -n <span class="s2">&#34;.&#34;</span>
+<span class="k">done</span>
+
+<span class="nb">echo</span>
+sudo rm -r <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/firecracker.pid&#34;</span>
+sudo rm -r <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/dev&#34;</span>
+sudo rm -r <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/run&#34;</span>
+sudo rm -r <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/firecracker&#34;</span>
+</code></pre></div><p>This doesn't currently handle cleaning up if the VM shuts itself down,
+so I'll need to return to that at some point and also add a <code>vmctl stop</code> for all running VMs to the host machine's shutdown.</p>
+<h2 id="routing">Routing</h2>
+<p>Finally, we need to set up routing so that packets from the host or
+other machines can reach the VMs. On each host we set forwarding,
+which looks like the following Ansible tasks but you can also do via
+ex. <code>echo 1 &gt; /proc/sys/net/ipv4/ip_forward</code></p>
+<div class="highlight"><pre class="chroma"><code class="language-yml" data-lang="yml">- <span class="k">sysctl</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="k">name</span><span class="p">:</span><span class="w"> </span>net.ipv4.ip_forward<span class="w">
+</span><span class="w">    </span><span class="k">value</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;1&#39;</span><span class="w">
+</span><span class="w">    </span><span class="k">state</span><span class="p">:</span><span class="w"> </span>present<span class="w">
+</span><span class="w">    </span><span class="k">reload</span><span class="p">:</span><span class="w"> </span>yes<span class="w">
+</span><span class="w">  </span><span class="k">become</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span><span class="w">
+</span><span class="w"></span>- <span class="k">sysctl</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="k">name</span><span class="p">:</span><span class="w"> </span>net.ipv4.conf.all.forwarding<span class="w">
+</span><span class="w">    </span><span class="k">value</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;1&#39;</span><span class="w">
+</span><span class="w">    </span><span class="k">state</span><span class="p">:</span><span class="w"> </span>present<span class="w">
+</span><span class="w">    </span><span class="k">reload</span><span class="p">:</span><span class="w"> </span>yes<span class="w">
+</span><span class="w">  </span><span class="k">become</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span><span class="w">
+</span><span class="w"></span>- <span class="k">sysctl</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="k">name</span><span class="p">:</span><span class="w"> </span>net.ipv6.conf.all.forwarding<span class="w">
+</span><span class="w">    </span><span class="k">value</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;1&#39;</span><span class="w">
+</span><span class="w">    </span><span class="k">state</span><span class="p">:</span><span class="w"> </span>present<span class="w">
+</span><span class="w">    </span><span class="k">reload</span><span class="p">:</span><span class="w"> </span>yes<span class="w">
+</span><span class="w">  </span><span class="k">become</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></code></pre></div><p>And then on the ISP's router, we set up routing rules. I've got a Fios
+router here, so I go to the <code>#/advanced/routing</code> page and configure a
+rule for each machine. The &quot;destination&quot; field is the subnet prefix
+(ex. <code>192.168.30.0</code>), whereas the &quot;gateway&quot; field is the IP address of
+the physical host for that subnet (ex. <code>192.168.1.101</code> for my laptop).</p>
+<p>Now any machine on the LAN can reach any other machine on the LAN,
+physical or virtual. And I can further configure port mapping in the
+router to expose any of the machines to the public internet.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fnetworking-firecracker-lab%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

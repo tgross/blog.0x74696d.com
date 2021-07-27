@@ -1,14 +1,325 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>0x74696d</title>
-    <link>https://blog.0x74696d.com/</link>
+    <link>https://blog.0x74696d.com/index.html</link>
     <description>Recent content on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 01 May 2021 12:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Networking for a Firecracker Lab</title>
+      <link>https://blog.0x74696d.com/posts/networking-firecracker-lab/</link>
+      <pubDate>Tue, 27 Jul 2021 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/networking-firecracker-lab/</guid>
+      <description>&lt;p&gt;Several of my personal projects require creating and destroying a lot
+of virtual machines, so I&#39;ve started porting them over from QEMU to
+&lt;a href=&#34;https://firecracker-microvm.github.io/&#34;&gt;Firecracker&lt;/a&gt; to speed up
+development. I&#39;m now at the point where I need to make some of these
+VMs accessible from the internet and other machines on the LAN. My
+scenario is that I have three physical machines (2 NUCs and my
+development laptop) that act as virtual machine hosts. Some of them
+are currently running services on QEMU virtual machines, which I
+intend to migrate over to Firecracker eventually but I don&#39;t want a
+flag day for migration.&lt;/p&gt;
+&lt;p&gt;The obvious question given that I was a
+&lt;a href=&#34;https://www.nomadproject.io/&#34;&gt;Nomad&lt;/a&gt; maintainer is why I wouldn&#39;t use
+a Nomad &lt;a href=&#34;https://github.com/cneira/firecracker-task-driver&#34;&gt;Firecracker task
+driver&lt;/a&gt; and it
+turns out I&#39;m not running a Nomad cluster across these machines. The
+NUCs are powered off most of the day; if I happen to need them I fire
+a wake-on-LAN to boot them and wait for their services to come
+up. Nomad&#39;s control plane doesn&#39;t tolerate having peers offline for
+extended periods of time, so it&#39;s just the wrong use case for this
+home lab.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://gruchalski.com/about/&#34;&gt;Radek Gruchalski&lt;/a&gt; has a great series
+(&lt;a href=&#34;https://gruchalski.com/posts/2021-02-06-taking-firecracker-for-a-spin/&#34;&gt;I&lt;/a&gt;,
+&lt;a href=&#34;https://gruchalski.com/posts/2021-02-07-vault-on-firecracker-with-cni-plugins-and-nomad/&#34;&gt;II&lt;/a&gt;,
+&lt;a href=&#34;https://gruchalski.com/posts/2021-02-17-bridging-the-firecracker-network-gap/&#34;&gt;III&lt;/a&gt;)
+where he explores Firecracker, tries it out with Nomad and CNI, and
+gets bridge networking going after forking
+&lt;a href=&#34;https://github.com/firecracker-microvm/firectl&#34;&gt;&lt;code&gt;firectl&lt;/code&gt;&lt;/a&gt;. Gruchalski&#39;s
+approach builds on top of a
+&lt;a href=&#34;https://jvns.ca/blog/2021/01/23/firecracker--start-a-vm-in-less-than-a-second/&#34;&gt;post&lt;/a&gt;
+by the always-delightful Julia Evans
+(&lt;a href=&#34;https://twitter.com/b0rk&#34;&gt;@b0rk&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Evans configures the networking of the VM guests by passing boot
+arguments (TIL! See also this section from the &lt;a href=&#34;https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/sec-configuring_ip_networking_from_the_kernel_command_line&#34;&gt;RHEL networking
+guide&lt;/a&gt;),
+and creates the tuntap device in her script. Gruchalski instead uses
+&lt;a href=&#34;https://www.cni.dev/&#34;&gt;Container Network Interface (CNI)&lt;/a&gt; plugins to
+create a bridge network, assign an IP, and create the required tuntap
+device via the
+&lt;a href=&#34;https://github.com/awslabs/tc-redirect-tap&#34;&gt;&lt;code&gt;tc-redirect-tap&lt;/code&gt;&lt;/a&gt;
+plugin. Two areas where my requirements are different are the jailer
+and persistent IP addressing.&lt;/p&gt;
+&lt;p&gt;Because I may end up with some VMs exposed to the internet, I want to
+tighten up their isolation using the
+&lt;a href=&#34;https://github.com/firecracker-microvm/firecracker/blob/main/docs/jailer.md&#34;&gt;jailer&lt;/a&gt;. The
+jailer runs in a network namespace and containerizes itself by
+unsharing its PID namespace and running in a pivot root. (That&#39;s
+right, it&#39;s a VM running in a container!)&lt;/p&gt;
+&lt;p&gt;I&#39;d like for VM IPs to be persistent so that I can register DNS
+entries for their services and set up any forwarding rules I need at
+the router. These need to persist across reboots of the underlying
+host.&lt;/p&gt;
+&lt;p&gt;So I built on top of Evans&#39; and Gruchalski&#39;s approaches by adding
+support for the jailer and ensuring that I can have persistent IP
+addresses, and of course the extra bits that need to happen to make
+these IPs routable on my LAN. I wrapped this all up in a control
+script I&#39;m calling
+&lt;a href=&#34;https://gist.github.com/tgross/8aa33b65cba1850ebe430f33fafd6e41&#34;&gt;&lt;code&gt;vmctl&lt;/code&gt;&lt;/a&gt;
+which gets invoked as follows:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-sh&#34; data-lang=&#34;sh&#34;&gt;vmctl create --id &lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;uuidgen&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt; --template ./vmconfigs/example.json
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This creates a network namespace named after the &lt;code&gt;$id&lt;/code&gt; and runs the
+CNI plugins to allocate an IP address from the network bridge and
+create a tuntap device. The output from CNI gets saved as a JSON file
+to disk, so that if we run &lt;code&gt;vmctl create&lt;/code&gt; again with the same &lt;code&gt;$id&lt;/code&gt; we
+can look for that file and skip creating the network and reuse the
+same IP address. Then &lt;code&gt;vmctl&lt;/code&gt; creates a chroot containing the kernel
+and root filesystem for the VM, and starts up the jailer. The jailer
+isolates itself, drops privileges, and exec&#39;s into the Firecracker
+process to boot the VM.&lt;/p&gt;
+&lt;p&gt;(Aside: &lt;code&gt;vmctl&lt;/code&gt; is pronounced &amp;quot;vm-cuddle&amp;quot;. Obviously.)&lt;/p&gt;
+&lt;h2 id=&#34;bridge-interface&#34;&gt;Bridge Interface&lt;/h2&gt;
+&lt;p&gt;I have an Ansible template that looks something like the following,
+where &lt;code&gt;{{ prefix }}&lt;/code&gt; gets rendered with a &amp;quot;subnet prefix&amp;quot; for each of
+the three physical machines. For example, one machine&#39;s prefix is
+&lt;code&gt;&amp;quot;192.168.30&amp;quot;&lt;/code&gt;, which gets rendered as an IP of &lt;code&gt;192.168.30.1/24&lt;/code&gt; with
+an IP range of &lt;code&gt;192.168.30.2&lt;/code&gt; to &lt;code&gt;192.168.30.254&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-xml&#34; data-lang=&#34;xml&#34;&gt;&lt;span class=&#34;nt&#34;&gt;&amp;lt;network&amp;gt;&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;lt;name&amp;gt;&lt;/span&gt;default&lt;span class=&#34;nt&#34;&gt;&amp;lt;/name&amp;gt;&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;lt;bridge&lt;/span&gt; &lt;span class=&#34;na&#34;&gt;name=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#39;virbr0&amp;#39;&lt;/span&gt; &lt;span class=&#34;na&#34;&gt;stp=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#39;on&amp;#39;&lt;/span&gt; &lt;span class=&#34;na&#34;&gt;delay=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#39;0&amp;#39;&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;/&amp;gt;&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;lt;forward&lt;/span&gt; &lt;span class=&#34;na&#34;&gt;mode=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#39;route&amp;#39;&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;/&amp;gt;&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;lt;ip&lt;/span&gt; &lt;span class=&#34;na&#34;&gt;address=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#39;{{ prefix }}.1&amp;#39;&lt;/span&gt; &lt;span class=&#34;na&#34;&gt;netmask=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#39;255.255.255.0&amp;#39;&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&#34;nt&#34;&gt;&amp;lt;dhcp&amp;gt;&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;lt;range&lt;/span&gt; &lt;span class=&#34;na&#34;&gt;start=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#39;{{ prefix }}.2&amp;#39;&lt;/span&gt; &lt;span class=&#34;na&#34;&gt;end=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#39;{{ prefix }}.254&amp;#39;&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;/&amp;gt;&lt;/span&gt;
+    &lt;span class=&#34;nt&#34;&gt;&amp;lt;/dhcp&amp;gt;&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;lt;/ip&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;nt&#34;&gt;&amp;lt;/network&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;A handler in the Ansible role configures this bridge as follows:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-sh&#34; data-lang=&#34;sh&#34;&gt;virsh net-define ./virbr0.xml
+virsh net-autostart default
+virsh net-start default
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And that results in a bridge interface named &lt;code&gt;virbr0&lt;/code&gt; with the IP
+&lt;code&gt;192.168.30.1/24&lt;/code&gt; on our example machine.&lt;/p&gt;
+&lt;h2 id=&#34;cni&#34;&gt;CNI&lt;/h2&gt;
+&lt;p&gt;Next I have a CNI configuration file in &lt;code&gt;/etc/cni/net.d&lt;/code&gt;. When CNI
+invokes this configuration, it creates the bridge if it doesn&#39;t exist
+(although we&#39;ve already created it for the QEMU VMs above). It then
+allocates an IP address from the given range. Note that the range
+starts at &lt;code&gt;192.168.30.32&lt;/code&gt; so that I have some room at the bottom for
+QEMU VMs. Next it sets up the appropriate iptables ingress rules, and
+creates a tuntap device.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-json&#34; data-lang=&#34;json&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;#34;name&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;firecracker&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;#34;cniVersion&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;0.4.0&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;#34;plugins&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;type&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;bridge&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;name&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;firecracker-bridge&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;bridge&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;virbr0&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;ipam&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;nt&#34;&gt;&amp;#34;type&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;host-local&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;nt&#34;&gt;&amp;#34;resolvConf&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;/etc/resolv.conf&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;nt&#34;&gt;&amp;#34;dataDir&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;/srv/vm/networks&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;nt&#34;&gt;&amp;#34;subnet&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;192.168.30.0/24&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;nt&#34;&gt;&amp;#34;rangeStart&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;192.168.30.32&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;nt&#34;&gt;&amp;#34;gateway&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;192.168.30.1&amp;#34;&lt;/span&gt;
+      &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;type&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;firewall&amp;#34;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;type&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;tc-redirect-tap&amp;#34;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The CNI plugin is running as root inside the network namespace, before
+we start the jailer. But the tuntap device will be opened by the
+unprivileged Firecracker process the jailer starts. CNI plugin authors
+understandably focus on the use case of K8s so it took me a bit of
+digging to figure out how to get the &lt;code&gt;tc-redirect-tap&lt;/code&gt; plugin to
+create a device accessible to the jailer user. There are undocumented
+arguments to set the user ID, group ID, and tap name. The
+&lt;a href=&#34;https://www.cni.dev/docs/cnitool/&#34;&gt;&lt;code&gt;cnitool&lt;/code&gt;&lt;/a&gt; doesn&#39;t accept
+arbitrary arguments for plugins but does accept a &lt;code&gt;CNI_ARGS&lt;/code&gt;
+environment variable. These arguments get passed to &lt;em&gt;every&lt;/em&gt; plugin in
+a chain of plugins, so you need to pass another argument
+&lt;code&gt;IgnoreUnknown=1&lt;/code&gt; that by convention the plugin authors are supposed
+to respect. The resulting &lt;code&gt;vmctl&lt;/code&gt; code looks something like the
+following (some error handling and setting the &lt;code&gt;$uid&lt;/code&gt; and &lt;code&gt;$gid&lt;/code&gt; of
+the jailer user have been elided for brevity).&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-sh&#34; data-lang=&#34;sh&#34;&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt; ! -f &lt;span class=&#34;s2&#34;&gt;&amp;#34;/var/run/netns/&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;id&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;then&lt;/span&gt;
+    sudo ip netns add &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$id&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;fi&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;# I&amp;#39;ve named the device tap1 because the default is tap0&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# and it makes it easier to verify args have been passed&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# through to the CNI plugin correctly; we can reuse the&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# name safely because each device ends up in its own netns&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;cniArgs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;IgnoreUnknown=1&amp;#34;&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;cniArgs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;cniArgs&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;;TC_REDIRECT_TAP_UID=&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$uid&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;cniArgs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;cniArgs&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;;TC_REDIRECT_TAP_GID=&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$gid&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;cniArgs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;cniArgs&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;;TC_REDIRECT_TAP_NAME=tap1&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;nv&#34;&gt;result&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;sudo &lt;span class=&#34;nv&#34;&gt;CNI_PATH&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;/opt/cni/bin&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;              &lt;span class=&#34;nv&#34;&gt;NETCONFPATH&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;/etc/cni/net.d&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;              &lt;span class=&#34;nv&#34;&gt;CNI_ARGS&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$cniArgs&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;              cnitool add firecracker &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;              &lt;span class=&#34;s2&#34;&gt;&amp;#34;/var/run/netns/&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$id&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;# we don&amp;#39;t pipe the cnitool straight into the file because&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# we want to return early if we get an error without writing&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# this file that we use to check for idempotency&lt;/span&gt;
+&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$result&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; sudo tee &lt;span class=&#34;s2&#34;&gt;&amp;#34;/srv/vm/networks/&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;id&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;.json&amp;#34;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The &lt;code&gt;firecracker&lt;/code&gt; argument to &lt;code&gt;add&lt;/code&gt; refers to the name of the CNI
+configuration.&lt;/p&gt;
+&lt;h2 id=&#34;firecracker-configuration&#34;&gt;Firecracker Configuration&lt;/h2&gt;
+&lt;p&gt;The next step for &lt;code&gt;vmctl&lt;/code&gt; is to create the chroot environment for the
+jailer and to create a Firecracker configuration file from the
+&lt;code&gt;$template&lt;/code&gt; argument. A minimal template looks like the following JSON
+file.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-json&#34; data-lang=&#34;json&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;#34;boot-source&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nt&#34;&gt;&amp;#34;kernel_image_path&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;vmlinux-5.8&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;nt&#34;&gt;&amp;#34;boot_args&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;console=ttyS0 reboot=k panic=1 pci=off&amp;#34;&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;#34;drives&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;drive_id&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;rootfs&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;path_on_host&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;alpine-rootfs.ext4&amp;#34;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;],&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;#34;machine-config&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nt&#34;&gt;&amp;#34;vcpu_count&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;nt&#34;&gt;&amp;#34;mem_size_mib&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;512&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;
+  &lt;span class=&#34;nt&#34;&gt;&amp;#34;network-interfaces&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;iface_id&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;eth0&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;guest_mac&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;$MAC&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+      &lt;span class=&#34;nt&#34;&gt;&amp;#34;host_dev_name&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;$TAP&amp;#34;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;For the kernel, initrd, and any drives, &lt;code&gt;vmctl&lt;/code&gt; looks for the file in
+a well-known location and, creates a hardlink from there to the
+jailer&#39;s chroot, and ensures the target is owned by the jailer user
+and group. In this example, &lt;code&gt;/srv/vm/kernels/vmlinux-5.8&lt;/code&gt; will be
+hardlinked to &lt;code&gt;/srv/vm/jailer/$id/root/vmlinux-5.8&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The template file is rendered with the CNI configuration. We get the
+MAC address and append a &lt;code&gt;ip&lt;/code&gt; argument to the boot arguments and do
+some fairly gross things with &lt;code&gt;jq&lt;/code&gt; to write that configuration to
+&lt;code&gt;/srv/vm/configs/$id.json&lt;/code&gt;. That configuration is hardlinked to the
+chroot at &lt;code&gt;/srv/vm/jailer/$id/root/config.json&lt;/code&gt; and owned by root.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# read from the CNI ouput&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;netcfg&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;/srv/vm/networks/&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;id&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;.json&amp;#34;&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;ip&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;jq -r &lt;span class=&#34;s1&#34;&gt;&amp;#39;.ips[0].address | rtrimstr(&amp;#34;/24&amp;#34;)&amp;#39;&lt;/span&gt; &amp;lt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$netcfg&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;gateway_ip&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;jq -r &lt;span class=&#34;s1&#34;&gt;&amp;#39;.ips[0].gateway&amp;#39;&lt;/span&gt; &amp;lt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$netcfg&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;mac&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;jq -r &lt;span class=&#34;s1&#34;&gt;&amp;#39;.interfaces[] | select(.name == &amp;#34;eth0&amp;#34;).mac&amp;#39;&lt;/span&gt; &amp;lt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$netcfg&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;mask&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;255.255.255.0&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;# shorten the uuid to something reasonable&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;hostname&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$id&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; tr -d &lt;span class=&#34;s1&#34;&gt;&amp;#39;-&amp;#39;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; head -c 16&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;# capture the args from the template&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;boot_args&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;jq -r &lt;span class=&#34;s1&#34;&gt;&amp;#39;.&amp;#34;boot-source&amp;#34;.boot-args&amp;#39;&lt;/span&gt; &amp;lt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$template&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;# append our ip configuration:&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# guest-ip:[server-ip]:gateway-ip:netmask:hostname:iface:state&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;boot_args&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;boot_args&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt; ip=&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;ip&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;gateway_ip&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;mask&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;hostname&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;:eth0:off&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;# render the template&lt;/span&gt;
+jq &lt;span class=&#34;s2&#34;&gt;&amp;#34;(.\&amp;#34;boot-source\&amp;#34;.boot_args) |= \&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$boot_args&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;\&amp;#34;
+&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;    | (.\&amp;#34;network-interfaces\&amp;#34;[0].guest_mac) |= \&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$mac&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;\&amp;#34;
+&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;      &amp;#34;&lt;/span&gt; &amp;lt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$template&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;          sudo tee &lt;span class=&#34;s2&#34;&gt;&amp;#34;/srv/vm/config/&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;id&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;.json&amp;#34;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Lastly &lt;code&gt;vmctl&lt;/code&gt; ties this all together by invoking jailer like I&#39;ve
+shown below. To get the &lt;code&gt;firecracker&lt;/code&gt; binary I need to use &lt;code&gt;readlink&lt;/code&gt;
+so that I can chase a symlink from &lt;code&gt;/usr/local/bin&lt;/code&gt; to my local build
+from source.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;sudo jailer &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --id &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$id&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --daemonize &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --exec-file &lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;readlink &lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;which firecracker&lt;span class=&#34;k&#34;&gt;))&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --uid &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$uid&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --gid &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$gid&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --chroot-base-dir &lt;span class=&#34;s2&#34;&gt;&amp;#34;/srv/vm/jailer&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --netns &lt;span class=&#34;s2&#34;&gt;&amp;#34;/var/run/netns/&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$id&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --new-pid-ns &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     -- &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --config-file &lt;span class=&#34;s2&#34;&gt;&amp;#34;config.json&amp;#34;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;stopping-a-vm&#34;&gt;Stopping a VM&lt;/h2&gt;
+&lt;p&gt;To stop one of the VMs without destroying it entirely, I need to send
+it a graceful shutdown, and then clean up the runtime files in the
+jailer&#39;s chroot. The next time I create the VM, &lt;code&gt;vmctl&lt;/code&gt; will see that
+we already have the network, VM configuration, and hardlinks in place
+and will skip to calling jailer.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-sh&#34; data-lang=&#34;sh&#34;&gt;&lt;span class=&#34;nv&#34;&gt;jail&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;/srv/vm/jailer/firecracker/&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;id&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;/root&amp;#34;&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;pid&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;sudo cat &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;jail&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;/firecracker.pid&amp;#34;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;
+
+sudo curl &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     --unix-socket &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;jail&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;/run/firecracker.socket&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     -H &lt;span class=&#34;s2&#34;&gt;&amp;#34;accept: application/json&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     -H &lt;span class=&#34;s2&#34;&gt;&amp;#34;Content-Type: application/json&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     -X PUT &lt;span class=&#34;s2&#34;&gt;&amp;#34;http://localhost/actions&amp;#34;&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;&lt;/span&gt;     -d &lt;span class=&#34;s2&#34;&gt;&amp;#34;{ \&amp;#34;action_type\&amp;#34;: \&amp;#34;SendCtrlAltDel\&amp;#34; }&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;while&lt;/span&gt; :
+&lt;span class=&#34;k&#34;&gt;do&lt;/span&gt;
+    ps &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$pid&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &amp;gt; /dev/null &lt;span class=&#34;o&#34;&gt;||&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;break&lt;/span&gt;
+    sleep &lt;span class=&#34;m&#34;&gt;1&lt;/span&gt;
+    &lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; -n &lt;span class=&#34;s2&#34;&gt;&amp;#34;.&amp;#34;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;done&lt;/span&gt;
+
+&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt;
+sudo rm -r &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;jail&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;/firecracker.pid&amp;#34;&lt;/span&gt;
+sudo rm -r &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;jail&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;/dev&amp;#34;&lt;/span&gt;
+sudo rm -r &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;jail&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;/run&amp;#34;&lt;/span&gt;
+sudo rm -r &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;jail&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;/firecracker&amp;#34;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This doesn&#39;t currently handle cleaning up if the VM shuts itself down,
+so I&#39;ll need to return to that at some point and also add a &lt;code&gt;vmctl stop&lt;/code&gt; for all running VMs to the host machine&#39;s shutdown.&lt;/p&gt;
+&lt;h2 id=&#34;routing&#34;&gt;Routing&lt;/h2&gt;
+&lt;p&gt;Finally, we need to set up routing so that packets from the host or
+other machines can reach the VMs. On each host we set forwarding,
+which looks like the following Ansible tasks but you can also do via
+ex. &lt;code&gt;echo 1 &amp;gt; /proc/sys/net/ipv4/ip_forward&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-yml&#34; data-lang=&#34;yml&#34;&gt;- &lt;span class=&#34;k&#34;&gt;sysctl&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;net.ipv4.ip_forward&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;1&amp;#39;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;state&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;present&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;reload&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;yes&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;become&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;true&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;- &lt;span class=&#34;k&#34;&gt;sysctl&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;net.ipv4.conf.all.forwarding&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;1&amp;#39;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;state&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;present&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;reload&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;yes&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;become&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;true&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;- &lt;span class=&#34;k&#34;&gt;sysctl&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;net.ipv6.conf.all.forwarding&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;1&amp;#39;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;state&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;present&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;reload&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;yes&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;become&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;true&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And then on the ISP&#39;s router, we set up routing rules. I&#39;ve got a Fios
+router here, so I go to the &lt;code&gt;#/advanced/routing&lt;/code&gt; page and configure a
+rule for each machine. The &amp;quot;destination&amp;quot; field is the subnet prefix
+(ex. &lt;code&gt;192.168.30.0&lt;/code&gt;), whereas the &amp;quot;gateway&amp;quot; field is the IP address of
+the physical host for that subnet (ex. &lt;code&gt;192.168.1.101&lt;/code&gt; for my laptop).&lt;/p&gt;
+&lt;p&gt;Now any machine on the LAN can reach any other machine on the LAN,
+physical or virtual. And I can further configure port mapping in the
+router to expose any of the machines to the public internet.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Strictly Aspirational Engineering Values</title>
@@ -1835,17 +2146,6 @@ fallback:
 &lt;h2 id=&#34;so-whats-happening-here&#34;&gt;So what&#39;s happening here?&lt;/h2&gt;
 &lt;p&gt;So why is there a difference between Docker for Mac and all the other environments? If it&#39;s something specific to the Mac why don&#39;t we see it without Docker? There&#39;s one more wrench in this story, and that&#39;s Hypervisor Framework and &lt;a href=&#34;https://github.com/mist64/xhyve&#34;&gt;xhyve&lt;/a&gt;. Unlike all the other cases, in Docker for Mac we&#39;re using xhyve, which runs entirely in userspace. Presumably somewhere in the userspace emulation we&#39;re losing a lot of our performance to virtualization.&lt;/p&gt;
 &lt;p&gt;This is unfortunately where my enthusiasm for following this to the end starts to flag. That&#39;s probably a disappointing finish, but in fairness I totally warned you! If you want to tackle this further, xhyve is open source and developed on GitHub. The real conclusion is to be careful that you&#39;re benchmarking what you really think you are. Even in cases where you&#39;ve got &amp;quot;pure&amp;quot; CPU benchmarks you can be caught by surprise!&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Secrets Management in the Autopilot Pattern</title>
-      <link>https://blog.0x74696d.com/posts/secrets-management-in-the-autopilotpattern/</link>
-      <pubDate>Thu, 26 Jan 2017 00:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/secrets-management-in-the-autopilotpattern/</guid>
-      <description>&lt;p&gt;No matter how we deploy our applications, managing secrets invokes the chicken-and-the-egg problem. Any system for secrets management has to answer the question of how the application authenticates to the system managing the secrets in the first place. Applications built with the Autopilot Pattern can be easily made to leverage secrets management services, but it&#39;s important to understand the security model and threat model of these services.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;&lt;a href=&#34;https://www.joyent.com/blog/secrets-management-in-the-autopilotpattern&#34;&gt;Check out the full article on the official Joyent blog...&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 </description>
     </item>
     

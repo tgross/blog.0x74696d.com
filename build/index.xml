@@ -1,10 +1,11 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>0x74696d</title>
-    <link>https://blog.0x74696d.com/index.html</link>
+    <link>https://blog.0x74696d.com/</link>
     <description>Recent content on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
+    <lastBuildDate>Tue, 27 Jul 2021 12:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/index.xml" rel="self" type="application/rss+xml" />
     
@@ -28,7 +29,7 @@ flag day for migration.&lt;/p&gt;
 &lt;p&gt;The obvious question given that I was a
 &lt;a href=&#34;https://www.nomadproject.io/&#34;&gt;Nomad&lt;/a&gt; maintainer is why I wouldn&#39;t use
 a Nomad &lt;a href=&#34;https://github.com/cneira/firecracker-task-driver&#34;&gt;Firecracker task
-driver&lt;/a&gt; and it
+driver&lt;/a&gt;, but it
 turns out I&#39;m not running a Nomad cluster across these machines. The
 NUCs are powered off most of the day; if I happen to need them I fire
 a wake-on-LAN to boot them and wait for their services to come
@@ -78,9 +79,9 @@ which gets invoked as follows:&lt;/p&gt;
 CNI plugins to allocate an IP address from the network bridge and
 create a tuntap device. The output from CNI gets saved as a JSON file
 to disk, so that if we run &lt;code&gt;vmctl create&lt;/code&gt; again with the same &lt;code&gt;$id&lt;/code&gt; we
-can look for that file and skip creating the network and reuse the
-same IP address. Then &lt;code&gt;vmctl&lt;/code&gt; creates a chroot containing the kernel
-and root filesystem for the VM, and starts up the jailer. The jailer
+can look for that file, skip creating the network, and reuse the same
+IP address. Next &lt;code&gt;vmctl&lt;/code&gt; creates a chroot containing the kernel and
+root filesystem for the VM, and starts up the jailer. The jailer
 isolates itself, drops privileges, and exec&#39;s into the Firecracker
 process to boot the VM.&lt;/p&gt;
 &lt;p&gt;(Aside: &lt;code&gt;vmctl&lt;/code&gt; is pronounced &amp;quot;vm-cuddle&amp;quot;. Obviously.)&lt;/p&gt;
@@ -112,8 +113,8 @@ invokes this configuration, it creates the bridge if it doesn&#39;t exist
 (although we&#39;ve already created it for the QEMU VMs above). It then
 allocates an IP address from the given range. Note that the range
 starts at &lt;code&gt;192.168.30.32&lt;/code&gt; so that I have some room at the bottom for
-QEMU VMs. Next it sets up the appropriate iptables ingress rules, and
-creates a tuntap device.&lt;/p&gt;
+the existing QEMU VMs. Next it sets up the appropriate iptables
+ingress rules, and creates a tuntap device.&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-json&#34; data-lang=&#34;json&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
   &lt;span class=&#34;nt&#34;&gt;&amp;#34;name&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;firecracker&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
   &lt;span class=&#34;nt&#34;&gt;&amp;#34;cniVersion&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;0.4.0&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
@@ -142,7 +143,7 @@ creates a tuntap device.&lt;/p&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The CNI plugin is running as root inside the network namespace, before
 we start the jailer. But the tuntap device will be opened by the
 unprivileged Firecracker process the jailer starts. CNI plugin authors
-understandably focus on the use case of K8s so it took me a bit of
+understandably focus on the use case of K8s, so it took me a bit of
 digging to figure out how to get the &lt;code&gt;tc-redirect-tap&lt;/code&gt; plugin to
 create a device accessible to the jailer user. There are undocumented
 arguments to set the user ID, group ID, and tap name. The
@@ -177,8 +178,8 @@ the jailer user have been elided for brevity).&lt;/p&gt;
 &lt;span class=&#34;c1&#34;&gt;# we want to return early if we get an error without writing&lt;/span&gt;
 &lt;span class=&#34;c1&#34;&gt;# this file that we use to check for idempotency&lt;/span&gt;
 &lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$result&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; sudo tee &lt;span class=&#34;s2&#34;&gt;&amp;#34;/srv/vm/networks/&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;id&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;.json&amp;#34;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The &lt;code&gt;firecracker&lt;/code&gt; argument to &lt;code&gt;add&lt;/code&gt; refers to the name of the CNI
-configuration.&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The &lt;code&gt;firecracker&lt;/code&gt; argument to the &lt;code&gt;add&lt;/code&gt; subcommand refers to the name
+of the CNI configuration.&lt;/p&gt;
 &lt;h2 id=&#34;firecracker-configuration&#34;&gt;Firecracker Configuration&lt;/h2&gt;
 &lt;p&gt;The next step for &lt;code&gt;vmctl&lt;/code&gt; is to create the chroot environment for the
 jailer and to create a Firecracker configuration file from the
@@ -208,12 +209,12 @@ file.&lt;/p&gt;
   &lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
 &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;For the kernel, initrd, and any drives, &lt;code&gt;vmctl&lt;/code&gt; looks for the file in
-a well-known location and, creates a hardlink from there to the
+a well-known location, creates a hardlink from there to the
 jailer&#39;s chroot, and ensures the target is owned by the jailer user
 and group. In this example, &lt;code&gt;/srv/vm/kernels/vmlinux-5.8&lt;/code&gt; will be
 hardlinked to &lt;code&gt;/srv/vm/jailer/$id/root/vmlinux-5.8&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;The template file is rendered with the CNI configuration. We get the
-MAC address and append a &lt;code&gt;ip&lt;/code&gt; argument to the boot arguments and do
+MAC address, append an &lt;code&gt;ip&lt;/code&gt; argument to the boot arguments, and do
 some fairly gross things with &lt;code&gt;jq&lt;/code&gt; to write that configuration to
 &lt;code&gt;/srv/vm/configs/$id.json&lt;/code&gt;. That configuration is hardlinked to the
 chroot at &lt;code&gt;/srv/vm/jailer/$id/root/config.json&lt;/code&gt; and owned by root.&lt;/p&gt;

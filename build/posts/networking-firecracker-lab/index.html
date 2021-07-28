@@ -48,7 +48,7 @@ flag day for migration.</p>
 <p>The obvious question given that I was a
 <a href="https://www.nomadproject.io/">Nomad</a> maintainer is why I wouldn't use
 a Nomad <a href="https://github.com/cneira/firecracker-task-driver">Firecracker task
-driver</a> and it
+driver</a>, but it
 turns out I'm not running a Nomad cluster across these machines. The
 NUCs are powered off most of the day; if I happen to need them I fire
 a wake-on-LAN to boot them and wait for their services to come
@@ -98,9 +98,9 @@ which gets invoked as follows:</p>
 CNI plugins to allocate an IP address from the network bridge and
 create a tuntap device. The output from CNI gets saved as a JSON file
 to disk, so that if we run <code>vmctl create</code> again with the same <code>$id</code> we
-can look for that file and skip creating the network and reuse the
-same IP address. Then <code>vmctl</code> creates a chroot containing the kernel
-and root filesystem for the VM, and starts up the jailer. The jailer
+can look for that file, skip creating the network, and reuse the same
+IP address. Next <code>vmctl</code> creates a chroot containing the kernel and
+root filesystem for the VM, and starts up the jailer. The jailer
 isolates itself, drops privileges, and exec's into the Firecracker
 process to boot the VM.</p>
 <p>(Aside: <code>vmctl</code> is pronounced &quot;vm-cuddle&quot;. Obviously.)</p>
@@ -132,8 +132,8 @@ invokes this configuration, it creates the bridge if it doesn't exist
 (although we've already created it for the QEMU VMs above). It then
 allocates an IP address from the given range. Note that the range
 starts at <code>192.168.30.32</code> so that I have some room at the bottom for
-QEMU VMs. Next it sets up the appropriate iptables ingress rules, and
-creates a tuntap device.</p>
+the existing QEMU VMs. Next it sets up the appropriate iptables
+ingress rules, and creates a tuntap device.</p>
 <div class="highlight"><pre class="chroma"><code class="language-json" data-lang="json"><span class="p">{</span>
   <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;firecracker&#34;</span><span class="p">,</span>
   <span class="nt">&#34;cniVersion&#34;</span><span class="p">:</span> <span class="s2">&#34;0.4.0&#34;</span><span class="p">,</span>
@@ -162,7 +162,7 @@ creates a tuntap device.</p>
 </code></pre></div><p>The CNI plugin is running as root inside the network namespace, before
 we start the jailer. But the tuntap device will be opened by the
 unprivileged Firecracker process the jailer starts. CNI plugin authors
-understandably focus on the use case of K8s so it took me a bit of
+understandably focus on the use case of K8s, so it took me a bit of
 digging to figure out how to get the <code>tc-redirect-tap</code> plugin to
 create a device accessible to the jailer user. There are undocumented
 arguments to set the user ID, group ID, and tap name. The
@@ -197,8 +197,8 @@ the jailer user have been elided for brevity).</p>
 <span class="c1"># we want to return early if we get an error without writing</span>
 <span class="c1"># this file that we use to check for idempotency</span>
 <span class="nb">echo</span> <span class="s2">&#34;</span><span class="nv">$result</span><span class="s2">&#34;</span> <span class="p">|</span> sudo tee <span class="s2">&#34;/srv/vm/networks/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">.json&#34;</span>
-</code></pre></div><p>The <code>firecracker</code> argument to <code>add</code> refers to the name of the CNI
-configuration.</p>
+</code></pre></div><p>The <code>firecracker</code> argument to the <code>add</code> subcommand refers to the name
+of the CNI configuration.</p>
 <h2 id="firecracker-configuration">Firecracker Configuration</h2>
 <p>The next step for <code>vmctl</code> is to create the chroot environment for the
 jailer and to create a Firecracker configuration file from the
@@ -228,12 +228,12 @@ file.</p>
   <span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div><p>For the kernel, initrd, and any drives, <code>vmctl</code> looks for the file in
-a well-known location and, creates a hardlink from there to the
+a well-known location, creates a hardlink from there to the
 jailer's chroot, and ensures the target is owned by the jailer user
 and group. In this example, <code>/srv/vm/kernels/vmlinux-5.8</code> will be
 hardlinked to <code>/srv/vm/jailer/$id/root/vmlinux-5.8</code>.</p>
 <p>The template file is rendered with the CNI configuration. We get the
-MAC address and append a <code>ip</code> argument to the boot arguments and do
+MAC address, append an <code>ip</code> argument to the boot arguments, and do
 some fairly gross things with <code>jq</code> to write that configuration to
 <code>/srv/vm/configs/$id.json</code>. That configuration is hardlinked to the
 chroot at <code>/srv/vm/jailer/$id/root/config.json</code> and owned by root.</p>

@@ -18,6 +18,10 @@ body {
     color: #404040;
 }
 
+code {
+    font-size: 1.1em;
+}
+
 a { color: #307EA9; }
 b, strong { color: #555; }
 
@@ -159,7 +163,7 @@ h3 {
   }
   .content p code {
       font-family: monospace,monospace; /* size fix FF, Chrome, Safari */
-      font-size: .9em; /* size fix for IE, Opera */
+      font-size: 0.9em; /* size fix for IE, Opera */
       font-weight: 500;
   }
 

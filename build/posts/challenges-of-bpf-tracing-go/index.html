@@ -58,23 +58,23 @@ and <code>uretprobe</code>. A <code>uprobe</code> inserts a BPF probe at the poi
 function is called, and the <code>uretprobe</code> inserts a probe where the
 function returns.</p>
 <p>As a quick example, here's a function written in C:</p>
-<div class="highlight"><pre class="chroma"><code class="language-c" data-lang="c"><span class="kt">int</span> <span class="nf">sum</span><span class="p">(</span><span class="kt">int</span> <span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
-    <span class="k">return</span> <span class="n">a</span><span class="o">+</span><span class="n">b</span><span class="p">;</span>
-<span class="p">}</span>
-</code></pre></div><p>And here's a <code>bpftrace</code> program that prints the program's arguments
+<pre><code>int sum(int a, int b) {
+    return a+b;
+}
+</code></pre><p>And here's a <code>bpftrace</code> program that prints the program's arguments
 and return value.</p>
-<div class="highlight"><pre class="chroma"><code class="language-awk" data-lang="awk"><span class="c1">#!/usr/bin/env bpftrace</span>
+<pre><code>#!/usr/bin/env bpftrace
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">sum</span><span class="err">:</span><span class="s2">&#34;sum&#34;</span>
-<span class="p">{</span>
-    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;args: %d + %d\n&#34;</span><span class="p">,</span> <span class="nx">arg0</span><span class="p">,</span> <span class="nx">arg1</span><span class="p">);</span>
-<span class="p">}</span>
+uprobe:./sum:&quot;sum&quot;
+{
+    printf(&quot;args: %d + %d\n&quot;, arg0, arg1);
+}
 
-<span class="nx">uretprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">sum</span><span class="err">:</span><span class="s2">&#34;sum&#34;</span>
-<span class="p">{</span>
-    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;result: %d\n&#34;</span><span class="p">,</span> <span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;ax&#34;</span><span class="p">));</span>
-<span class="p">}</span>
-</code></pre></div><p>If we run the <code>bpftrace</code> script, it'll pause waiting for us to run the
+uretprobe:./sum:&quot;sum&quot;
+{
+    printf(&quot;result: %d\n&quot;, reg(&quot;ax&quot;));
+}
+</code></pre><p>If we run the <code>bpftrace</code> script, it'll pause waiting for us to run the
 C program in another terminal, and then print the outputs:</p>
 <pre><code>$ sudo ./sum.bt
 Attaching 2 probes...
@@ -126,26 +126,26 @@ involves disassembling the binary.</p>
 <p>You probably don't spend your day looking at assembly and I sure as
 heck don't either! So let's take a quick detour into reading
 disassembled functions in go. Suppose this is our program:</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+<pre><code>package main
 
-<span class="kn">import</span> <span class="p">(</span>
-	<span class="s">&#34;fmt&#34;</span>
-	<span class="s">&#34;os&#34;</span>
-<span class="p">)</span>
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+)
 
-<span class="kd">func</span> <span class="nf">swap</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="kt">string</span><span class="p">,</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
-	<span class="k">return</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">x</span>
-<span class="p">}</span>
+func swap(x, y string) (string, string) {
+	return y, x
+}
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-	<span class="nx">args</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Args</span>
-	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">args</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
-		<span class="nb">panic</span><span class="p">(</span><span class="s">&#34;needs 2 args&#34;</span><span class="p">)</span>
-	<span class="p">}</span>
-	<span class="nx">a</span><span class="p">,</span> <span class="nx">b</span> <span class="o">:=</span> <span class="nf">swap</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nx">args</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
-	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span>
-<span class="p">}</span>
-</code></pre></div><p>Because this program is trivial, Go will inline the <code>swap</code> function,
+func main() {
+	args := os.Args
+	if len(args) &lt; 3 {
+		panic(&quot;needs 2 args&quot;)
+	}
+	a, b := swap(args[1], args[2])
+	fmt.Println(a, b)
+}
+</code></pre><p>Because this program is trivial, Go will inline the <code>swap</code> function,
 so for purposes of illustration we're going to compile it with <code>go build -gcflags '-l' -o swapper .</code> to disable inlining.</p>
 <p>First we'll disassemble the function in GDB. You could also do this in
 <code>objdump</code> but we're going to want to poke around a bit here.</p>
@@ -254,22 +254,22 @@ filter looks like <code>uprobe:./bin/swapper:&quot;main.swap&quot;+40</code>. Wh
 the probe, we can't simply look in return registers, but we need to
 examine the stack pointer offsets we found for each argument
 above. The final <code>bpftrace</code> program looks like the following:</p>
-<div class="highlight"><pre class="chroma"><code class="language-awk" data-lang="awk"><span class="c1">#!/usr/bin/env bpftrace</span>
+<pre><code>#!/usr/bin/env bpftrace
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">swapper</span><span class="err">:</span><span class="s2">&#34;main.swap&#34;</span>
-<span class="p">{</span>
-    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;swapping \&#34;%s\&#34; and \&#34;%s\&#34;\n&#34;</span><span class="p">,</span>
-        <span class="nx">str</span><span class="p">(</span><span class="nx">sarg0</span><span class="p">,</span> <span class="nx">sarg1</span><span class="p">),</span> <span class="nx">str</span><span class="p">(</span><span class="nx">sarg2</span><span class="p">,</span> <span class="nx">sarg3</span><span class="p">));</span>
-<span class="p">}</span>
+uprobe:./swapper:&quot;main.swap&quot;
+{
+    printf(&quot;swapping \&quot;%s\&quot; and \&quot;%s\&quot;\n&quot;,
+        str(sarg0, sarg1), str(sarg2, sarg3));
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">swapper</span><span class="err">:</span><span class="s2">&#34;main.swap&#34;</span><span class="o">+</span><span class="mi">40</span>
-<span class="p">{</span>
-    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;results: \&#34;%s\&#34; and \&#34;%s\&#34;\n&#34;</span><span class="p">,</span>
-        <span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;sp&#34;</span><span class="p">)</span><span class="o">+</span><span class="mh">0x28</span><span class="p">),</span> <span class="o">*</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;sp&#34;</span><span class="p">)</span><span class="o">+</span><span class="mh">0x30</span><span class="p">)),</span>
-        <span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;sp&#34;</span><span class="p">)</span><span class="o">+</span><span class="mh">0x38</span><span class="p">),</span> <span class="o">*</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;sp&#34;</span><span class="p">)</span><span class="o">+</span><span class="mh">0x40</span><span class="p">))</span>
-        <span class="p">)</span>
-<span class="p">}</span>
-</code></pre></div><p>We run this program in one terminal while running <code>./swapper hello world</code> in another terminal:</p>
+uprobe:./swapper:&quot;main.swap&quot;+40
+{
+    printf(&quot;results: \&quot;%s\&quot; and \&quot;%s\&quot;\n&quot;,
+        str(*(reg(&quot;sp&quot;)+0x28), *(reg(&quot;sp&quot;)+0x30)),
+        str(*(reg(&quot;sp&quot;)+0x38), *(reg(&quot;sp&quot;)+0x40))
+        )
+}
+</code></pre><p>We run this program in one terminal while running <code>./swapper hello world</code> in another terminal:</p>
 <pre><code>$ sudo ./swapper.bt
 Attaching 2 probes...
 swapping &quot;hello&quot; and &quot;go&quot;
@@ -282,335 +282,335 @@ this for every one of them!</p>
 <a href="https://github.com/hashicorp/nomad/blob/v1.1.4/nomad/fsm.go#L193-L322"><code>Apply</code></a>
 method, I've had to lean on hideous tricks like generating a
 <code>bpftrace</code> program:</p>
-<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash"><span class="cp">#!/usr/bin/env bash
-</span><span class="cp"></span>
-cat <span class="s">&lt;&lt;EOF
-</span><span class="s">#!/usr/bin/env bpftrace
-</span><span class="s">/*
-</span><span class="s">Get Nomad FSM.Apply latency
-</span><span class="s">Note: using sarg with offsets isn&#39;t really concurrency safe and emits a warning
-</span><span class="s">*/
-</span><span class="s">
-</span><span class="s">EOF</span>
+<pre><code>#!/usr/bin/env bash
 
-<span class="nv">base</span><span class="o">=</span><span class="k">$(</span>objdump --disassemble<span class="o">=</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span> <span class="se">\
-</span><span class="se"></span>               -Mintel -S ./bin/nomad <span class="se">\
-</span><span class="se"></span>               <span class="p">|</span> awk <span class="s1">&#39;/hashicorp/{print $1}&#39;</span> <span class="se">\
-</span><span class="se"></span>               <span class="p">|</span> head -1<span class="k">)</span>
+cat &lt;&lt;EOF
+#!/usr/bin/env bpftrace
+/*
+Get Nomad FSM.Apply latency
+Note: using sarg with offsets isn't really concurrency safe and emits a warning
+*/
 
-objdump --disassemble<span class="o">=</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span> <span class="se">\
-</span><span class="se"></span>        -Mintel -S ./bin/nomad <span class="se">\
-</span><span class="se"></span>        <span class="p">|</span> awk -F<span class="s1">&#39; |:&#39;</span> <span class="s1">&#39;/ret/{print $2}&#39;</span> <span class="se">\
-</span><span class="se"></span>        <span class="p">|</span> xargs -I % <span class="se">\
-</span><span class="se"></span>        python3 -c <span class="s2">&#34;print(&#39;uprobe:./bin/nomad:\&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply\&#34;+&#39; + hex(0x% - 0x</span><span class="nv">$base</span><span class="s2">))
-</span><span class="s2">print(&#39;{&#39;)
-</span><span class="s2">print(&#39;  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);&#39;)
-</span><span class="s2">print(&#39;  delete(@start[str(*sarg1)]);&#39;)
-</span><span class="s2">print(&#39;}&#39;)
-</span><span class="s2">print(&#39;&#39;)
-</span><span class="s2">&#34;</span>
-</code></pre></div><p>Which results in the following 300 line monstrosity:</p>
+EOF
+
+base=$(objdump --disassemble=&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot; \
+               -Mintel -S ./bin/nomad \
+               | awk '/hashicorp/{print $1}' \
+               | head -1)
+
+objdump --disassemble=&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot; \
+        -Mintel -S ./bin/nomad \
+        | awk -F' |:' '/ret/{print $2}' \
+        | xargs -I % \
+        python3 -c &quot;print('uprobe:./bin/nomad:\&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply\&quot;+' + hex(0x% - 0x$base))
+print('{')
+print('  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);')
+print('  delete(@start[str(*sarg1)]);')
+print('}')
+print('')
+&quot;
+</code></pre><p>Which results in the following 300 line monstrosity:</p>
 <details>
-<div class="highlight"><pre class="chroma"><code class="language-awk" data-lang="awk"><span class="c1">#!/usr/bin/env bpftrace</span>
-<span class="err">/*</span>
-<span class="nx">Get</span> <span class="nx">Nomad</span> <span class="nx">FSM</span><span class="p">.</span><span class="nx">Apply</span> <span class="nx">latency</span>
-<span class="nx">Note</span><span class="err">:</span> <span class="nx">using</span> <span class="nx">sarg</span> <span class="nx">with</span> <span class="nx">offsets</span> <span class="nx">isn</span><span class="err">&#39;</span><span class="nx">t</span> <span class="nx">really</span> <span class="nx">concurrency</span> <span class="nx">safe</span> <span class="nx">and</span> <span class="nx">emits</span> <span class="nx">a</span> <span class="nx">warning</span>
-<span class="o">*</span><span class="err">/</span>
+<pre><code>#!/usr/bin/env bpftrace
+/*
+Get Nomad FSM.Apply latency
+Note: using sarg with offsets isn't really concurrency safe and emits a warning
+*/
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1d3</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1d3
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x257</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x257
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x2f3</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x2f3
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x377</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x377
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x3fb</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x3fb
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x49b</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x49b
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x51b</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x51b
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x5a0</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x5a0
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x634</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x634
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x6b4</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x6b4
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x738</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x738
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x7e7</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x7e7
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x86e</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x86e
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x8ee</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x8ee
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x982</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x982
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xa06</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xa06
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xa8e</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xa8e
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xb27</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xb27
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xbae</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xbae
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xc2e</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xc2e
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xcc2</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xcc2
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xd46</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xd46
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xdce</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xdce
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xe77</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xe77
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xefb</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xefb
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xf80</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0xf80
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1014</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1014
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1098</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1098
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x111c</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x111c
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x11b7</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x11b7
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x123b</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x123b
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x12c0</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x12c0
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1350</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1350
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x13d0</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x13d0
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1450</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1450
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x14f7</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x14f7
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1577</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1577
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x15f7</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x15f7
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x168f</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x168f
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x170f</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x170f
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x178f</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x178f
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x18ca</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x18ca
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1948</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1948
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x19ce</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x19ce
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1a52</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1a52
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1a6d</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1a6d
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1b07</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1b07
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1b87</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1b87
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1c0e</span>
-<span class="p">{</span>
-  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
-  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
-<span class="p">}</span>
-</code></pre></div></details>
+uprobe:./bin/nomad:&quot;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&quot;+0x1c0e
+{
+  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);
+  delete(@start[str(*sarg1)]);
+}
+</code></pre></details>
 <p>The new calling convention in Go 1.17 changes this situation for the
 better, but leaves us short of working <code>uretprobe</code>s. Our same <code>swapper</code>
 program compiled with Go 1.17 disassembles into the following:</p>
@@ -668,43 +668,43 @@ the compiler), so we allocate <code>sizeof(Example) * count</code> on the
 goroutine stack. If we run this with <code>./stacker 1000000</code> we'll
 allocate more than is available and the Go runtime will move the
 stack.</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+<pre><code>package main
 
-<span class="kn">import</span> <span class="p">(</span>
-	<span class="s">&#34;fmt&#34;</span>
-	<span class="s">&#34;os&#34;</span>
-	<span class="s">&#34;strconv&#34;</span>
-<span class="p">)</span>
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strconv&quot;
+)
 
-<span class="kd">type</span> <span class="nx">Example</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">ID</span>   <span class="kt">int</span>
-	<span class="nx">Name</span> <span class="kt">string</span>
-<span class="p">}</span>
+type Example struct {
+	ID   int
+	Name string
+}
 
-<span class="kd">func</span> <span class="nf">stacker</span><span class="p">(</span><span class="nx">count</span> <span class="kt">int</span><span class="p">)</span> <span class="kt">string</span> <span class="p">{</span>
-	<span class="kd">var</span> <span class="nx">result</span> <span class="kt">int</span>
-	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">count</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-		<span class="nx">temp</span> <span class="o">:=</span> <span class="nx">Example</span><span class="p">{</span><span class="nx">ID</span><span class="p">:</span> <span class="nx">i</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="nx">Name</span><span class="p">:</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;%d&#34;</span><span class="p">,</span> <span class="nx">result</span><span class="p">)}</span>
-		<span class="nx">result</span> <span class="o">+=</span> <span class="nx">temp</span><span class="p">.</span><span class="nx">ID</span>
-	<span class="p">}</span>
-	<span class="nx">s</span> <span class="o">:=</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;hello: %d&#34;</span><span class="p">,</span> <span class="nx">result</span><span class="p">)</span>
-	<span class="k">return</span> <span class="nx">s</span>
-<span class="p">}</span>
+func stacker(count int) string {
+	var result int
+	for i := 0; i &lt; count; i++ {
+		temp := Example{ID: i * 2, Name: fmt.Sprintf(&quot;%d&quot;, result)}
+		result += temp.ID
+	}
+	s := fmt.Sprintf(&quot;hello: %d&quot;, result)
+	return s
+}
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-	<span class="nx">args</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Args</span>
-	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">args</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">2</span> <span class="p">{</span>
-		<span class="nb">panic</span><span class="p">(</span><span class="s">&#34;needs 1 arg&#34;</span><span class="p">)</span>
-	<span class="p">}</span>
-	<span class="nx">count</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">strconv</span><span class="p">.</span><span class="nf">Atoi</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-		<span class="nb">panic</span><span class="p">(</span><span class="s">&#34;arg needs to be a number&#34;</span><span class="p">)</span>
-	<span class="p">}</span>
+func main() {
+	args := os.Args
+	if len(args) &lt; 2 {
+		panic(&quot;needs 1 arg&quot;)
+	}
+	count, err := strconv.Atoi(args[1])
+	if err != nil {
+		panic(&quot;arg needs to be a number&quot;)
+	}
 
-	<span class="nx">s</span> <span class="o">:=</span> <span class="nf">stacker</span><span class="p">(</span><span class="nx">count</span><span class="p">)</span>
-	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span>
-<span class="p">}</span>
-</code></pre></div><p>Here's our <code>bpftrace</code> program:</p>
+	s := stacker(count)
+	fmt.Println(s)
+}
+</code></pre><p>Here's our <code>bpftrace</code> program:</p>
 <pre><code>#!/usr/bin/env bpftrace
 
 uretprobe:./stacker:&quot;main.stacker&quot;
@@ -827,13 +827,13 @@ main.stacker(0xf4240)
 <p>Instead, we still have to use the <code>uprobe</code> + offset technique we saw
 above. This <code>bpftrace</code> program works safely, but the address offset is
 going to vary depending on which version of Go you're using:</p>
-<div class="highlight"><pre class="chroma"><code class="language-awk" data-lang="awk"><span class="c1">#!/usr/bin/env bpftrace</span>
+<pre><code>#!/usr/bin/env bpftrace
 
-<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">stacker</span><span class="err">:</span><span class="s2">&#34;main.stacker&#34;</span><span class="o">+</span><span class="mi">213</span>
-<span class="p">{</span>
-    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;result: \&#34;%s\&#34;\n&#34;</span><span class="p">,</span> <span class="nx">str</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;ax&#34;</span><span class="p">)));</span>
-<span class="p">}</span>
-</code></pre></div><p>This problem is probably not going to be fixed from the Go runtime
+uprobe:./stacker:&quot;main.stacker&quot;+213
+{
+    printf(&quot;result: \&quot;%s\&quot;\n&quot;, str(reg(&quot;ax&quot;)));
+}
+</code></pre><p>This problem is probably not going to be fixed from the Go runtime
 side, because the relocatable stack is baked into the whole memory
 model for goroutines. But with <code>uprobes</code> and a little inventiveness,
 you can get most of the same functionality.</p>

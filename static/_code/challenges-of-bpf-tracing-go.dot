@@ -1,0 +1,46 @@
+digraph {
+    graph [pad="0.5", nodesep="0.5", ranksep="2"];
+    node [shape=plain]
+    rankdir=LR;
+
+
+Start [label=<
+<table border="0" cellborder="1" cellspacing="0">
+  <tr><td><i>function start</i></td></tr>
+
+  <tr><td>rsp+0x40</td><td></td></tr>
+  <tr><td>rsp+0x38</td><td></td></tr>
+  <tr><td>rsp+0x30</td><td></td></tr>
+  <tr><td>rsp+0x28</td><td></td></tr>
+
+  <tr><td>rsp+0x20</td><td port="4">2</td></tr>
+  <tr><td>rsp+0x18</td><td port="3">"go"</td></tr>
+  <tr><td>rsp+0x10</td><td port="2">5</td></tr>
+  <tr><td>rsp+0x8</td><td port="1">"hello"</td></tr>
+
+</table>>];
+
+
+Return [label=<
+<table border="0" cellborder="1" cellspacing="0">
+  <tr><td><i>function return</i></td></tr>
+
+  <tr><td port="4">rsp+0x40</td><td>5</td></tr>
+  <tr><td port="3">rsp+0x38</td><td>"hello"</td></tr>
+  <tr><td port="2">rsp+0x30</td><td>2</td></tr>
+  <tr><td port="1">rsp+0x28</td><td>"go"</td></tr>
+
+  <tr><td>rsp+0x20</td><td></td></tr>
+  <tr><td>rsp+0x18</td><td></td></tr>
+  <tr><td>rsp+0x10</td><td></td></tr>
+  <tr><td>rsp+0x8</td><td></td></tr>
+
+</table>>];
+
+
+Start:1 -> Return:3
+Start:2 -> Return:4
+Start:3 -> Return:1
+Start:4 -> Return:2
+
+}

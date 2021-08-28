@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Challenges of BPF Tracing Go</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Challenges of BPF Tracing Go</h1>
+  <section class="byline">August 28, 2021</section>
+  <p>Folks are rightfully excited about the performance benefits to Go
+1.17's changes to function calling convention, but I was a little
+disappointed to discover it doesn't make BPF <code>uretprobe</code>s possible. As
+it turns out, I hadn't fully considered how Go's relocatable stacks
+complicate the situation.</p>
+<p>One of the advantages of Go's fast compile times is that &quot;printf
+debugging&quot; gets you pretty far. You know the problem is somewhere
+around a particular variable, so you drop in a <code>fmt.Printf</code> or
+<code>log.Debug</code> or
+<a href="https://pkg.go.dev/github.com/davecgh/go-spew"><code>spew.Dump</code></a> to
+inspect the value at the point of interest. But I often work on
+stateful systems, and in that environment this approach can be
+limited. Recompiling for a new log statement and restarting may mean
+losing the state that caused the problem, and logging can introduce
+timing artifacts that obscure the bug. In those circumstances I reach
+for BPF tools and in particular
+<a href="https://github.com/iovisor/bpftrace/"><code>bpftrace</code></a>.</p>
+<p>One of the more powerful features of BPF for application developers is
+user-level dynamic function instrumentation, implemented by <code>uprobe</code>
+and <code>uretprobe</code>. A <code>uprobe</code> inserts a BPF probe at the point where a
+function is called, and the <code>uretprobe</code> inserts a probe where the
+function returns.</p>
+<p>As a quick example, here's a function written in C:</p>
+<div class="highlight"><pre class="chroma"><code class="language-c" data-lang="c"><span class="kt">int</span> <span class="nf">sum</span><span class="p">(</span><span class="kt">int</span> <span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">a</span><span class="o">+</span><span class="n">b</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div><p>And here's a <code>bpftrace</code> program that prints the program's arguments
+and return value.</p>
+<div class="highlight"><pre class="chroma"><code class="language-awk" data-lang="awk"><span class="c1">#!/usr/bin/env bpftrace</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">sum</span><span class="err">:</span><span class="s2">&#34;sum&#34;</span>
+<span class="p">{</span>
+    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;args: %d + %d\n&#34;</span><span class="p">,</span> <span class="nx">arg0</span><span class="p">,</span> <span class="nx">arg1</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">uretprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">sum</span><span class="err">:</span><span class="s2">&#34;sum&#34;</span>
+<span class="p">{</span>
+    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;result: %d\n&#34;</span><span class="p">,</span> <span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;ax&#34;</span><span class="p">));</span>
+<span class="p">}</span>
+</code></pre></div><p>If we run the <code>bpftrace</code> script, it'll pause waiting for us to run the
+C program in another terminal, and then print the outputs:</p>
+<pre><code>$ sudo ./sum.bt
+Attaching 2 probes...
+args: 2 + 3
+result: 5
+^C
+</code></pre><p>This is incredibly powerful for stateful applications because you can
+attach these probes to a running program without recompiling it and
+generally without impacting performance. This idea was pioneered in
+<a href="http://dtrace.org/blogs/about/">DTrace</a> and BPF brings this kind of
+observability to Linux.</p>
+<p>But Go's calling convention prior to Go 1.17 complicates tracing. In
+the <a href="https://en.wikipedia.org/wiki/X86_calling_conventions#System_V_AMD64_ABI">System V AMD64 calling
+convention</a>,
+arguments are mostly passed in registers and return values are
+returned in registers. BPF tools assume that compilers follow that
+convention, but Go did not. Instead, Go followed the Plan9 calling
+convention and passed arguments on the stack. Return values were
+returned by popping off the stack.</p>
+<p>For <code>uprobe</code>s this means we can't use the <code>arg</code> field that reads the
+arguments out of the CPU registers expected by the AMD64 calling
+convention. Instead we need to get them off the stack. This is mildly
+annoying because you need to get the stack pointer, bump it to the
+argument address, and then read the memory at that address. In
+<code>bpftrace</code> 0.9.3 these are exposed as
+<a href="https://github.com/iovisor/bpftrace/issues/740"><code>sargX</code></a> convenience
+aliases, so this isn't too terrible.</p>
+<p>The situation for <code>uretprobe</code>s is much worse. Instead of using a
+thread for every goroutine, Go multiplexes goroutines across multiple
+threads (&quot;M:N scheduling&quot;). So instead of each thread having a default
+2MB stack, each goroutine has a tiny 2KB stack that's managed by the
+runtime instead of the operating system. When the program needs to
+grow the stack for a goroutine and there's not enough room, the
+runtime copies the entire goroutine's stack to another place in memory
+where it has enough room to expand.</p>
+<p>When you configure a
+<a href="https://github.com/torvalds/linux/blob/v5.8/kernel/events/uprobes.c#L1861-L1925"><code>uretprobe</code></a>,
+the kernel also creates a <code>uprobe</code> with a return probe handler. When
+that <code>uprobe</code> is hit, it hijacks the return address of the probed
+function and replaces it with the address of a &quot;trampoline&quot; with the
+breakpoint.</p>
+<p>But if the address has been moved by the time we hit it, the return
+locations are no longer valid, and so a <code>uretprobe</code> that fires reads
+into memory used somewhere else. This crashes the program!</p>
+<p>To work around this, you can trace the function call from the
+function's entry point with a <code>uprobe</code>, and then offset from there to
+each return point of the function. This is incredibly gross and
+involves disassembling the binary.</p>
+<p>You probably don't spend your day looking at assembly and I sure as
+heck don't either! So let's take a quick detour into reading
+disassembled functions in go. Suppose this is our program:</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;fmt&#34;</span>
+	<span class="s">&#34;os&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nf">swap</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="kt">string</span><span class="p">,</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">x</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">args</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Args</span>
+	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">args</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
+		<span class="nb">panic</span><span class="p">(</span><span class="s">&#34;needs 2 args&#34;</span><span class="p">)</span>
+	<span class="p">}</span>
+	<span class="nx">a</span><span class="p">,</span> <span class="nx">b</span> <span class="o">:=</span> <span class="nf">swap</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nx">args</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p>Because this program is trivial, Go will inline the <code>swap</code> function,
+so for purposes of illustration we're going to compile it with <code>go build -gcflags '-l' -o swapper .</code> to disable inlining.</p>
+<p>First we'll disassemble the function in GDB. You could also do this in
+<code>objdump</code> but we're going to want to poke around a bit here.</p>
+<pre><code>$ gdb --args ./swapper hello go
+...
+Reading symbols from ./swapper...
+Loading Go Runtime support.
+(gdb) b main.swap
+Breakpoint 1 at 0x497800: file /home/tim/swapper/main.go, line 9
+.
+(gdb) run
+Starting program: /home/tim/swapper/swapper hello world
+[New LWP 3413956]
+[New LWP 3413957]
+[New LWP 3413958]
+[New LWP 3413959]
+[New LWP 3413960]
+
+Thread 1 &quot;swapper&quot; hit Breakpoint 1, main.swap (x=..., y=..., ~r2=..., ~r3=...)
+    at /home/tim/swapper/main.go:9
+9               return y, x
+(gdb) disas
+Dump of assembler code for function main.swap:
+=&gt; 0x0000000000497800 &lt;+0&gt;:     mov    rax,QWORD PTR [rsp+0x18]
+   0x0000000000497805 &lt;+5&gt;:     mov    QWORD PTR [rsp+0x28],rax
+   0x000000000049780a &lt;+10&gt;:    mov    rax,QWORD PTR [rsp+0x20]
+   0x000000000049780f &lt;+15&gt;:    mov    QWORD PTR [rsp+0x30],rax
+   0x0000000000497814 &lt;+20&gt;:    mov    rax,QWORD PTR [rsp+0x8]
+   0x0000000000497819 &lt;+25&gt;:    mov    QWORD PTR [rsp+0x38],rax
+   0x000000000049781e &lt;+30&gt;:    mov    rax,QWORD PTR [rsp+0x10]
+   0x0000000000497823 &lt;+35&gt;:    mov    QWORD PTR [rsp+0x40],rax
+   0x0000000000497828 &lt;+40&gt;:    ret
+End of assembler dump.
+</code></pre><p>From a high-level view, we have 4 pointers to move: each string has a
+length and a sequence of bytes, and there are two strings. The
+function rearranges the pointers on the stack, and when we return
+these values will be popped off the stack.</p>
+<p>The first instruction is to move whatever is offset 0x18 from the
+stack pointer (<code>rsp</code>) to the scratch register <code>rax</code>. Let's e<code>x</code>amine
+that <code>a</code>ddress and then see if it's a readable <code>s</code>tring:</p>
+<pre><code>(gdb) x/a $rsp+0x18
+0xc00011af18:   0x7fffffffddcd
+(gdb) x/s 0x7fffffffddcd
+0x7fffffffddcd: &quot;go&quot;
+</code></pre><p>Cool! So that first instruction means we're moving the 64-bit pointer
+(<code>QWORD PTR</code>) that points to the string's contents into the scratch
+register. The next instruction moves the same pointer out of the
+scratch space to the top of the stack (<code>rsp+0x28</code>).</p>
+<p>The next instruction moves whatever is at offset 0x20 into the scratch
+space. This is an integer: the length of our string!</p>
+<pre><code>(gdb) x/a $rsp+0x20
+0xc00011af20:   0x2
+</code></pre><p>That gets moved out of scratch space and onto the top of the stack as
+well (<code>rsp+0x30</code>). The next 4 instructions repeat the same thing with
+our other two arguments:</p>
+<pre><code>(gdb) x/a $rsp+0x8
+0xc00011af08:   0x7fffffffddc7
+(gdb) x/s 0x7fffffffddc7
+0x7fffffffddc7: &quot;hello&quot;
+
+(gdb) x/a $rsp+0x10
+0xc00011af10:   0x5
+</code></pre><p>We can <code>si</code>ngle step through 8 times until we hit the <code>ret</code>urn:</p>
+<pre><code>...
+(gdb) si
+0x0000000000497828 in main.swap (x=..., y=..., ~r2=..., ~r3=...)
+    at /home/tim/swapper/main.go:9
+9               return y, x
+(gdb) disas
+Dump of assembler code for function main.swap:
+   0x0000000000497800 &lt;+0&gt;:     mov    rax,QWORD PTR [rsp+0x18]
+   0x0000000000497805 &lt;+5&gt;:     mov    QWORD PTR [rsp+0x28],rax
+   0x000000000049780a &lt;+10&gt;:    mov    rax,QWORD PTR [rsp+0x20]
+   0x000000000049780f &lt;+15&gt;:    mov    QWORD PTR [rsp+0x30],rax
+   0x0000000000497814 &lt;+20&gt;:    mov    rax,QWORD PTR [rsp+0x8]
+   0x0000000000497819 &lt;+25&gt;:    mov    QWORD PTR [rsp+0x38],rax
+   0x000000000049781e &lt;+30&gt;:    mov    rax,QWORD PTR [rsp+0x10]
+   0x0000000000497823 &lt;+35&gt;:    mov    QWORD PTR [rsp+0x40],rax
+=&gt; 0x0000000000497828 &lt;+40&gt;:    ret
+End of assembler dump.
+</code></pre><p>The function has done all it's work and we're at the point where it's
+going to return to the caller. Now we can examine the memory addresses
+at the top of the stack:</p>
+<pre><code>(gdb) x/a $rsp+0x40
+0xc00011af40:   0x5
+(gdb) x/a $rsp+0x38
+0xc00011af38:   0x7fffffffddc7
+(gdb) x/s  0x7fffffffddc7
+0x7fffffffddc7: &quot;hello&quot;
+</code></pre><p>At this point, we can see we've moved our outputs into pointers offset
+from the stack pointer, that point to our strings. These are on the
+stack so it's last-in-first-out, which is admittedly a little extra
+confusing here because the function's purpose is to swap the
+strings.</p>
+<p>If you're anything like me, you'll want a picture here:</p>
+<p><img src="/images/20210828/stack.svg" alt="diagram of the stack, showing the contents of the bottom of the stack being swapped as they are moved to the top of the stack"></p>
+<p>How do we apply what we've just learned to BPF?</p>
+<p>First, we now know that although the Go function has 2 arguments,
+there are actually 4 arguments on the stack. So we'll need to grab two
+pairs of stack args. We can print them correctly using the <code>str</code>
+function of <code>bpftrace</code>: <code>str(sarg0, sarg1)</code> for <code>x</code> and <code>str(sarg2, sarg3)</code> for <code>y</code>.</p>
+<p>Next, although a <code>uretprobe</code> won't work, we can simulate one by adding
+a <code>uprobe</code> that points to the offset of the return instruction. If you
+look at the assembly again we see that's at <code>+40</code> so the <code>uprobe</code>
+filter looks like <code>uprobe:./bin/swapper:&quot;main.swap&quot;+40</code>. When we hit
+the probe, we can't simply look in return registers, but we need to
+examine the stack pointer offsets we found for each argument
+above. The final <code>bpftrace</code> program looks like the following:</p>
+<div class="highlight"><pre class="chroma"><code class="language-awk" data-lang="awk"><span class="c1">#!/usr/bin/env bpftrace</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">swapper</span><span class="err">:</span><span class="s2">&#34;main.swap&#34;</span>
+<span class="p">{</span>
+    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;swapping \&#34;%s\&#34; and \&#34;%s\&#34;\n&#34;</span><span class="p">,</span>
+        <span class="nx">str</span><span class="p">(</span><span class="nx">sarg0</span><span class="p">,</span> <span class="nx">sarg1</span><span class="p">),</span> <span class="nx">str</span><span class="p">(</span><span class="nx">sarg2</span><span class="p">,</span> <span class="nx">sarg3</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">swapper</span><span class="err">:</span><span class="s2">&#34;main.swap&#34;</span><span class="o">+</span><span class="mi">40</span>
+<span class="p">{</span>
+    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;results: \&#34;%s\&#34; and \&#34;%s\&#34;\n&#34;</span><span class="p">,</span>
+        <span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;sp&#34;</span><span class="p">)</span><span class="o">+</span><span class="mh">0x28</span><span class="p">),</span> <span class="o">*</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;sp&#34;</span><span class="p">)</span><span class="o">+</span><span class="mh">0x30</span><span class="p">)),</span>
+        <span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;sp&#34;</span><span class="p">)</span><span class="o">+</span><span class="mh">0x38</span><span class="p">),</span> <span class="o">*</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;sp&#34;</span><span class="p">)</span><span class="o">+</span><span class="mh">0x40</span><span class="p">))</span>
+        <span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p>We run this program in one terminal while running <code>./swapper hello world</code> in another terminal:</p>
+<pre><code>$ sudo ./swapper.bt
+Attaching 2 probes...
+swapping &quot;hello&quot; and &quot;go&quot;
+results: &quot;go&quot; and &quot;hello&quot;
+^C
+</code></pre><p>As you can see, that's kind of a lot of work to do just for one return
+probe. And if our function has multiple return points, we have to do
+this for every one of them!</p>
+<p>For a complex function like Nomad's FSM
+<a href="https://github.com/hashicorp/nomad/blob/v1.1.4/nomad/fsm.go#L193-L322"><code>Apply</code></a>
+method, I've had to lean on hideous tricks like generating a
+<code>bpftrace</code> program:</p>
+<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash"><span class="cp">#!/usr/bin/env bash
+</span><span class="cp"></span>
+cat <span class="s">&lt;&lt;EOF
+</span><span class="s">#!/usr/bin/env bpftrace
+</span><span class="s">/*
+</span><span class="s">Get Nomad FSM.Apply latency
+</span><span class="s">Note: using sarg with offsets isn&#39;t really concurrency safe and emits a warning
+</span><span class="s">*/
+</span><span class="s">
+</span><span class="s">EOF</span>
+
+<span class="nv">base</span><span class="o">=</span><span class="k">$(</span>objdump --disassemble<span class="o">=</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span> <span class="se">\
+</span><span class="se"></span>               -Mintel -S ./bin/nomad <span class="se">\
+</span><span class="se"></span>               <span class="p">|</span> awk <span class="s1">&#39;/hashicorp/{print $1}&#39;</span> <span class="se">\
+</span><span class="se"></span>               <span class="p">|</span> head -1<span class="k">)</span>
+
+objdump --disassemble<span class="o">=</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span> <span class="se">\
+</span><span class="se"></span>        -Mintel -S ./bin/nomad <span class="se">\
+</span><span class="se"></span>        <span class="p">|</span> awk -F<span class="s1">&#39; |:&#39;</span> <span class="s1">&#39;/ret/{print $2}&#39;</span> <span class="se">\
+</span><span class="se"></span>        <span class="p">|</span> xargs -I % <span class="se">\
+</span><span class="se"></span>        python3 -c <span class="s2">&#34;print(&#39;uprobe:./bin/nomad:\&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply\&#34;+&#39; + hex(0x% - 0x</span><span class="nv">$base</span><span class="s2">))
+</span><span class="s2">print(&#39;{&#39;)
+</span><span class="s2">print(&#39;  @usecs = hist((nsecs - @start[str(*sarg1)]) / 1000);&#39;)
+</span><span class="s2">print(&#39;  delete(@start[str(*sarg1)]);&#39;)
+</span><span class="s2">print(&#39;}&#39;)
+</span><span class="s2">print(&#39;&#39;)
+</span><span class="s2">&#34;</span>
+</code></pre></div><p>Which results in the following 300 line monstrosity:</p>
+<details>
+<div class="highlight"><pre class="chroma"><code class="language-awk" data-lang="awk"><span class="c1">#!/usr/bin/env bpftrace</span>
+<span class="err">/*</span>
+<span class="nx">Get</span> <span class="nx">Nomad</span> <span class="nx">FSM</span><span class="p">.</span><span class="nx">Apply</span> <span class="nx">latency</span>
+<span class="nx">Note</span><span class="err">:</span> <span class="nx">using</span> <span class="nx">sarg</span> <span class="nx">with</span> <span class="nx">offsets</span> <span class="nx">isn</span><span class="err">&#39;</span><span class="nx">t</span> <span class="nx">really</span> <span class="nx">concurrency</span> <span class="nx">safe</span> <span class="nx">and</span> <span class="nx">emits</span> <span class="nx">a</span> <span class="nx">warning</span>
+<span class="o">*</span><span class="err">/</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1d3</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x257</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x2f3</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x377</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x3fb</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x49b</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x51b</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x5a0</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x634</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x6b4</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x738</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x7e7</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x86e</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x8ee</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x982</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xa06</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xa8e</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xb27</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xbae</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xc2e</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xcc2</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xd46</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xdce</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xe77</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xefb</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0xf80</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1014</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1098</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x111c</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x11b7</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x123b</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x12c0</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1350</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x13d0</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1450</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x14f7</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1577</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x15f7</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x168f</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x170f</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x178f</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x18ca</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1948</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x19ce</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1a52</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1a6d</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1b07</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1b87</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">bin</span><span class="o">/</span><span class="nx">nomad</span><span class="err">:</span><span class="s2">&#34;github.com/hashicorp/nomad/nomad.(*nomadFSM).Apply&#34;</span><span class="o">+</span><span class="mh">0x1c0e</span>
+<span class="p">{</span>
+  <span class="err">@</span><span class="nx">usecs</span> <span class="o">=</span> <span class="nx">hist</span><span class="p">((</span><span class="nx">nsecs</span> <span class="o">-</span> <span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">);</span>
+  <span class="kr">delete</span><span class="p">(</span><span class="err">@</span><span class="nx">start</span><span class="p">[</span><span class="nx">str</span><span class="p">(</span><span class="o">*</span><span class="nx">sarg1</span><span class="p">)]);</span>
+<span class="p">}</span>
+</code></pre></div></details>
+<p>The new calling convention in Go 1.17 changes this situation for the
+better, but leaves us short of working <code>uretprobe</code>s. Our same <code>swapper</code>
+program compiled with Go 1.17 disassembles into the following:</p>
+<pre><code>(gdb) disas
+Dump of assembler code for function main.swap:
+=&gt; 0x000000000047e260 &lt;+0&gt;:     mov    QWORD PTR [rsp+0x8],rax
+   0x000000000047e265 &lt;+5&gt;:     mov    QWORD PTR [rsp+0x18],rcx
+   0x000000000047e26a &lt;+10&gt;:    mov    rdx,rax
+   0x000000000047e26d &lt;+13&gt;:    mov    rax,rcx
+   0x000000000047e270 &lt;+16&gt;:    mov    rsi,rbx
+   0x000000000047e273 &lt;+19&gt;:    mov    rbx,rdi
+   0x000000000047e276 &lt;+22&gt;:    mov    rcx,rdx
+   0x000000000047e279 &lt;+25&gt;:    mov    rdi,rsi
+   0x000000000047e27c &lt;+28&gt;:    ret
+End of assembler dump.
+</code></pre><p>Everything is now in the argument registers, and with less pointer
+indirection:</p>
+<pre><code>(gdb) x/s $rax
+0x7fffffffddca: &quot;hello&quot;
+(gdb) i r $rbx
+rbx            0x5                 5
+(gdb) x/s $rcx
+0x7fffffffddd0: &quot;go&quot;
+(gdb) i r $rdi
+rdi            0x2                 2
+</code></pre><p>(I'm honestly not sure why the second argument's length shows up in
+<code>rdi</code> rather than <code>rdx</code>, so if you know I'd love to hear why!)</p>
+<p>The return values also get placed into the registers, which means we
+<em>should</em> now be able to use a <code>uretprobe</code> to get the values out of
+them. Our <code>bpftrace</code> program becomes much simpler:</p>
+<pre><code>#!/usr/bin/env bpftrace
+
+uprobe:./swapper:&quot;main.swap&quot;
+{
+    printf(&quot;swapping \&quot;%s\&quot; and \&quot;%s\&quot;\n&quot;,
+      str(reg(&quot;ax&quot;)), str(reg(&quot;cx&quot;)));
+}
+
+uretprobe:./swapper:&quot;main.swap&quot;
+{
+    printf(&quot;results: \&quot;%s\&quot; and \&quot;%s\&quot;\n&quot;,
+      str(reg(&quot;ax&quot;)), str(reg(&quot;cx&quot;)));
+}
+</code></pre><pre><code>$ sudo ./swapper.bt
+Attaching 2 probes...
+swapping &quot;hello&quot; and &quot;go&quot;
+results: &quot;go&quot; and &quot;hello&quot;
+^C
+</code></pre><p>So what's the problem? Isn't this great? Well so far all the programs
+we've looked at haven't allocated enough on the stack for the runtime
+to resize it. This is where the <code>uretprobe</code> falls down.</p>
+<p>Take a look at the following program. The <code>temp</code> variable never
+escapes onto the heap (we can verify this by passing <code>-gcflags -m</code> to
+the compiler), so we allocate <code>sizeof(Example) * count</code> on the
+goroutine stack. If we run this with <code>./stacker 1000000</code> we'll
+allocate more than is available and the Go runtime will move the
+stack.</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;fmt&#34;</span>
+	<span class="s">&#34;os&#34;</span>
+	<span class="s">&#34;strconv&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">type</span> <span class="nx">Example</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">ID</span>   <span class="kt">int</span>
+	<span class="nx">Name</span> <span class="kt">string</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nf">stacker</span><span class="p">(</span><span class="nx">count</span> <span class="kt">int</span><span class="p">)</span> <span class="kt">string</span> <span class="p">{</span>
+	<span class="kd">var</span> <span class="nx">result</span> <span class="kt">int</span>
+	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">count</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+		<span class="nx">temp</span> <span class="o">:=</span> <span class="nx">Example</span><span class="p">{</span><span class="nx">ID</span><span class="p">:</span> <span class="nx">i</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="nx">Name</span><span class="p">:</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;%d&#34;</span><span class="p">,</span> <span class="nx">result</span><span class="p">)}</span>
+		<span class="nx">result</span> <span class="o">+=</span> <span class="nx">temp</span><span class="p">.</span><span class="nx">ID</span>
+	<span class="p">}</span>
+	<span class="nx">s</span> <span class="o">:=</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;hello: %d&#34;</span><span class="p">,</span> <span class="nx">result</span><span class="p">)</span>
+	<span class="k">return</span> <span class="nx">s</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">args</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Args</span>
+	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">args</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">2</span> <span class="p">{</span>
+		<span class="nb">panic</span><span class="p">(</span><span class="s">&#34;needs 1 arg&#34;</span><span class="p">)</span>
+	<span class="p">}</span>
+	<span class="nx">count</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">strconv</span><span class="p">.</span><span class="nf">Atoi</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nb">panic</span><span class="p">(</span><span class="s">&#34;arg needs to be a number&#34;</span><span class="p">)</span>
+	<span class="p">}</span>
+
+	<span class="nx">s</span> <span class="o">:=</span> <span class="nf">stacker</span><span class="p">(</span><span class="nx">count</span><span class="p">)</span>
+	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p>Here's our <code>bpftrace</code> program:</p>
+<pre><code>#!/usr/bin/env bpftrace
+
+uretprobe:./stacker:&quot;main.stacker&quot;
+{
+    printf(&quot;result: \&quot;%s\&quot;\n&quot;, str(reg(&quot;ax&quot;)));
+}
+</code></pre><p>But if we run <code>stacker</code> with a sufficiently large <code>count</code> while our
+<code>uretprobe</code> is attached, it will crash!</p>
+<pre><code>$ ./stacker 1000000
+runtime: unexpected return pc for main.stacker called from 0x7fffffffe000
+stack: frame={sp:0xc000074ef0, fp:0xc000074f48} stack=[0xc000074000,0xc000075000)
+...
+</code></pre><p>Here's the full dump if you're into that kind of thing:</p>
+<details>
+<pre><code>$ ./stacker 1000000
+runtime: unexpected return pc for main.stacker called from 0x7fffffffe000
+stack: frame={sp:0xc000074ef0, fp:0xc000074f48} stack=[0xc000074000,0xc000075000)
+0x000000c000074df0:  0x0000000000000002  0x000000c000508100
+0x000000c000074e00:  0x000000c000508000  0x00000000004672e0 &lt;sync.(*Pool).pinSlow·dwrap·3+0x0000000000000000&gt;
+0x000000c000074e10:  0x0000000000557f58  0x000000c000074e08
+0x000000c000074e20:  0x0000000000419860 &lt;runtime.gcAssistAlloc.func1+0x0000000000000000&gt;  0x000000c0000001a0
+0x000000c000074e30:  0x0000000000010000  0x000000c000074eb8
+0x000000c000074e40:  0x000000000040b305 &lt;runtime.mallocgc+0x0000000000000125&gt;  0x000000c0000001a0
+0x000000c000074e50:  0x0000000000000002  0x000000c000074e88
+0x000000c000074e60:  0x000000c000074e88  0x000000000047a06a &lt;fmt.(*pp).free+0x00000000000000ca&gt;
+0x000000c000074e70:  0x0000000000522100  0x00000000004938e0
+0x000000c000074e80:  0x000000c00007a820  0x000000c000074ee0
+0x000000c000074e90:  0x000000000047a245 &lt;fmt.Sprintf+0x0000000000000085&gt;  0x000000c00007a820
+0x000000c000074ea0:  0x000000c00012b230  0x000000000000000b
+0x000000c000074eb0:  0x000000c0000001a0  0x000000c000074ee0
+0x000000c000074ec0:  0x00000000004095e5 &lt;runtime.convT64+0x0000000000000045&gt;  0x0000000000000008
+0x000000c000074ed0:  0x0000000000487ee0  0x000000c00007a800
+0x000000c000074ee0:  0x000000c000074f38  0x0000000000480d7b &lt;main.stacker+0x000000000000003b&gt;
+0x000000c000074ef0: &lt;0x0000000644e0732a  0x0000000000000002
+0x000000c000074f00:  0x000000c000074f28  0x0000000000000001
+0x000000c000074f10:  0x0000000000000001  0x0000000644e0732a
+0x000000c000074f20:  0x00000000000280fa  0x0000000000000000
+0x000000c000074f30:  0x0000000000000000  0x000000c000074f70
+0x000000c000074f40: !0x00007fffffffe000 &gt;0x00000000000f4240
+0x000000c000074f50:  0x0000000000000007  0x0000000000415d45 &lt;runtime.gcenable+0x0000000000000085&gt;
+0x000000c000074f60:  0x00000000004873a0  0x000000c0000001a0
+0x000000c000074f70:  0x000000c000074fd0  0x0000000000432047 &lt;runtime.main+0x0000000000000227&gt;
+0x000000c000074f80:  0x000000c000022060  0x0000000000000000
+0x000000c000074f90:  0x0000000000000000  0x0000000000000000
+0x000000c000074fa0:  0x0100000000000000  0x0000000000000000
+0x000000c000074fb0:  0x000000c0000001a0  0x0000000000432180 &lt;runtime.main.func2+0x0000000000000000&gt;
+0x000000c000074fc0:  0x000000c000074fa6  0x000000c000074fb8
+0x000000c000074fd0:  0x0000000000000000  0x000000000045ab01 &lt;runtime.goexit+0x0000000000000001&gt;
+0x000000c000074fe0:  0x0000000000000000  0x0000000000000000
+0x000000c000074ff0:  0x0000000000000000  0x0000000000000000
+fatal error: unknown caller pc
+
+runtime stack:
+runtime.throw({0x4988ba, 0x516760})
+        /usr/local/go/src/runtime/panic.go:1198 +0x71
+runtime.gentraceback(0x400, 0x400, 0x80, 0x7f73bbffafff, 0x0, 0x0, 0x7fffffff, 0x7ffc46fe0e28, 0x7f73bbe23200, 0x0)
+        /usr/local/go/src/runtime/traceback.go:274 +0x1956
+runtime.scanstack(0xc0000001a0, 0xc000030698)
+        /usr/local/go/src/runtime/mgcmark.go:748 +0x197
+runtime.markroot.func1()
+        /usr/local/go/src/runtime/mgcmark.go:232 +0xb1
+runtime.markroot(0xc000030698, 0x14)
+        /usr/local/go/src/runtime/mgcmark.go:205 +0x170
+runtime.gcDrainN(0xc000030698, 0x10000)
+        /usr/local/go/src/runtime/mgcmark.go:1134 +0x14b
+runtime.gcAssistAlloc1(0xc0000001a0, 0xc000074b58)
+        /usr/local/go/src/runtime/mgcmark.go:537 +0xef
+runtime.gcAssistAlloc.func1()
+        /usr/local/go/src/runtime/mgcmark.go:448 +0x25
+runtime.systemstack()
+        /usr/local/go/src/runtime/asm_amd64.s:383 +0x49
+
+goroutine 1 [GC assist marking (scan)]:
+runtime.systemstack_switch()
+        /usr/local/go/src/runtime/asm_amd64.s:350 fp=0xc000074de8 sp=0xc000074de0 pc=0x458a20
+runtime.gcAssistAlloc(0xc0000001a0)
+        /usr/local/go/src/runtime/mgcmark.go:447 +0x18b fp=0xc000074e48 sp=0xc000074de8 pc=0x41974b
+runtime.mallocgc(0x8, 0x487ee0, 0x0)
+        /usr/local/go/src/runtime/malloc.go:959 +0x125 fp=0xc000074ec8 sp=0xc000074e48 pc=0x40b305
+runtime.convT64(0x644e0732a)
+        /usr/local/go/src/runtime/iface.go:364 +0x45 fp=0xc000074ef0 sp=0xc000074ec8 pc=0x4095e5
+runtime: unexpected return pc for main.stacker called from 0x7fffffffe000
+stack: frame={sp:0xc000074ef0, fp:0xc000074f48} stack=[0xc000074000,0xc000075000)
+0x000000c000074df0:  0x0000000000000002  0x000000c000508100
+0x000000c000074e00:  0x000000c000508000  0x00000000004672e0 &lt;sync.(*Pool).pinSlow·dwrap·3+0x0000000000000000&gt;
+0x000000c000074e10:  0x0000000000557f58  0x000000c000074e08
+0x000000c000074e20:  0x0000000000419860 &lt;runtime.gcAssistAlloc.func1+0x0000000000000000&gt;  0x000000c0000001a0
+0x000000c000074e30:  0x0000000000010000  0x000000c000074eb8
+0x000000c000074e40:  0x000000000040b305 &lt;runtime.mallocgc+0x0000000000000125&gt;  0x000000c0000001a0
+0x000000c000074e50:  0x0000000000000002  0x000000c000074e88
+0x000000c000074e60:  0x000000c000074e88  0x000000000047a06a &lt;fmt.(*pp).free+0x00000000000000ca&gt;
+0x000000c000074e70:  0x0000000000522100  0x00000000004938e0
+0x000000c000074e80:  0x000000c00007a820  0x000000c000074ee0
+0x000000c000074e90:  0x000000000047a245 &lt;fmt.Sprintf+0x0000000000000085&gt;  0x000000c00007a820
+0x000000c000074ea0:  0x000000c00012b230  0x000000000000000b
+0x000000c000074eb0:  0x000000c0000001a0  0x000000c000074ee0
+0x000000c000074ec0:  0x00000000004095e5 &lt;runtime.convT64+0x0000000000000045&gt;  0x0000000000000008
+0x000000c000074ed0:  0x0000000000487ee0  0x000000c00007a800
+0x000000c000074ee0:  0x000000c000074f38  0x0000000000480d7b &lt;main.stacker+0x000000000000003b&gt;
+0x000000c000074ef0: &lt;0x0000000644e0732a  0x0000000000000002
+0x000000c000074f00:  0x000000c000074f28  0x0000000000000001
+0x000000c000074f10:  0x0000000000000001  0x0000000644e0732a
+0x000000c000074f20:  0x00000000000280fa  0x0000000000000000
+0x000000c000074f30:  0x0000000000000000  0x000000c000074f70
+0x000000c000074f40: !0x00007fffffffe000 &gt;0x00000000000f4240
+0x000000c000074f50:  0x0000000000000007  0x0000000000415d45 &lt;runtime.gcenable+0x0000000000000085&gt;
+0x000000c000074f60:  0x00000000004873a0  0x000000c0000001a0
+0x000000c000074f70:  0x000000c000074fd0  0x0000000000432047 &lt;runtime.main+0x0000000000000227&gt;
+0x000000c000074f80:  0x000000c000022060  0x0000000000000000
+0x000000c000074f90:  0x0000000000000000  0x0000000000000000
+0x000000c000074fa0:  0x0100000000000000  0x0000000000000000
+0x000000c000074fb0:  0x000000c0000001a0  0x0000000000432180 &lt;runtime.main.func2+0x0000000000000000&gt;
+0x000000c000074fc0:  0x000000c000074fa6  0x000000c000074fb8
+0x000000c000074fd0:  0x0000000000000000  0x000000000045ab01 &lt;runtime.goexit+0x0000000000000001&gt;
+0x000000c000074fe0:  0x0000000000000000  0x0000000000000000
+0x000000c000074ff0:  0x0000000000000000  0x0000000000000000
+main.stacker(0xf4240)
+        /home/tim/stacker/main.go:17 +0x3b fp=0xc000074f48 sp=0xc000074ef0 pc=0x480d7b
+</code></pre></details>
+<p>Instead, we still have to use the <code>uprobe</code> + offset technique we saw
+above. This <code>bpftrace</code> program works safely, but the address offset is
+going to vary depending on which version of Go you're using:</p>
+<div class="highlight"><pre class="chroma"><code class="language-awk" data-lang="awk"><span class="c1">#!/usr/bin/env bpftrace</span>
+
+<span class="nx">uprobe</span><span class="err">:</span><span class="p">.</span><span class="o">/</span><span class="nx">stacker</span><span class="err">:</span><span class="s2">&#34;main.stacker&#34;</span><span class="o">+</span><span class="mi">213</span>
+<span class="p">{</span>
+    <span class="kr">printf</span><span class="p">(</span><span class="s2">&#34;result: \&#34;%s\&#34;\n&#34;</span><span class="p">,</span> <span class="nx">str</span><span class="p">(</span><span class="nx">reg</span><span class="p">(</span><span class="s2">&#34;ax&#34;</span><span class="p">)));</span>
+<span class="p">}</span>
+</code></pre></div><p>This problem is probably not going to be fixed from the Go runtime
+side, because the relocatable stack is baked into the whole memory
+model for goroutines. But with <code>uprobes</code> and a little inventiveness,
+you can get most of the same functionality.</p>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fchallenges-of-bpf-tracing-go%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

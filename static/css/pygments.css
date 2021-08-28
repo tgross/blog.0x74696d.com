@@ -35,7 +35,6 @@
 .highlight .kr { color: #008800; font-weight: bold } /* Keyword.Reserved */
 .highlight .kt { color: #888888; font-weight: bold } /* Keyword.Type */
 .highlight .m { color: #0000DD; font-weight: bold } /* Literal.Number */
-/*.highlight .s { color: #dd2200; background-color: #fff0f0 } /* Literal.String */ */
 .highlight .s { color: #008800; background-color: #fff0f0 } /* Literal.String */
 .highlight .na { color: #336699 } /* Name.Attribute */
 .highlight .nb { color: #003388 } /* Name.Builtin */

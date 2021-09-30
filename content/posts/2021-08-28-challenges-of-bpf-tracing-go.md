@@ -35,7 +35,7 @@ function returns.
 
 As a quick example, here's a function written in C:
 
-```
+```c
 int sum(int a, int b) {
     return a+b;
 }
@@ -44,7 +44,7 @@ int sum(int a, int b) {
 And here's a `bpftrace` program that prints the program's arguments
 and return value.
 
-```
+```awk
 #!/usr/bin/env bpftrace
 
 uprobe:./sum:"sum"
@@ -122,7 +122,7 @@ You probably don't spend your day looking at assembly and I sure as
 heck don't either! So let's take a quick detour into reading
 disassembled functions in go. Suppose this is our program:
 
-```
+```go
 package main
 
 import (
@@ -288,7 +288,7 @@ the probe, we can't simply look in return registers, but we need to
 examine the stack pointer offsets we found for each argument
 above. The final `bpftrace` program looks like the following:
 
-```
+```awk
 #!/usr/bin/env bpftrace
 
 uprobe:./swapper:"main.swap"
@@ -326,7 +326,7 @@ For a complex function like Nomad's FSM
 method, I've had to lean on hideous tricks like generating a
 `bpftrace` program:
 
-```
+```bash
 #!/usr/bin/env bash
 
 cat <<EOF
@@ -360,7 +360,7 @@ Which results in the following 300 line monstrosity:
 
 <details>
 
-```
+```awk
 #!/usr/bin/env bpftrace
 /*
 Get Nomad FSM.Apply latency
@@ -704,7 +704,7 @@ The return values also get placed into the registers, which means we
 _should_ now be able to use a `uretprobe` to get the values out of
 them. Our `bpftrace` program becomes much simpler:
 
-```
+```awk
 #!/usr/bin/env bpftrace
 
 uprobe:./swapper:"main.swap"
@@ -739,7 +739,7 @@ goroutine stack. If we run this with `./stacker 1000000` we'll
 allocate more than is available and the Go runtime will move the
 stack.
 
-```
+```go
 package main
 
 import (
@@ -780,7 +780,7 @@ func main() {
 
 Here's our `bpftrace` program:
 
-```
+```awk
 #!/usr/bin/env bpftrace
 
 uretprobe:./stacker:"main.stacker"
@@ -916,7 +916,7 @@ Instead, we still have to use the `uprobe` + offset technique we saw
 above. This `bpftrace` program works safely, but the address offset is
 going to vary depending on which version of Go you're using:
 
-```
+```awk
 #!/usr/bin/env bpftrace
 
 uprobe:./stacker:"main.stacker"+213

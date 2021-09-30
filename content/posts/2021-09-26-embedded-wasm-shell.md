@@ -14,29 +14,29 @@ in fact a _shell_. It didn't just accept instructions, but you could
 write little programs in this "weird language" called Lisp and it
 would make calculations based on your drawing or even make changes to
 the drawing[^1]. I started with automating repetitive work, and then
-one day the particularly forward-thinking architect I worked under
-asked if I could write a program that would make accurate construction
-cost estimates. The first project built came within 5% of the software
+one day a forward-thinking architect I worked with asked if I could
+write a program that would make accurate construction bid
+estimates. The first project built came within 5% of the software
 estimated budget, and it's been a roughly 20 year trip from there to
-writing blog posts about eBPF and WASM.
+writing blog posts about WASM for you today.
 
-But the important part of this trip down memory lane is the powerful
-notion that you can have software that includes a constrained embedded
-programming environment, and the enormous lever this provides a
-skilled user to fit the software to their purpose. A former colleague
-[Sam Wilson](https://twitter.com/numbsafari) gave a great talk at the
+But the important part of this trip down memory lane is the notion
+that you can have software that includes a constrained embedded
+programming environment, and the power this provides a skilled user to
+fit the software to their purpose. A former colleague [Sam
+Wilson](https://twitter.com/numbsafari) gave a great talk at the
 Philadelphia DevOps meetup a few years ago[^2] where he called this
 idea "coding in production." The key to making this work is that the
 interface should be exploratory, as one gets with a REPL or SQL
 console, and that it should be properly constrained for safety.
 
-This all came to mind again recently while working on an application with a
-lot of internal state, where I wanted to expose a REPL to operators so
-they could debug that state "live". For various reasons, I want to be
-able to assert to the owner of the data that the shell user can't
-damage the data[^3]. So I've built the beginnings of an embeddable
-Scheme interpreter in Rust, compiled to a Web Assembly (WASM) module
-hosted via Wasmtime.
+This all came to mind again recently while working on an application
+with a lot of internal state, where I wanted to expose a REPL to
+operators so they could debug that state "live". For various reasons,
+I want to be able to assert to the owner of the data that the shell
+user can't arbitrarily damage the data[^3]. So I've built the
+beginnings of an embeddable Scheme interpreter in Rust, compiled to a
+Web Assembly (WASM) module hosted via Wasmtime.
 
 Most of the use cases I've seen for WASM boil down to either (1) "I
 don't want to write JavaScript for the web" or (2) "I want to host
@@ -45,14 +45,14 @@ both awesome use cases. But this means that a lot of the example code
 in the documentation handwaves over the communication between the host
 application and the WASM guest, because either you're leaning on DOM
 bindgen libraries or exposing a narrow system interface to the guest
-like allowing it access to specific files. In particular, I struggled
-with figuring out how a guest written in Rust was supposed to set up
-linear memory and make host function calls.
+like allowing it access to specific file handles. In particular, I
+struggled with figuring out how a guest written in Rust was supposed
+to set up linear memory and make host function calls.
 
 I've published the code below as a repository with commits for each
 step at [tgross/wasm-shell-example].
 
-> Allergy warning: please note that this use case _requires_ the
+> Allergy warning: please note that this use case requires the
 > `unsafe` keyword in the guest application. The host application has
 > no use of `unsafe` in the application code, but of course if you dig
 > down far enough into the wasmtime library you'll find it there as
@@ -105,7 +105,7 @@ remote access over TLS with authentication, we could rate-limit
 connections or data transfer, or we could allow certain users access
 to more WASM "fuel" than others. So long as we implement the
 `std::io::{Read, Write}` traits, the guest shell doesn't need to know
-(and indeed _can't know_) these details.
+(and indeed _shouldn't know_) these details.
 
 For each connection, we'll spawn a thread and hand it the new stream
 and reference-counted copies of the WASM engine, our compile module,
@@ -137,7 +137,7 @@ for stream in listener.incoming() {
 In the handler, we end up needing to clone the stream twice: once to
 split it into a reader and writer stream (for stdin and stdout), and
 once more to have an error channel so the host can send in-band error
-messages if the guest shell exits unexpectedly.
+messages to the client even if the guest shell exits unexpectedly.
 
 Next we present the two streams as `WasiFile` to the WASI context, and
 spawn a new `wasmtime::Store` from this context and the application
@@ -177,17 +177,18 @@ if let Err(e) = run_interpreter() {
 };
 ```
 
-At this point we can `cargo run` and connect to the socket file with
-`socat - UNIX-CONNECT:/tmp/shell.sock`. But our shell still doesn't
-_do_ anything other than echo back our results. Let's change that.
+At this point we can `cargo run` and connect to the socket file from
+another terminal with `socat - UNIX-CONNECT:/tmp/wasm-shell.sock`. But
+our shell still doesn't _do_ anything other than echo back our
+results. Let's change that.
 
 ## Updating Host State from the Guest
 
 Earlier we'd glossed over the application state, so let's populate a
 `State` and a separate `StoreData` that contains the state and the
-`WasiCtx` for the WASM engine. This way the host application can also
-mess around with the `State` if it wants to without having to worry
-about WASM.
+`WasiCtx` for the WASM engine. The host application will use this same
+object to manipulate state from its side. This could even include a
+reference to your database connection if our application had one.
 
 ```rust
 struct State {
@@ -203,8 +204,8 @@ struct StoreData<'a> {
 Our state is a vector of integers, and the two functions we're going
 to expose to the shell are `add` to push another number onto the
 vector, and `sum` to total all the numbers we've seen so far. I'm
-intentionally punting on more complex objects for the moment, but
-we'll come back to that.
+intentionally punting on more complex objects like strings for the
+moment, but we'll come back to that.
 
 ```rust
 impl State {
@@ -221,13 +222,16 @@ impl State {
 }
 ```
 
-Wrapping one of these functions gets a little gross. There are a
-couple of important details here. The first string is the name of the
-module our guest will import, and the second string is the name we'll
-expose to the guest shell. The signature of the closure is a
-[`wasmtime::IntoFunc`] but all the arguments must be compatible with
-WebAssembly types. So for example, you can't pass a `usize` or `u8`
-here, nor can you return a tuple or struct.
+Wrapping one of these functions has some important details to call
+out. The first string is the name of the module our guest will import,
+and the second string is the name we'll expose to the guest shell. The
+signature of the closure is a [`wasmtime::IntoFunc`] and all the
+arguments must be compatible with WebAssembly types. So for example,
+you can't pass a `usize` or `u8` here, nor can you return a tuple or
+struct. When we want to manipulate the state, we call either `data()`
+or `data_mut()` to get a reference (or mutable reference) to the
+caller's `Store`, and then take the mutex to finally get our `State`
+methods.
 
 ```rust
 linker.func_wrap(
@@ -253,7 +257,7 @@ extern "C" {
 
 Lastly, we'll update our `eval` function in the guest to parse our
 inputs and call the functions. Normally we'd probably want to use a
-real command-line parsing library, but for now this gets the job done.
+real command-line parsing library, but this will do for now.
 
 ```rust
 fn eval(input: &str) -> String {
@@ -290,24 +294,24 @@ but we can work around this by using WASM linear memory.
 
 Effectively what we're going to do is make a syscall-like interface
 between our guest and host. The guest will write to a buffer, and then
-call a host function with a pointer (or rather, an offset in the WASM
-linear memory) and length. The host will get the result and write the
-value back to that buffer and return the length of the data written
-back.
+call a host function passing a pointer (or rather, an offset in the
+WASM linear memory) and length for each parameter and for the return
+value. The host will get the result and write the value back to return
+buffer and return the length of the data written to the caller.
 
 We'll be using "safe" `wasmtime::Memory` interfaces on the host side
 that copy the data out before working on it, and on the guest side
 we're single threaded and waiting on the return from the host
-function, so we don't need to worry about the guest messing with the
+function. So we don't need to worry about the guest messing with the
 data while we're reading it. (And hopefully interface types ship
 before threads!)
 
-I managed to segfault the guest a few dozen times before finally
-finding Radu Matei's excellent [_Practical Guide to WASM Memory_]. The
-control flow we have here is reverse from Matei's post, because the
-guest is deciding what to allocate. But as it turns out this largely
-gets implemented in the same way. We want these two functions in the
-guest:
+That being said, I managed to segfault the guest a few dozen times
+before finally finding Radu Matei's excellent [_Practical Guide to
+WASM Memory_]. The control flow we have here is reverse from Matei's
+post, because the guest is deciding what to allocate. But as it turns
+out this largely gets implemented in the same way. We want these two
+functions in the guest:
 
 ```rust
 fn alloc(len: usize) -> *mut u8 {
@@ -330,8 +334,10 @@ code inside the guest. When the guest prepares a buffer for the host
 `alloc` function "forgets" about the buffer we allocate without
 dropping it. If we skip this, the buffer will get reclaimed and the
 host will get garbage data (which it will safely reject when it tries
-to parse it into a string). This also means we need to clean up the
-buffer manually with `dealloc`. In `dealloc` we read the buffer
+to parse it into a string). But the error message we write in the
+return buffer is also corrupt in the same way, and the guest crashes
+("traps", in WASM parlance). This workflow also means we need to clean
+up the buffer manually with `dealloc`. In `dealloc` we read the buffer
 pointed to by the pointer, and then drop it.
 
 We can put this all together to pass a string to the `host_kv_get`
@@ -379,15 +385,15 @@ commit [`c84c596`].
 
 ## Reading Memory From the Host
 
-The [`wasmtime::FuncWrap`] expects a closure and if we want to access
-memory the first parameter of that closure is a
-[`wasmtime::Caller`]. Getting the memory and accessing the store
-correctly is a little fussy if you want to both read and write to
-memory in the same function (as we do here), because writing will need
-a mutable borrow. I've elided some error handling here but you can see
-the full code listing in commit [`f95d398`]. Note that we're looking for the
-export named "memory", which is what the `wasm32-wasi` target exports
-by default.
+As we saw earlier the [`wasmtime::FuncWrap`] expects a closure and if
+we want to access memory the first parameter of that closure is a
+[`wasmtime::Caller`]. Getting the memory and accessing the store in
+the correct order is a little fussy if you want to both read and write
+to memory in the same function (as we do here), because writing will
+need a mutable borrow. I've elided some error handling here but you
+can see the full code listing in commit [`f95d398`]. Note that we're
+looking for the export named "memory", which is what the `wasm32-wasi`
+target [exports by default].
 
 ```rust
 linker.func_wrap(
@@ -416,7 +422,7 @@ linker.func_wrap(
 
 This wrapper is calling into functions that return a `Result` and then
 it's responsible for writing that response back. The `kv_get`
-implementation is fairly slim as a result:
+implementation can be fairly slim:
 
 ```rust
 fn kv_get(
@@ -493,13 +499,14 @@ investment in the infrastructure around host/guest communication.
 
 [tgross/wasm-shell-example]: https://github.com/tgross/wasm-shell-example
 [`cargo wasi build`]: https://github.com/bytecodealliance/cargo-wasi
-[Wasmtime docs on embedding in Rust]: https://docs.wasmtime.dev/examples-rust-embed.html
+[Wasmtime docs on embedding in Rust]: https://docs.wasmtime.dev/examples-rust-hello-world.html
 [WebAssembly Interface Types]: https://github.com/webassembly/interface-types
 [_Practical Guide to WASM Memory_]: https://radu-matei.com/blog/practical-guide-to-wasm-memory/
 [`wasmtime::IntoFunc`]: https://docs.rs/wasmtime/0.18.0/wasmtime/struct.Func.html#method.wrap
 [import host functionality]: https://docs.wasmtime.dev/wasm-rust.html#importing-host-functionality
 [`wasmtime::FuncWrap`]: https://docs.rs/wasmtime/0.30.0/wasmtime/struct.Func.html#method.wrap
 [`wasmtime::Caller`]: https://docs.rs/wasmtime/0.30.0/wasmtime/struct.Caller.html#
+[exports by default]: https://docs.wasmtime.dev/wasm-rust.html#exporting-rust-functionality
 [`0e7dff6`]: https://github.com/tgross/wasm-shell-example/commit/0e7dff66bf2537f4da0254a7683922a031731cf4
 [`c1e34bb`]: https://github.com/tgross/wasm-shell-example/commit/c1e34bb804d81932d9e9dc1c92fc360e576362d0
 [`fafc0f3`]: https://github.com/tgross/wasm-shell-example/commit/fafc0f316ad30ef318019b8f7253dd896a920ea4

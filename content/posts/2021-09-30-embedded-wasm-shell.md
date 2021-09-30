@@ -3,7 +3,7 @@ categories:
 - development
 - rust
 - wasm
-date: 2021-09-27T12:00:00Z
+date: 2021-09-30T12:00:00Z
 title: "An Embedded WASM Shell"
 slug: embedded-wasm-shell
 ---

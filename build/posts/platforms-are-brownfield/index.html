@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | Platforms are Brownfield</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>Platforms are Brownfield</h1>
+  <section class="byline">June 11, 2022</section>
+  <p>The email comes that the newly-formed Platform Team will be migrating
+all two thousand of the company's services to the New
+Platform<sup>TM</sup>. The new platform will ensure there's a single
+workflow across the company for building, testing, securing, and
+shipping software. The old legacy cruft that was weighing down
+delivery will be swept away. Maybe there's an accompanying slide show
+at the all-hands meeting to hype it up. The team has done a proof of
+concept with some of the simple services, and will be working with
+each service team to get their services ported by the end of the
+quarter.</p>
+<p>A couple months in, things are moving quickly. The platform team has
+taken lessons from product teams and shipped a &quot;MVP&quot; of the
+platform. A majority of the company's services are stateless Rails (or
+Spring Boot, or Go, whatever) applications that can be shipped in
+containers and backed by managed databases. Then the platform team
+sits down with the data science team to talk about migrating their
+services...</p>
+<p>A year or two later, only half of the two thousand services have been
+migrated. The New Platform project is far over-budget. Managers of
+other teams have complained to the CTO how much toil of the migration
+has landed on their own teams. The Platform's performance is poor,
+because the team hasn't had time to invest in performance instead of
+migrations. Half the Platform team has burned out and quit.</p>
+<p>I've seen this play out a handful of times first hand now<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>, and I've
+heard this same story from many other folks in the industry. It's not
+limited to software-as-a-service delivery; I've seen this happen with
+design systems, documentation platforms, and CAD software, to varying
+degree.</p>
+<p>The conventional wisdom here is that the platform team has done
+everything right. They've done the agile thing and started with a
+proof-of-concept and MVP. They focused on getting the most business
+value out of the platform as quickly as possible, pushing off the long
+tail of services for later.</p>
+<p>But that long tail of post-MVP services break all the assumptions of
+the New Platform. So they end up investing hacking in new capabilities
+for exceptions. The platform is all in on containers, but one team
+needs nested virtualization. The platform assumes services are
+stateless, but one team stores long-running process checkpoints on
+disk. The platform assumes Linux, but one team has custom electrical
+engineering software written for them twenty years ago that only runs
+on MS-DOS, and they don't own the source. That one was fun.</p>
+<p>What's going wrong? In the abstract, the promise of the &quot;platform&quot; is
+that it'll reduce complexity of a process. But in organizations large
+enough to care about platforms, much of the complexity is <em>inherent</em>
+complexity of the business domain, not incidental complexity.</p>
+<p>Developers are lured by the promise of building a greenfield platform,
+but building a platform is always brownfield work. Platform
+developers, in a rush to simplify a process, are failing to recognize
+that they're trying to simplify the <em>business</em>. And the business is
+going to resist being simplified.</p>
+<p>Platform teams can avoid this trap by embracing the inherent
+complexity early on. Of course they should start with a simplified
+proof-of-concept. But if platform teams are going to borrow concepts
+like &quot;MVP&quot; from product development, they should also borrow
+&quot;product-market fit&quot;. Platform teams should be seeking out the weird
+corners of the company to discover the true scope of their project, so
+that the platform isn't so rigid that it can't tolerate difference.</p>
+<p>At the same time, why is it so important that disparate teams across
+the whole company use the same process?  Engineers aren't
+fungible. There's no danger that the data science team is going to be
+re-org'd next week and turned into web developers, or vice
+versa. Centralizing process onto a platform isn't being done for some
+abstract value of simplifying things — it's a decision that the
+pain of migration is worth some business value. But migrating the long
+tail of applications might no longer match that business
+value. Establishing that migrating the long tail of applications is a
+non-goal should always be considered an option.</p>
+<p>Part of embracing complexity may be accepting that the dream of a
+single platform was always just a dream.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>Certainly never with any of my current or prior employers or
+their customers with whom I have non-disclosure agreements, of
+course. <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+  <div class="share">
+  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fplatforms-are-brownfield%2f&via=0x74696d"
+     class="ss-twitter"
+     title="Tweet about this post"
+     ></a>
+</div>
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
+    <span class="ss-social-circle ss-twitter"></span>
+    <div>Follow</div>
+  </a>
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

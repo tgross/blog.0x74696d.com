@@ -10,6 +10,94 @@
     
     
     <item>
+      <title>Platforms are Brownfield</title>
+      <link>https://blog.0x74696d.com/posts/platforms-are-brownfield/</link>
+      <pubDate>Sat, 11 Jun 2022 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/platforms-are-brownfield/</guid>
+      <description>&lt;p&gt;The email comes that the newly-formed Platform Team will be migrating
+all two thousand of the company&#39;s services to the New
+Platform&lt;sup&gt;TM&lt;/sup&gt;. The new platform will ensure there&#39;s a single
+workflow across the company for building, testing, securing, and
+shipping software. The old legacy cruft that was weighing down
+delivery will be swept away. Maybe there&#39;s an accompanying slide show
+at the all-hands meeting to hype it up. The team has done a proof of
+concept with some of the simple services, and will be working with
+each service team to get their services ported by the end of the
+quarter.&lt;/p&gt;
+&lt;p&gt;A couple months in, things are moving quickly. The platform team has
+taken lessons from product teams and shipped a &amp;quot;MVP&amp;quot; of the
+platform. A majority of the company&#39;s services are stateless Rails (or
+Spring Boot, or Go, whatever) applications that can be shipped in
+containers and backed by managed databases. Then the platform team
+sits down with the data science team to talk about migrating their
+services...&lt;/p&gt;
+&lt;p&gt;A year or two later, only half of the two thousand services have been
+migrated. The New Platform project is far over-budget. Managers of
+other teams have complained to the CTO how much toil of the migration
+has landed on their own teams. The Platform&#39;s performance is poor,
+because the team hasn&#39;t had time to invest in performance instead of
+migrations. Half the Platform team has burned out and quit.&lt;/p&gt;
+&lt;p&gt;I&#39;ve seen this play out a handful of times first hand now&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, and I&#39;ve
+heard this same story from many other folks in the industry. It&#39;s not
+limited to software-as-a-service delivery; I&#39;ve seen this happen with
+design systems, documentation platforms, and CAD software, to varying
+degree.&lt;/p&gt;
+&lt;p&gt;The conventional wisdom here is that the platform team has done
+everything right. They&#39;ve done the agile thing and started with a
+proof-of-concept and MVP. They focused on getting the most business
+value out of the platform as quickly as possible, pushing off the long
+tail of services for later.&lt;/p&gt;
+&lt;p&gt;But that long tail of post-MVP services break all the assumptions of
+the New Platform. So they end up investing hacking in new capabilities
+for exceptions. The platform is all in on containers, but one team
+needs nested virtualization. The platform assumes services are
+stateless, but one team stores long-running process checkpoints on
+disk. The platform assumes Linux, but one team has custom electrical
+engineering software written for them twenty years ago that only runs
+on MS-DOS, and they don&#39;t own the source. That one was fun.&lt;/p&gt;
+&lt;p&gt;What&#39;s going wrong? In the abstract, the promise of the &amp;quot;platform&amp;quot; is
+that it&#39;ll reduce complexity of a process. But in organizations large
+enough to care about platforms, much of the complexity is &lt;em&gt;inherent&lt;/em&gt;
+complexity of the business domain, not incidental complexity.&lt;/p&gt;
+&lt;p&gt;Developers are lured by the promise of building a greenfield platform,
+but building a platform is always brownfield work. Platform
+developers, in a rush to simplify a process, are failing to recognize
+that they&#39;re trying to simplify the &lt;em&gt;business&lt;/em&gt;. And the business is
+going to resist being simplified.&lt;/p&gt;
+&lt;p&gt;Platform teams can avoid this trap by embracing the inherent
+complexity early on. Of course they should start with a simplified
+proof-of-concept. But if platform teams are going to borrow concepts
+like &amp;quot;MVP&amp;quot; from product development, they should also borrow
+&amp;quot;product-market fit&amp;quot;. Platform teams should be seeking out the weird
+corners of the company to discover the true scope of their project, so
+that the platform isn&#39;t so rigid that it can&#39;t tolerate difference.&lt;/p&gt;
+&lt;p&gt;At the same time, why is it so important that disparate teams across
+the whole company use the same process?  Engineers aren&#39;t
+fungible. There&#39;s no danger that the data science team is going to be
+re-org&#39;d next week and turned into web developers, or vice
+versa. Centralizing process onto a platform isn&#39;t being done for some
+abstract value of simplifying things — it&#39;s a decision that the
+pain of migration is worth some business value. But migrating the long
+tail of applications might no longer match that business
+value. Establishing that migrating the long tail of applications is a
+non-goal should always be considered an option.&lt;/p&gt;
+&lt;p&gt;Part of embracing complexity may be accepting that the dream of a
+single platform was always just a dream.&lt;/p&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Certainly never with any of my current or prior employers or
+their customers with whom I have non-disclosure agreements, of
+course. &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+</description>
+    </item>
+    
+    <item>
       <title>An Embedded WASM Shell</title>
       <link>https://blog.0x74696d.com/posts/embedded-wasm-shell/</link>
       <pubDate>Thu, 30 Sep 2021 12:00:00 +0000</pubDate>
@@ -2831,47 +2919,6 @@ METHOD                                                                  # CALLS
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;Part 2: Build for Operability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Software Defined Culture, Part 1 - Reliability</title>
-      <link>https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/</link>
-      <pubDate>Sun, 18 Feb 2018 01:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/</guid>
-      <description>&lt;p&gt;This five-part series of posts covers a talk titled &lt;em&gt;Software Defined Culture&lt;/em&gt; that I gave at &lt;a href=&#34;https://www.devopsdays.org/events/2016-philadelphia/program/tim-gross/&#34;&gt;DevOps Days Philadelphia 2016&lt;/a&gt;, &lt;a href=&#34;https://gotochgo.com/2017/sessions/43&#34;&gt;GOTO Chicago 2017&lt;/a&gt;, and &lt;a href=&#34;https://vimeo.com/228067673&#34;&gt;Velocity San Jose 2017&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 1: Build for Reliability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;hr&gt;
-&lt;h1 id=&#34;building-for-reliability&#34;&gt;Building for Reliability&lt;/h1&gt;
-&lt;p&gt;Failure to build for reliability means we develop a culture of firefighting. Firefighting becomes a rut for organizations. Things are broken, we rush out fixes, and we pile on technical debt. The &amp;quot;temporary&amp;quot; hacks lead to problems that come back, grow, and cascade. Urgency starts to supercede importance. That is, the thing that needs to be fixed &lt;em&gt;right now&lt;/em&gt; sets back the mission of the organization as a whole. Problems become crises, and the organization simply starts lurching from crisis to crisis. This has insidious effects on the organization&#39;s culture as we start rewarding our best firefighters. We misalign incentives away from the creation of value and towards the prevention of largely self-inflicted harm.&lt;/p&gt;
-&lt;p&gt;This is going to burn out your team. People don&#39;t like getting paged. They want to sleep. They want to spend time with their families. They want to spend their working hours tackling the cool &amp;quot;hard problems&amp;quot; you sold them on when you recruited them. Ironically, the best firefighters will be the ones to burn out, and then you&#39;ll be without them as they either quit or their burnout starts to affect their personalities and performance. (Speaking from personal hard-won experience here!)&lt;/p&gt;
-&lt;p&gt;So given that we want to build for reliability, how do we get there? Far smarter people than me have given this serious detailed treatment, but from a high level view there are some obvious rough guidelines.&lt;/p&gt;
-&lt;h2 id=&#34;no-more-resume-driven-development&#34;&gt;No More Resume Driven Development&lt;/h2&gt;
-&lt;p&gt;Bleeding-edge technology is broken all. the. time. It&#39;s great that your engineers want to learn about Elixir or Vue JS or AerospikeDB. They should do that on their own time, or at least in your internal systems and dev tooling. Don&#39;t #YOLO that shit into production!&lt;/p&gt;
-&lt;p&gt;Not only is this bad for reliability it also tells people that this is good engineering decision making — that it&#39;s okay to push untrusted systems into production. In fact, in many organizations you&#39;ll be rewarded for this behavior because you&#39;ve &amp;quot;shipped&amp;quot;. Pay no attention to the unmaintainable tire fire afterwards!&lt;/p&gt;
-&lt;p&gt;It&#39;s not just rewarding the behavior on your team, but it&#39;s also a problem for hiring. If your job listings look like a Markov chain from the front page of HackerNews, what kind of developer is this attracting to your organization?&lt;/p&gt;
-&lt;p&gt;This sort of thing creates a vicious cycle. There are certain people within our profession who never really want to maintain anything. They want to chase the new shiny and then move on to the next thing. If one of these folks lands in your organization and they&#39;re allowed free rein, they&#39;ll bring in all their friends as well. I&#39;ve witnessed these roving gangs of locust developers coming in, dropping a new framework or programming language on an organization, and heading off to the next organization to screw up.&lt;/p&gt;
-&lt;p&gt;Lack of reliability biases your organization against experienced hires. If you&#39;ve been through a couple of cycles of burnout already (aside: that&#39;s super fucked up that this is even a thing), you&#39;re going to see a stack of shiny new tech in a job posting and immediately toss it out, because you know there&#39;s no way you want to live through that again. It also biases your organization against older folks in general, who will tend to have families at home — particularly women as they still manage a disproportionate share of household duties. They don&#39;t want to be up all night helping you debug MongoDB because you decided to switch to the new storage engine after only a couple of days of testing.&lt;/p&gt;
-&lt;h2 id=&#34;choose-boring-tech&#34;&gt;Choose Boring Tech&lt;/h2&gt;
-&lt;p&gt;We should have a strong bias towards &lt;a href=&#34;http://mcfunley.com/choose-boring-technology&#34;&gt;choosing boring technology&lt;/a&gt;. You have a limited amount of time and energy to pour into innovation. That energy should be spent on the things that will have the biggest positive impact for your organization&#39;s mission.&lt;/p&gt;
-&lt;p&gt;Building for reliability encourages the development of a certain set of cultural values. It builds a culture trust between developers and operators. It builds a culture of inclusivity. It builds a culture of sensible attitudes towards risk. And it builds a culture of work-life balance.&lt;/p&gt;
-&lt;hr&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 1: Build for Reliability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;

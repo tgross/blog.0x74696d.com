@@ -44,14 +44,15 @@ proof-of-concept and MVP. They focused on getting the most business
 value out of the platform as quickly as possible, pushing off the long
 tail of services for later.
 
-But that long tail of post-MVP services break all the assumptions of
-the New Platform. So they end up investing hacking in new capabilities
-for exceptions. The platform is all in on containers, but one team
-needs nested virtualization. The platform assumes services are
-stateless, but one team stores long-running process checkpoints on
-disk. The platform assumes Linux, but one team has custom electrical
-engineering software written for them twenty years ago that only runs
-on MS-DOS, and they don't own the source. That one was fun.
+But that long tail of post-MVP services breaks all the assumptions of
+the New Platform. So they end up hacking in new capabilities for
+exceptions, and the pile of hacks grows continuously. The platform is
+all in on containers, but one team needs nested virtualization. The
+platform assumes services are stateless, but one team stores
+long-running process checkpoints on disk. The platform assumes Linux,
+but one team has custom electrical engineering software written for
+them twenty years ago that only runs on MS-DOS, and they don't own the
+source. That one was fun.
 
 What's going wrong? In the abstract, the promise of the "platform" is
 that it'll reduce complexity of a process. But in organizations large

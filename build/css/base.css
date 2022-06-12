@@ -166,6 +166,9 @@ h3 {
       font-size: 0.9em; /* size fix for IE, Opera */
       font-weight: 500;
   }
+  .footnotes {
+      font-size: 0.8em;
+  }
 
 .error i {
     font-size: 16px;

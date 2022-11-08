@@ -486,20 +486,12 @@ fallback:
 <p>So why is there a difference between Docker for Mac and all the other environments? If it's something specific to the Mac why don't we see it without Docker? There's one more wrench in this story, and that's Hypervisor Framework and <a href="https://github.com/mist64/xhyve">xhyve</a>. Unlike all the other cases, in Docker for Mac we're using xhyve, which runs entirely in userspace. Presumably somewhere in the userspace emulation we're losing a lot of our performance to virtualization.</p>
 <p>This is unfortunately where my enthusiasm for following this to the end starts to flag. That's probably a disappointing finish, but in fairness I totally warned you! If you want to tackle this further, xhyve is open source and developed on GitHub. The real conclusion is to be careful that you're benchmarking what you really think you are. Even in cases where you've got &quot;pure&quot; CPU benchmarks you can be caught by surprise!</p>
 
-  <div class="share">
-  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fbe-careful-what-you-benchmark%2f&via=0x74696d"
-     class="ss-twitter"
-     title="Tweet about this post"
-     ></a>
-</div>
+  
 
 </section>
 <section class="meta">
   <section class="blocks">
-  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
-    <span class="ss-social-circle ss-twitter"></span>
-    <div>Follow</div>
-  </a>
+  
 
   <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
     <span class="ss-social-circle ss-octocat"></span>

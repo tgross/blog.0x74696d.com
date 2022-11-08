@@ -41,20 +41,12 @@
 <p>We use Jenkins to build and ship the containers. My colleagues <a href="https://www.youtube.com/watch?v=8fcDZB-QMRA">Bridget and Peter</a> talked about this in depth at this year's ChefConf. And one of our team's alumni <a href="https://www.youtube.com/watch?v=yU0QhhS-XzI">Jeff</a> talked about GrubHub's implementation of a very similar setup at Dockercon a couple weeks ago. Our Jenkins server has the same host-local Docker Registry setup, but has IAM permissions to write to the S3 bucket. As the sole node allowed to write to S3, we avoid any possibility of data races on the backing store. (If you need multiple writers you'll want to shard which repositories they write to by namespace.)</p>
 <p>With this setup, network I/O throughput on start is limited only by the host that requires a new image and whatever S3 can give us. This lets us scale up nodes as fast as AWS can give them to us without worrying about the registry as a point of failure.</p>
 
-  <div class="share">
-  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fhost-local-docker-registry%2f&via=0x74696d"
-     class="ss-twitter"
-     title="Tweet about this post"
-     ></a>
-</div>
+  
 
 </section>
 <section class="meta">
   <section class="blocks">
-  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
-    <span class="ss-social-circle ss-twitter"></span>
-    <div>Follow</div>
-  </a>
+  
 
   <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
     <span class="ss-social-circle ss-octocat"></span>

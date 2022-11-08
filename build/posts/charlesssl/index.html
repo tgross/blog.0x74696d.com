@@ -86,20 +86,12 @@ Email Address []:tim@0x74696d.com
 <p>You can use this same CA to sign what would otherwise be snake-oil certs for your development environment so that you don't have to shell out for an SSL certificate. But I like to use a separate CA for that — each machine I use for development can have its own CA generating temporary certs like those used by Charles, and I can have a separate one for signing certificates I want to use across multiple machines. This also makes revocation easier if you lose a machine to theft.</p>
 <p>The machine with the private key for that CA is an internally-facing server and not something like a laptop that you'll carry into high-risk environments like an open WiFi at LAS during DEFCON.  Or ideally, you should remove the CA entirely from your machine once you've created certificates with it, and leave the private key burned to a CD so you can recreate the CA and renew the certificates when necessary. This way the key can't be compromised without the theft of the CD backup.</p>
 
-  <div class="share">
-  <a href="https://twitter.com/intent/tweet?url=https%3a%2f%2fblog.0x74696d.com%2fposts%2fcharlesssl%2f&via=0x74696d"
-     class="ss-twitter"
-     title="Tweet about this post"
-     ></a>
-</div>
+  
 
 </section>
 <section class="meta">
   <section class="blocks">
-  <a class="block" href="https://twitter.com/intent/follow?screen_name=0x74696d" title="Follow me on Twitter">
-    <span class="ss-social-circle ss-twitter"></span>
-    <div>Follow</div>
-  </a>
+  
 
   <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
     <span class="ss-social-circle ss-octocat"></span>

@@ -5,10 +5,93 @@
     <description>Recent content in Posts on 0x74696d</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 27 Nov 2022 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 27 Nov 2022 18:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://blog.0x74696d.com/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Two Kinds of UX Blunder</title>
+      <link>https://blog.0x74696d.com/posts/two-kinds-of-ux-blunder/</link>
+      <pubDate>Sun, 27 Nov 2022 18:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/two-kinds-of-ux-blunder/</guid>
+      <description>&lt;p&gt;The house we rent has high ceilings along with lots of ceiling fans,
+which is great for the warm months here in Philadelphia. Most of these
+are the pull-cord type: a wall switch powers it on or off and then
+there are two pulls that toggle the lamp and set the fan speed. But
+the one above our dining room tables has a remote control, and it&#39;s a
+good illustration of two different kinds of UX blunder.&lt;/p&gt;
+&lt;p&gt;First let&#39;s set the stage. The image below is the remote control,
+stuck to the wall with velcro tape. It&#39;s battery-powered and
+presumably communicates via radio in the ISM band, like a garage door
+opener or most other household devices.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://blog.0x74696d.com/images/20221127/remote.jpg&#34; alt=&#34;A ceiling fan remote control. It has five rubber buttons, four of which control the fan speed and the last which controls the lamp&#34;&gt;&lt;/p&gt;
+&lt;p&gt;The buttons are cheap and squishy rubber, with a lot of give before
+they activate. There&#39;s a small red LED above the buttons indicating
+that a button has been pressed, but there&#39;s a delay of a half second
+or so before anything actually happens on the fan overhead (and in any
+case, the fan is behind you and overhead when pressing the buttons so
+you can&#39;t see what&#39;s happening and the red light at the same
+time). The relevance of this will be obvious in a moment.&lt;/p&gt;
+&lt;p&gt;The four buttons towards the top of the remote control the fan. The
+icons are three dots for the fastest speed, two for the second
+fastest, and one dot for the lowest. The icons are raised to be
+discernable by touch, and the fan speed buttons are even ever so
+slightly different sizes. The fourth button shows the &lt;a href=&#34;https://en.wikipedia.org/wiki/Power_symbol&#34;&gt;IEEE 1621 power
+symbol&lt;/a&gt;, which turns off the fan. It does not turn the fan back on,
+but that&#39;s not even the worst use of iconography I&#39;ve seen &lt;em&gt;today&lt;/em&gt; so
+we&#39;ll give that a pass.&lt;/p&gt;
+&lt;p&gt;The last button has a sun-like icon which toggles the lamp. We noticed
+when we moved in that the lamp was not very bright so we brought in a
+few of our own light sources as well.&lt;/p&gt;
+&lt;p&gt;One day a few months after moving in, I come downstairs and my spouse
+informs me that there&#39;s something wrong with the ceiling lamp. As the
+professional software meddler of the house it obviously falls upon me
+to debug this. I press the button and the lamp is incredibly dim
+— like a flickering candle. So I turn it back off, get the
+ladder, and take off the globe. Only to find that none of the bulbs
+are blown. Just dim. I push the button to turn them back on. Strange,
+it seems like they were even dimmer now? And was it just my
+imagination or was the delay from the remote longer than normal? I try
+again, firmly holding down the button this time. Suddenly the lamp
+flares to life!&lt;/p&gt;
+&lt;p&gt;The button is a dimmer switch.&lt;/p&gt;
+&lt;p&gt;The first UX blunder here is the easy one: discoverability. Nothing
+about the interface of the remote suggests in any way that the lamp
+was dimmable. Having multiple buttons for fan speeds but only one for
+the lamp indirectly suggests that the lamp is &lt;em&gt;not&lt;/em&gt; adjustable. Now,
+I&#39;m sure that there&#39;s a paper instruction booklet that came with the
+fan that explains this. But this is a cheap ceiling fan bought by a
+landlord years ago for a house he minimally renovated to rent
+out. That instruction booklet is long gone.&lt;/p&gt;
+&lt;p&gt;The software industry is mildly obsessed with
+discoverability. Arguably this is economically incentivized. If you&#39;re
+burning piles of money for hyper growth to bring on new users (while
+vaguely ignoring the cohorts that churn out), discoverability is your
+life blood. It&#39;s largely what determines &amp;quot;time to value&amp;quot;.&lt;/p&gt;
+&lt;p&gt;But now my spouse and I know how the dimmer works. Within the limited
+design space of this interface, we&#39;ve become &amp;quot;power users.&amp;quot; Which
+means the overhead lamp is always set to the exact brightness we want
+it and we never dim the lamp when we mean to turn it off, right?&lt;/p&gt;
+&lt;p&gt;No! Because the second blunder here is an interface that encourages
+user error. The affordance of the button is overloaded — it does
+more than one thing. And feedback is delayed, so when you intend to
+shut off the lamp you need to press long enough to know that your
+command has been received, but not too long such that the remote
+interprets this as a command to dim the lamp. You can understand
+exactly how the interface is intended to work and still misuse it on a
+regular basis.&lt;/p&gt;
+&lt;p&gt;This kind of UX problem is overlooked in the software industry. The
+user&#39;s mental model for software breaks down because the model isn&#39;t
+reliable. Cause and effect become divorced by poor performance, opaque
+asynchronous actions, and eventual consistency. Conversely, software
+can have middling discoverability but work so reliably that once users
+get over the learning curve they won&#39;t give it up. Software that
+allows users to become experts is software that survives the test of
+time.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>io_uring and seccomp</title>
@@ -2968,78 +3051,6 @@ METHOD                                                                  # CALLS
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;Part 4: Build for Responsibility&lt;/li&gt;
-&lt;/ol&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Software Defined Culture, Part 3 - Observability</title>
-      <link>https://blog.0x74696d.com/posts/software-defined-culture-3-observability/</link>
-      <pubDate>Sun, 18 Feb 2018 03:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/software-defined-culture-3-observability/</guid>
-      <description>&lt;p&gt;This five-part series of posts covers a talk titled &lt;em&gt;Software Defined Culture&lt;/em&gt; that I gave at &lt;a href=&#34;https://www.devopsdays.org/events/2016-philadelphia/program/tim-gross/&#34;&gt;DevOps Days Philadelphia 2016&lt;/a&gt;, &lt;a href=&#34;https://gotochgo.com/2017/sessions/43&#34;&gt;GOTO Chicago 2017&lt;/a&gt;, and &lt;a href=&#34;https://vimeo.com/228067673&#34;&gt;Velocity San Jose 2017&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 3: Build for Observability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;hr&gt;
-&lt;h1 id=&#34;building-for-observability&#34;&gt;Building for Observability&lt;/h1&gt;
-&lt;blockquote&gt;
-&lt;p&gt;&amp;quot;We have built mind-bogglingly complicated systems that we cannot see, allowing glaring performance problems to hide in broad daylight in our systems.&amp;quot;&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;Bryan Cantrill, CTO of Joyent, said this back in 2006 in &lt;a href=&#34;http://queue.acm.org/detail.cfm?id=1117401&#34;&gt;ACM Queue&lt;/a&gt;. And that was more than ten years ago! Turns out we were all building distributed systems back then, but now we&#39;ve all embraced that we&#39;re building distributed systems, and these systems make the situation even harder.&lt;/p&gt;
-&lt;p&gt;In a distributed system, the gnarliest and most difficult problems to solve will only appear in production. This means we need to be able to understand what&#39;s happening in our production systems. They need to be observable, and the tools we use to obtain that observability must above all be &lt;em&gt;safe&lt;/em&gt; to use in production.&lt;/p&gt;
-&lt;p&gt;But that&#39;s not all. In his &lt;a href=&#34;https://www.kitchensoap.com/2015/05/01/openlettertomonitoringproducts/&#34;&gt;&lt;em&gt;Open Letter to Monitoring/Alerting Companies&lt;/em&gt;&lt;/a&gt;, John Allspaw says:&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;&amp;quot;[T]ake as a first design principle that outages and other &amp;quot;untoward&amp;quot; events are handled not by a lone engineer, but more often than not by a team of engineers all with their different expertise and focus of attention.&amp;quot;&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;That is, the tools that we&#39;re building should be collaborative. Don&#39;t simply create dashboards showing the metrics associated with your previous outage. Select tools that allow you to debug &lt;em&gt;in situ&lt;/em&gt; like DTrace and eBPF, and let you write code that can be committed and shared as part of the learning process. Select tools like &lt;a href=&#34;https://honeycomb.io/&#34;&gt;Honeycomb&lt;/a&gt;, that allow you to iteratively build queries of events emitted by your system, which you can then share as playbooks for your next incident.&lt;/p&gt;
-&lt;h2 id=&#34;observability-as-a-first-class-requirement&#34;&gt;Observability as a First-Class Requirement.&lt;/h2&gt;
-&lt;p&gt;I once had responsibility for a Windows Distributed File System Replication (DFSR) cluster. In case you&#39;re not familiar, this is block storage distributed over the WAN (what could &lt;em&gt;possibly&lt;/em&gt; go wrong?). This was many years ago before I&#39;d won my production battle scars, so when we selected the system we didn&#39;t really take into consideration how we could observe its operation. When our users started reporting bizarre file locking behavior (&lt;em&gt;gasp who could&#39;ve thought!?&lt;/em&gt;), we realized that DFSR had no way to tell us what it was doing. The best we could get out of it was a report that said &amp;quot;here&#39;s how much bandwidth I&#39;ve saving in compression,&amp;quot; which was not very helpful. We went through the 5 Stages of Observability Grief:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Denial: &amp;quot;We don&#39;t really need to worry about monitoring this, right?&amp;quot;&lt;/li&gt;
-&lt;li&gt;Anger: &amp;quot;Why can&#39;t we monitor this?!&amp;quot;&lt;/li&gt;
-&lt;li&gt;Bargaining: &amp;quot;Microsoft, surely you have a tool to observe this... can we have yours?&amp;quot;&lt;/li&gt;
-&lt;li&gt;Depression: &amp;quot;I&#39;ve been on the phone for 2 months with Microsoft... will this never end?&amp;quot;&lt;/li&gt;
-&lt;li&gt;&amp;quot;Fuck this, we&#39;ll build our own tools!&amp;quot;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;I built our own monitoring tooling based on Window Management Instrumentation (WMI), which for a small engineering firm (rails and runways, not software) with a two person tech team was bit of a lift. This project ended up driving me to greater participation in Philadelphia Python Users Group (PhillyPUG), giving talks on debugging Python, and eventually my first serious ops role at DramaFever.&lt;/p&gt;
-&lt;p&gt;What does this charming origin story have to do with culture? Because we didn&#39;t have a strong culture of observability as a first-class requirement, we ended up burning a lot of time and energy in building our own tooling. Taking ownership of our observability empowered us to make better technical decisions in the future. It&#39;s also a cautionary tale for culture; if you&#39;re an organization that has a hard time in taking ownership of its own tooling, you may lose team members to organizations that don&#39;t.&lt;/p&gt;
-&lt;h2 id=&#34;debugability&#34;&gt;Debugability&lt;/h2&gt;
-&lt;p&gt;The decisions you can make to improve observability take place at every level of the stack, from deployment platform choices all the way down to build flags.&lt;/p&gt;
-&lt;p&gt;If you&#39;re stripping your production binaries or passing &lt;code&gt;--fomit-frame-pointer&lt;/code&gt; to your compiler, you&#39;re making tradeoffs around your ability to easily observe what&#39;s happening in your applications. To take a real-world example from Joyent, it&#39;s the difference between having a flame graph that says &amp;quot;well the problem is somewhere here in third-party code&amp;quot; and a flame graph that says &amp;quot;here&#39;s the exact part of the algorithm that&#39;s causing the slowdown, and we can improve the performance by switching from RSA to ECDSA.&amp;quot;&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;https://blog.0x74696d.com/images/20180218/flamegraph-no-framepointers.png&#34; alt=&#34;Flame graph without frame pointers&#34;&gt;&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;https://blog.0x74696d.com/images/20180218/flamegraph-with-framepointers.png&#34; alt=&#34;Flame graph with frame pointers&#34;&gt;&lt;/p&gt;
-&lt;p&gt;If you&#39;re looking at those flame graphs and saying &amp;quot;no one in my organization even knows how to do that&amp;quot;, you should probably hire someone who does. And if you&#39;re looking to &amp;quot;level up&amp;quot; your development skills as an intermediate developer, you would be well-served by learning how to profile at this level.&lt;/p&gt;
-&lt;h2 id=&#34;platform-choices&#34;&gt;Platform Choices&lt;/h2&gt;
-&lt;p&gt;If you deploy onto a platform where you don&#39;t have root and can&#39;t even do something like start a debugger, run &lt;code&gt;perf&lt;/code&gt;, or generate a flame graph? Well, I&#39;m not telling you that you should never use Google App Engine or Heroku or Elastic Beanstalk, but you should definitely understand what you&#39;re giving up.&lt;/p&gt;
-&lt;p&gt;This extends to the choice of programming language as well. If your &lt;a href=&#34;https://golang.org/doc/gdb&#34;&gt;language documentation&lt;/a&gt; tells developers that debugging isn&#39;t a priority, what does this say about the culture of debugging?&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;&amp;quot;GDB does not understand Go programs well... it is not a reliable debugger for Go programs, particularly heavily concurrent ones. Moreover, it is not a priority for the Go project to address these issues, which are difficult.&amp;quot;&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;In the case of golang, third parties have stepped up and (somewhat) improved the situation, but most of the stdlib profiling tools have been intermittently broken on non-Linux platforms for years (you can see an example in my &lt;a href=&#34;https://blog.0x74696d.com/posts/be-careful-what-you-benchmark/&#34;&gt;&lt;em&gt;Be Careful What You Benchmark&lt;/em&gt;&lt;/a&gt; post).&lt;/p&gt;
-&lt;p&gt;This isn&#39;t an intractable situation. If you think a language has a lot of other things going for it, you can invest in building better observability tooling for it. Joyent has famously done so with Node.js, and as they are adopting more golang, one of the first projects they&#39;ve embarked on is improving their ability to debug golang software.&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://twitter.com/jen20/status/853943464131780608&#34;&gt;&lt;img src=&#34;https://blog.0x74696d.com/images/20180218/dtrace-tweet.png&#34; alt=&#34;DTrace PID provider FBT for Go (with arguments) on SmartOS! In the second run we match on an arg value, stop, take a core dump and resume.&#34;&gt;&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;https://blog.0x74696d.com/images/20180218/dtrace-golang.png&#34; alt=&#34;DTrace golang&#34;&gt;&lt;/p&gt;
-&lt;h2 id=&#34;culture-of-observability&#34;&gt;Culture of Observability&lt;/h2&gt;
-&lt;p&gt;Simply having access to good tooling for observability doesn&#39;t get you much in the way of culture change. You have to use that tooling! If you only make a point of using your ability to observe your system when things are going very wrong, you won&#39;t have built up the skills to use them well. Moreover, as Charity Majors points out in &lt;a href=&#34;https://honeycomb.io/blog/2016/10/part-5/5-building-badass-engineers-and-badass-teams/&#34;&gt;&lt;em&gt;Building Badass Engineers and Badass Teams&lt;/em&gt;&lt;/a&gt;:&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;Get used to interacting with your observability tooling every day. As part of your release cycle, or just out of curiosity. Honestly, things are broken all the time - you don’t even know what normal looks like unless you’re also interacting with your observability tooling under &amp;quot;normal&amp;quot; circumstances.&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;Making decisions that keep observability as a first class citizen aren&#39;t just important from a technical standpoint. The concept of observability applies to every aspect of an organization&#39;s operation. Being able to understand the impact of our behaviors is the only way to keep ourselves honest. This applies to everything from deploying software, to marketing campaigns, to making HR policy changes. Observability is the first requirement to becoming a &lt;a href=&#34;https://www.youtube.com/watch?v=IdZaFzuOPUQ&#34;&gt;learning organization&lt;/a&gt;.&lt;/p&gt;
-&lt;hr&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 3: Build for Observability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 </description>
     </item>

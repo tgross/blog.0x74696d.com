@@ -28,8 +28,15 @@ related is going to be seccomp filtered, but I thought it was
 interesting enough to reproduce myself.
 
 Suppose we want to prevent our application from making outbound
-network requests by blocking the `connect(2)` syscall. First let's
-look at an example of synchronous syscalls.
+network requests by blocking the `connect(2)` syscall. This is a
+contrived example as you'd most likely implement this via network
+namespaces or iptables. But let's imagine the application needs to
+look up an upstream address and connect to it once, but we want to
+ensure the application can never make any new connections after that.
+
+The examples below will stand-in for a buggy or compromised
+application that's trying to make an outbound connection we want to
+stop. First we'll use normal syscalls.
 
 ```rust
 use std::env;
@@ -154,8 +161,11 @@ denied error:
 
 ```
 $ ./target/debug/no_iouring 127.0.0.1:8000
-thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }', src/bin/no_iouring.rs:28:54
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value:
+Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" },
+src/bin/no_iouring.rs:28:54
+note: run with `RUST_BACKTRACE=1` environment variable to display
+a backtrace
 ```
 
 Whereas if we run the `io_uring` version, it connects just fine:

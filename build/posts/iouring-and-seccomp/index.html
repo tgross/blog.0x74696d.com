@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | io_uring and seccomp</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>io_uring and seccomp</h1>
+  <section class="byline">November 27, 2022</section>
+  <p>Recent Linux kernels have the kqueue-alike <a href="https://unixism.net/loti/"><code>io_uring</code></a> interface for
+asynchronous I/O. Instead of making read and write syscalls, you write
+batches of I/O requests to a circular buffer in userland called the
+submission queue, and make a <code>io_uring_enter</code> syscall to submit them
+to the kernel. Instead of making individual syscalls, <code>io_uring</code>
+submission queue entries (SQEs) take an opcode for the specific I/O
+operation they're performing, and that's mapped to the same kernel
+code that normally services the syscall. You can read the results off
+another buffer called the completion queue without making additional
+syscalls to the kernel. This can meaningfully improve I/O performance,
+especially in the face of Spectre/Meltdown mitigations.</p>
+<p>A side effect is that <code>io_uring</code> effectively bypasses the protections
+provided by seccomp filtering — we can't filter out syscalls we
+never make! This isn't a security vulnerability per se, but something
+you should keep in mind if you have especially paranoid seccomp
+rules. Practically speaking it's going to be rare that anything I/O
+related is going to be seccomp filtered, but I thought it was
+interesting enough to reproduce myself.</p>
+<p>Suppose we want to prevent our application from making outbound
+network requests by blocking the <code>connect(2)</code> syscall. This is a
+contrived example as you'd most likely implement this via network
+namespaces or iptables. But let's imagine the application needs to
+look up an upstream address and connect to it once, but we want to
+ensure the application can never make any new connections after that.</p>
+<p>The examples below will stand-in for a buggy or compromised
+application that's trying to make an outbound connection we want to
+stop. First we'll use normal syscalls.</p>
+<div class="highlight"><pre class="chroma"><code class="language-rust" data-lang="rust"><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">env</span><span class="p">;</span><span class="w">
+</span><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">io</span>::<span class="p">{</span><span class="n">Read</span><span class="p">,</span><span class="w"> </span><span class="n">Write</span><span class="p">};</span><span class="w">
+</span><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">net</span>::<span class="p">{</span><span class="n">SocketAddr</span><span class="p">,</span><span class="w"> </span><span class="n">TcpStream</span><span class="p">};</span><span class="w">
+</span><span class="w">
+</span><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">env</span>::<span class="n">args</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span><span class="w">
+</span><span class="w">
+</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span><span class="w">        </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;no addr specified&#34;</span><span class="p">);</span><span class="w">
+</span><span class="w">    </span><span class="p">}</span><span class="w">
+</span><span class="w">
+</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">socket_addr</span>: <span class="nc">SocketAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">parse</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span><span class="w">
+</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TcpStream</span>::<span class="n">connect</span><span class="p">(</span><span class="n">socket_addr</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">128</span><span class="p">];</span><span class="w">
+</span><span class="w">
+</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="p">);</span><span class="w">
+</span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;written: {}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">unwrap</span><span class="p">());</span><span class="w">
+</span><span class="w">
+</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;read: {:?}&#34;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">buf</span><span class="p">[..</span><span class="n">read</span><span class="p">]);</span><span class="w">
+</span><span class="w"></span><span class="p">}</span><span class="w">
+</span></code></pre></div><p>In another terminal I'll run <code>netcat</code> listening on port 8000, and the
+run this code to connect to it.</p>
+<pre><code>$ ./target/debug/no_iouring 127.0.0.1:8000
+written: 128
+read: [102, 111, 111, 10]
+</code></pre><p>If we run this under <code>strace</code>, we'll see something like this among the
+syscalls:</p>
+<pre><code>connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr(&quot;127.0.0.1&quot;)}, 16) = 0
+</code></pre><p>Now let's look at the <code>io_uring</code> approach for the same code. Note this
+example is directly copied from the <code>tokio-uring</code> <a href="https://github.com/tokio-rs/tokio-uring/blob/master/examples/tcp_stream.rs">TCP stream
+example</a> code.</p>
+<div class="highlight"><pre class="chroma"><code class="language-rust" data-lang="rust"><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="p">{</span><span class="n">env</span><span class="p">,</span><span class="w"> </span><span class="n">net</span>::<span class="n">SocketAddr</span><span class="p">};</span><span class="w">
+</span><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="n">tokio_uring</span>::<span class="n">net</span>::<span class="n">TcpStream</span><span class="p">;</span><span class="w">
+</span><span class="w">
+</span><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">env</span>::<span class="n">args</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span><span class="w">
+</span><span class="w">
+</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span><span class="w">        </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;no addr specified&#34;</span><span class="p">);</span><span class="w">
+</span><span class="w">    </span><span class="p">}</span><span class="w">
+</span><span class="w">
+</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">socket_addr</span>: <span class="nc">SocketAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">parse</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span><span class="w">
+</span><span class="w">    </span><span class="n">tokio_uring</span>::<span class="n">start</span><span class="p">(</span><span class="n">async</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TcpStream</span>::<span class="n">connect</span><span class="p">(</span><span class="n">socket_addr</span><span class="p">).</span><span class="n">await</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="mi">1</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">128</span><span class="p">];</span><span class="w">
+</span><span class="w">
+</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">buf</span><span class="p">).</span><span class="n">await</span><span class="p">;</span><span class="w">
+</span><span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;written: {}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">unwrap</span><span class="p">());</span><span class="w">
+</span><span class="w">
+</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="n">buf</span><span class="p">).</span><span class="n">await</span><span class="p">;</span><span class="w">
+</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span><span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;read: {:?}&#34;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">buf</span><span class="p">[..</span><span class="n">read</span><span class="p">]);</span><span class="w">
+</span><span class="w">    </span><span class="p">});</span><span class="w">
+</span><span class="w"></span><span class="p">}</span><span class="w">
+</span></code></pre></div><p>If we run this under <code>strace</code>, we'll never see a <code>connect</code>
+syscall. Instead we'll see a <code>io_uring_setup</code> to initialize the
+buffers and then a series of syscalls like the following:</p>
+<pre><code>io_uring_enter(6, 1, 0, 0, NULL, 128)   = 1
+</code></pre><p>Now let's add a seccomp filter. First we'll need to lookup the syscall
+number from the Linux source:</p>
+<pre><code>$ grep connect ~/src/linux/arch/x86/entry/syscalls/syscall_64.tbl
+42      common  connect                 sys_connect
+</code></pre><p>Then using the <a href="https://docs.rs/seccomp/latest/seccomp/"><code>seccomp</code> crate</a> we'll create a rule that blocks all
+uses of the syscall. Specifically the comparison function here is
+saying that we'll block the syscall if the first argument (the file
+handle) is greater than zero. We'll add this same code to the top of
+the main function in both examples:</p>
+<div class="highlight"><pre class="chroma"><code class="language-diff" data-lang="diff"><span class="gi">+extern crate libc;
+</span><span class="gi">+extern crate seccomp;
+</span><span class="gi">+
+</span><span class="gi"></span> use std::{env, net::SocketAddr};
+<span class="gi">+
+</span><span class="gi">+use seccomp::*;
+</span><span class="gi"></span> use tokio_uring::net::TcpStream;
+
+ fn main() {
+<span class="gi">+    let mut ctx = Context::default(Action::Allow).unwrap();
+</span><span class="gi">+    let rule = Rule::new(
+</span><span class="gi">+        42, /* connect on x86_64 */
+</span><span class="gi">+        Compare::arg(0).using(Op::Gt).with(0).build().unwrap(),
+</span><span class="gi">+        Action::Errno(libc::EPERM), /* return EPERM */
+</span><span class="gi">+    );
+</span><span class="gi">+    ctx.add_rule(rule).unwrap();
+</span><span class="gi">+    ctx.load().unwrap();
+</span><span class="gi">+
+</span><span class="gi"></span>     let args: Vec&lt;_&gt; = env::args().collect();
+
+     if args.len() &lt;= 1 {
+</code></pre></div><p>If we run the synchronous syscall version, we'll get a permission
+denied error:</p>
+<pre><code>$ ./target/debug/no_iouring 127.0.0.1:8000
+thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value:
+Os { code: 1, kind: PermissionDenied, message: &quot;Operation not permitted&quot; },
+src/bin/no_iouring.rs:28:54
+note: run with `RUST_BACKTRACE=1` environment variable to display
+a backtrace
+</code></pre><p>Whereas if we run the <code>io_uring</code> version, it connects just fine:</p>
+<pre><code>$ ./target/debug/with_iouring 127.0.0.1:8000
+written: 128
+read: [102, 111, 111, 10]
+</code></pre><p>It turns out you can setup <code>io_uring</code> with an allowlist
+(counterintuitively referred to as a &quot;restriction&quot;), and this is
+supported by the <code>io_uring</code> crate we used above if we dig enough to
+find the <a href="https://docs.rs/io-uring/latest/io_uring/struct.Submitter.html#method.register_restrictions"><code>register_restrictions</code></a> method. That works fine if the
+seccomp filter is owned by the application as we've done in our
+examples. The application can set up restrictions to drop its own
+privileges prior to starting any I/O, just as it might become an
+unprivileged user or use <code>unshare</code> to enter a restricted namespace.</p>
+<p>But if you've got a separation of duties where a sysadmin sets up
+seccomp filtering generically across applications, you won't be able
+to take advantage of <code>io_uring</code> restrictions without cooperation from
+the application developer. This most likely comes up with container
+deployments. Docker and containerd have default seccomp filters that
+allow <code>io_uring</code> (see where this was discussed in <a href="https://github.com/moby/moby/pull/39415">moby/39415</a> or
+<a href="https://github.com/containerd/containerd/pull/4493">containerd/4493</a>).</p>
+<p>Fortunately none of the available <code>io_uring</code> opcodes correspond to
+syscalls filtered by those default seccomp filters, so there's no
+privilege escalation available here by default. But it's certainly
+something you might want to check up on if you're expecting seccomp
+filtering to harden your applications.</p>
+
+  
+
+</section>
+<section class="meta">
+  <section class="blocks">
+  
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

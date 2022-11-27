@@ -10,6 +10,165 @@
     
     
     <item>
+      <title>io_uring and seccomp</title>
+      <link>https://blog.0x74696d.com/posts/iouring-and-seccomp/</link>
+      <pubDate>Sun, 27 Nov 2022 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/iouring-and-seccomp/</guid>
+      <description>&lt;p&gt;Recent Linux kernels have the kqueue-alike &lt;a href=&#34;https://unixism.net/loti/&#34;&gt;&lt;code&gt;io_uring&lt;/code&gt;&lt;/a&gt; interface for
+asynchronous I/O. Instead of making read and write syscalls, you write
+batches of I/O requests to a circular buffer in userland called the
+submission queue, and make a &lt;code&gt;io_uring_enter&lt;/code&gt; syscall to submit them
+to the kernel. Instead of making individual syscalls, &lt;code&gt;io_uring&lt;/code&gt;
+submission queue entries (SQEs) take an opcode for the specific I/O
+operation they&#39;re performing, and that&#39;s mapped to the same kernel
+code that normally services the syscall. You can read the results off
+another buffer called the completion queue without making additional
+syscalls to the kernel. This can meaningfully improve I/O performance,
+especially in the face of Spectre/Meltdown mitigations.&lt;/p&gt;
+&lt;p&gt;A side effect is that &lt;code&gt;io_uring&lt;/code&gt; effectively bypasses the protections
+provided by seccomp filtering — we can&#39;t filter out syscalls we
+never make! This isn&#39;t a security vulnerability per se, but something
+you should keep in mind if you have especially paranoid seccomp
+rules. Practically speaking it&#39;s going to be rare that anything I/O
+related is going to be seccomp filtered, but I thought it was
+interesting enough to reproduce myself.&lt;/p&gt;
+&lt;p&gt;Suppose we want to prevent our application from making outbound
+network requests by blocking the &lt;code&gt;connect(2)&lt;/code&gt; syscall. This is a
+contrived example as you&#39;d most likely implement this via network
+namespaces or iptables. But let&#39;s imagine the application needs to
+look up an upstream address and connect to it once, but we want to
+ensure the application can never make any new connections after that.&lt;/p&gt;
+&lt;p&gt;The examples below will stand-in for a buggy or compromised
+application that&#39;s trying to make an outbound connection we want to
+stop. First we&#39;ll use normal syscalls.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span class=&#34;k&#34;&gt;use&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;env&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;use&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;io&lt;/span&gt;::&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Read&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Write&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;use&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;net&lt;/span&gt;::&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;SocketAddr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TcpStream&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;fn&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;: &lt;span class=&#34;nb&#34;&gt;Vec&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;_&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;env&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;collect&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;len&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;panic&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;no addr specified&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;socket_addr&lt;/span&gt;: &lt;span class=&#34;nc&#34;&gt;SocketAddr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;].&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;mut&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;stream&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TcpStream&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;connect&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;socket_addr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;mut&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;128&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;result&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;stream&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;write&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;mut&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;println&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;written: {}&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;result&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;());&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;read&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;stream&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;read&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;mut&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;println&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;read: {:?}&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[..&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;read&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]);&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;In another terminal I&#39;ll run &lt;code&gt;netcat&lt;/code&gt; listening on port 8000, and the
+run this code to connect to it.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ ./target/debug/no_iouring 127.0.0.1:8000
+written: 128
+read: [102, 111, 111, 10]
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;If we run this under &lt;code&gt;strace&lt;/code&gt;, we&#39;ll see something like this among the
+syscalls:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr(&amp;quot;127.0.0.1&amp;quot;)}, 16) = 0
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now let&#39;s look at the &lt;code&gt;io_uring&lt;/code&gt; approach for the same code. Note this
+example is directly copied from the &lt;code&gt;tokio-uring&lt;/code&gt; &lt;a href=&#34;https://github.com/tokio-rs/tokio-uring/blob/master/examples/tcp_stream.rs&#34;&gt;TCP stream
+example&lt;/a&gt; code.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span class=&#34;k&#34;&gt;use&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;::&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;env&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;net&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;SocketAddr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;use&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;tokio_uring&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;net&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;TcpStream&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;fn&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;: &lt;span class=&#34;nb&#34;&gt;Vec&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;_&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;env&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;collect&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;len&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;panic&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;no addr specified&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;socket_addr&lt;/span&gt;: &lt;span class=&#34;nc&#34;&gt;SocketAddr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;].&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;tokio_uring&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;async&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;stream&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TcpStream&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;connect&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;socket_addr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;await&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;vec&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;u8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;128&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;result&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;stream&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;write&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;await&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;println&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;written: {}&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;result&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;());&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;result&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;stream&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;read&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;await&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;read&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;result&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;println&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;read: {:?}&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[..&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;read&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]);&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;});&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If we run this under &lt;code&gt;strace&lt;/code&gt;, we&#39;ll never see a &lt;code&gt;connect&lt;/code&gt;
+syscall. Instead we&#39;ll see a &lt;code&gt;io_uring_setup&lt;/code&gt; to initialize the
+buffers and then a series of syscalls like the following:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;io_uring_enter(6, 1, 0, 0, NULL, 128)   = 1
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now let&#39;s add a seccomp filter. First we&#39;ll need to lookup the syscall
+number from the Linux source:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ grep connect ~/src/linux/arch/x86/entry/syscalls/syscall_64.tbl
+42      common  connect                 sys_connect
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Then using the &lt;a href=&#34;https://docs.rs/seccomp/latest/seccomp/&#34;&gt;&lt;code&gt;seccomp&lt;/code&gt; crate&lt;/a&gt; we&#39;ll create a rule that blocks all
+uses of the syscall. Specifically the comparison function here is
+saying that we&#39;ll block the syscall if the first argument (the file
+handle) is greater than zero. We&#39;ll add this same code to the top of
+the main function in both examples:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-diff&#34; data-lang=&#34;diff&#34;&gt;&lt;span class=&#34;gi&#34;&gt;+extern crate libc;
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+extern crate seccomp;
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;&lt;/span&gt; use std::{env, net::SocketAddr};
+&lt;span class=&#34;gi&#34;&gt;+
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+use seccomp::*;
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;&lt;/span&gt; use tokio_uring::net::TcpStream;
+
+ fn main() {
+&lt;span class=&#34;gi&#34;&gt;+    let mut ctx = Context::default(Action::Allow).unwrap();
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+    let rule = Rule::new(
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+        42, /* connect on x86_64 */
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+        Compare::arg(0).using(Op::Gt).with(0).build().unwrap(),
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+        Action::Errno(libc::EPERM), /* return EPERM */
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+    );
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+    ctx.add_rule(rule).unwrap();
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+    ctx.load().unwrap();
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;+
+&lt;/span&gt;&lt;span class=&#34;gi&#34;&gt;&lt;/span&gt;     let args: Vec&amp;lt;_&amp;gt; = env::args().collect();
+
+     if args.len() &amp;lt;= 1 {
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If we run the synchronous syscall version, we&#39;ll get a permission
+denied error:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ ./target/debug/no_iouring 127.0.0.1:8000
+thread &#39;main&#39; panicked at &#39;called `Result::unwrap()` on an `Err` value:
+Os { code: 1, kind: PermissionDenied, message: &amp;quot;Operation not permitted&amp;quot; },
+src/bin/no_iouring.rs:28:54
+note: run with `RUST_BACKTRACE=1` environment variable to display
+a backtrace
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Whereas if we run the &lt;code&gt;io_uring&lt;/code&gt; version, it connects just fine:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ ./target/debug/with_iouring 127.0.0.1:8000
+written: 128
+read: [102, 111, 111, 10]
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;It turns out you can setup &lt;code&gt;io_uring&lt;/code&gt; with an allowlist
+(counterintuitively referred to as a &amp;quot;restriction&amp;quot;), and this is
+supported by the &lt;code&gt;io_uring&lt;/code&gt; crate we used above if we dig enough to
+find the &lt;a href=&#34;https://docs.rs/io-uring/latest/io_uring/struct.Submitter.html#method.register_restrictions&#34;&gt;&lt;code&gt;register_restrictions&lt;/code&gt;&lt;/a&gt; method. That works fine if the
+seccomp filter is owned by the application as we&#39;ve done in our
+examples. The application can set up restrictions to drop its own
+privileges prior to starting any I/O, just as it might become an
+unprivileged user or use &lt;code&gt;unshare&lt;/code&gt; to enter a restricted namespace.&lt;/p&gt;
+&lt;p&gt;But if you&#39;ve got a separation of duties where a sysadmin sets up
+seccomp filtering generically across applications, you won&#39;t be able
+to take advantage of &lt;code&gt;io_uring&lt;/code&gt; restrictions without cooperation from
+the application developer. This most likely comes up with container
+deployments. Docker and containerd have default seccomp filters that
+allow &lt;code&gt;io_uring&lt;/code&gt; (see where this was discussed in &lt;a href=&#34;https://github.com/moby/moby/pull/39415&#34;&gt;moby/39415&lt;/a&gt; or
+&lt;a href=&#34;https://github.com/containerd/containerd/pull/4493&#34;&gt;containerd/4493&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Fortunately none of the available &lt;code&gt;io_uring&lt;/code&gt; opcodes correspond to
+syscalls filtered by those default seccomp filters, so there&#39;s no
+privilege escalation available here by default. But it&#39;s certainly
+something you might want to check up on if you&#39;re expecting seccomp
+filtering to harden your applications.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
       <title>Platforms are Brownfield</title>
       <link>https://blog.0x74696d.com/posts/platforms-are-brownfield/</link>
       <pubDate>Sat, 11 Jun 2022 12:00:00 +0000</pubDate>
@@ -2879,48 +3038,6 @@ METHOD                                                                  # CALLS
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;Part 3: Build for Observability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Software Defined Culture, Part 2 - Operability</title>
-      <link>https://blog.0x74696d.com/posts/software-defined-culture-2-operability/</link>
-      <pubDate>Sun, 18 Feb 2018 02:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/software-defined-culture-2-operability/</guid>
-      <description>&lt;p&gt;This five-part series of posts covers a talk titled &lt;em&gt;Software Defined Culture&lt;/em&gt; that I gave at &lt;a href=&#34;https://www.devopsdays.org/events/2016-philadelphia/program/tim-gross/&#34;&gt;DevOps Days Philadelphia 2016&lt;/a&gt;, &lt;a href=&#34;https://gotochgo.com/2017/sessions/43&#34;&gt;GOTO Chicago 2017&lt;/a&gt;, and &lt;a href=&#34;https://vimeo.com/228067673&#34;&gt;Velocity San Jose 2017&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 2: Build for Operability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;hr&gt;
-&lt;h1 id=&#34;building-for-operability&#34;&gt;Building for Operability&lt;/h1&gt;
-&lt;p&gt;For purposes of this section, I&#39;m talking about operability as the ability for teams to deploy and operate their software well. Ideally this should be in some kind of self-service way, where developers don&#39;t need to go through some other team (&amp;quot;operators&amp;quot;) to deploy software.&lt;/p&gt;
-&lt;p&gt;One of the notional frameworks that has popped up around this in the last few years is GIFEE (&amp;quot;Google Infrastructure for Everyone Else&amp;quot;). This notion has largely reified itself in the last year especially in Kubernetes and the hodge-podge of vaguely related projects under the banner of the Cloud Native Computing Foundation (CNCF).&lt;/p&gt;
-&lt;p&gt;But &amp;quot;Google does it this way, so should we&amp;quot; suggests that you have similar problems to Google. Spoiler alert: this is unlikely to be the case. I&#39;ve talked with teams at some of the largest retailers in the world and discovered giant e-commerce properties fitting in the equivalent of a handful of racks. Your startup (and mine!) is a tiny fraction of the scale, so why would we expect the solutions to be the same?&lt;/p&gt;
-&lt;p&gt;Orchestrators like Kubernetes are designed to handle a wide diversity of organizational requirements, and this is reflected in a huge amount of choice (the diversity of networking plugins alone!) that becomes incumbent upon the operators to handle. Cindy Sridharan&#39;s &lt;a href=&#34;https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896&#34;&gt;excellent blog post&lt;/a&gt; from last summer dives into the choices her organization made around Kubernetes versus a less complex scheduler like Nomad.&lt;/p&gt;
-&lt;h2 id=&#34;whos-complexity&#34;&gt;Who&#39;s Complexity?&lt;/h2&gt;
-&lt;p&gt;Most engineers are familiar with the concept of essential vs incidental complexity, but perhaps less commonly understood is how the &amp;quot;essentialness&amp;quot; of complexity is deeply tied to ones perspective. &lt;em&gt;The complexity of Kubernetes is essential complexity from the perspective of Kubernetes-the-project, but it is incidental complexity from the perspective of your organization.&lt;/em&gt;&lt;/p&gt;
-&lt;p&gt;The problem doesn&#39;t quite end at the orchestration layer. There has been a strong trend over the last few years towards pushing &amp;quot;intelligence&amp;quot; out of the application and into infrastructure components. The narrative is that application developers shouldn&#39;t have to worry about concerns like service discovery, tracing, failover, configuration, etc. and that they should be solely focused on &amp;quot;business logic.&amp;quot; I&#39;ve been told 2018 is The Year of the Service Mesh, for example.&lt;/p&gt;
-&lt;p&gt;Whether this trend has been exacerbated by the large number of VC-backed infrastructure startups who have a vested interest in this being the prevailing narrative is left as an exercise for the reader. But in addition to reducing application developers to line-of-business specialists ready to be washed away in the next wave of Taylorist automation, this leads to some serious problems when it comes to running applications in production.&lt;/p&gt;
-&lt;p&gt;If the application behavior has been abstracted away from its environment, this means the application developer can&#39;t understand the real-world behavior of their application without running it on the platform either. It&#39;s a reincarnation of RPC by remote function call; the application developer can&#39;t really treat the infrastructure like an abstraction. The application developer can&#39;t really pretend that a database cluster is sitting at localhost when there are application-specific semantics to how it behaves when replication degrades. This just leads to &amp;quot;works on my machine&amp;quot; and we&#39;re back to the same problem we were trying to solve with all our new fancy orchestration tools in the first place!&lt;/p&gt;
-&lt;h2 id=&#34;self-operating-applications&#34;&gt;Self-Operating Applications&lt;/h2&gt;
-&lt;p&gt;What&#39;s the alternative? While I was at Joyent I worked on a project called &lt;a href=&#34;https://github.com/joyent/containerpilot&#34;&gt;ContainerPilot&lt;/a&gt;, along with design patterns that we collectively called the Autopilot Pattern. The concept of the Autopilot Pattern was that the application should be responsible for its own lifecycle as much as possible. Once deployed by a (minimal) orchestration platform, applications can find the service discovery database, gossip their configuration, elect leaders, and trigger events in their own lifecycle. ContainerPilot was envisioned as a container init system that would help bridge the gap to these behaviors for legacy applications. The Joyent folks have continued on with the project after my departure, but I&#39;ve seen it at work successfully at large enterprise retailers and startups alike.&lt;/p&gt;
-&lt;p&gt;The &lt;a href=&#34;https://www.habitat.sh/&#34;&gt;Habitat&lt;/a&gt; project by Chef is another example of this same philosophy at work. Habitat goes a step further by owning the entire build process for the application container as well. By packaging the application and its automation together, you get consistent deployments, automated dependency awareness, and decentralized intelligence. But more importantly, you empower development teams to understand the production behavior of their applications.&lt;/p&gt;
-&lt;p&gt;Google infrastructure is probably awesome but does it solve a problem we actually have? &amp;quot;GIIPABDISAPWAH&amp;quot; is less catchy than &amp;quot;GIFEE&amp;quot;, I&#39;ll admit. Building for operability, as described here, builds a culture of trust (there&#39;s that word again) between developers and operators, a culture of empowerment for your developers, and a culture with fewer silos.&lt;/p&gt;
-&lt;hr&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 2: Build for Operability&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/&#34;&gt;Part 4: Build for Responsibility&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 </description>

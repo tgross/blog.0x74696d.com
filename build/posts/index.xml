@@ -123,6 +123,16 @@ contrived example as you&#39;d most likely implement this via network
 namespaces or iptables. But let&#39;s imagine the application needs to
 look up an upstream address and connect to it once, but we want to
 ensure the application can never make any new connections after that.&lt;/p&gt;
+&lt;aside&gt;Addendum 2022/11/28: Giovanni Campagna pointed out &lt;a
+href=&#34;https://mastodon.social/@gcampax/109417842749003392&#34;&gt;on
+Mastodon&lt;/a&gt; that systemd uses seccomp filtering for its
+RestrictAddressFamilies option. This controls the &lt;code&gt;socket&lt;/code&gt;
+syscall. But &lt;code&gt;socket&lt;/code&gt; isn&#39;t one of the supported opcodes,
+so io_uring applications still need to call the real
+&lt;code&gt;socket&lt;/code&gt; syscall and RestrictAddressFamilies works just
+fine. Of course you can&#39;t call &lt;code&gt;connect&lt;/code&gt; if you don&#39;t have
+a socket in the first place, so that makes this example even more
+contrived!&lt;/aside&gt;
 &lt;p&gt;The examples below will stand-in for a buggy or compromised
 application that&#39;s trying to make an outbound connection we want to
 stop. First we&#39;ll use normal syscalls.&lt;/p&gt;

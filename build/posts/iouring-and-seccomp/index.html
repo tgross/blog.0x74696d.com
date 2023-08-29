@@ -72,107 +72,107 @@ contrived!</aside>
 <p>The examples below will stand-in for a buggy or compromised
 application that's trying to make an outbound connection we want to
 stop. First we'll use normal syscalls.</p>
-<div class="highlight"><pre class="chroma"><code class="language-rust" data-lang="rust"><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">env</span><span class="p">;</span><span class="w">
-</span><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">io</span>::<span class="p">{</span><span class="n">Read</span><span class="p">,</span><span class="w"> </span><span class="n">Write</span><span class="p">};</span><span class="w">
-</span><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">net</span>::<span class="p">{</span><span class="n">SocketAddr</span><span class="p">,</span><span class="w"> </span><span class="n">TcpStream</span><span class="p">};</span><span class="w">
-</span><span class="w">
-</span><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">env</span>::<span class="n">args</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span><span class="w">
-</span><span class="w">
-</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span><span class="w">        </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;no addr specified&#34;</span><span class="p">);</span><span class="w">
-</span><span class="w">    </span><span class="p">}</span><span class="w">
-</span><span class="w">
-</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">socket_addr</span>: <span class="nc">SocketAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">parse</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
-</span><span class="w">
-</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TcpStream</span>::<span class="n">connect</span><span class="p">(</span><span class="n">socket_addr</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
-</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">128</span><span class="p">];</span><span class="w">
-</span><span class="w">
-</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="p">);</span><span class="w">
-</span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;written: {}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">unwrap</span><span class="p">());</span><span class="w">
-</span><span class="w">
-</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
-</span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;read: {:?}&#34;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">buf</span><span class="p">[..</span><span class="n">read</span><span class="p">]);</span><span class="w">
-</span><span class="w"></span><span class="p">}</span><span class="w">
-</span></code></pre></div><p>In another terminal I'll run <code>netcat</code> listening on port 8000, and the
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">env</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">io</span>::<span class="p">{</span><span class="n">Read</span><span class="p">,</span><span class="w"> </span><span class="n">Write</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">net</span>::<span class="p">{</span><span class="n">SocketAddr</span><span class="p">,</span><span class="w"> </span><span class="n">TcpStream</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">env</span>::<span class="n">args</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&#34;no addr specified&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">socket_addr</span>: <span class="nc">SocketAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">parse</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TcpStream</span>::<span class="n">connect</span><span class="p">(</span><span class="n">socket_addr</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">128</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;written: </span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">unwrap</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;read: </span><span class="si">{:?}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">buf</span><span class="p">[</span><span class="o">..</span><span class="n">read</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>In another terminal I'll run <code>netcat</code> listening on port 8000, and the
 run this code to connect to it.</p>
-<pre><code>$ ./target/debug/no_iouring 127.0.0.1:8000
+<pre tabindex="0"><code>$ ./target/debug/no_iouring 127.0.0.1:8000
 written: 128
 read: [102, 111, 111, 10]
 </code></pre><p>If we run this under <code>strace</code>, we'll see something like this among the
 syscalls:</p>
-<pre><code>connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr(&quot;127.0.0.1&quot;)}, 16) = 0
+<pre tabindex="0"><code>connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr(&#34;127.0.0.1&#34;)}, 16) = 0
 </code></pre><p>Now let's look at the <code>io_uring</code> approach for the same code. Note this
 example is directly copied from the <code>tokio-uring</code> <a href="https://github.com/tokio-rs/tokio-uring/blob/master/examples/tcp_stream.rs">TCP stream
 example</a> code.</p>
-<div class="highlight"><pre class="chroma"><code class="language-rust" data-lang="rust"><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="p">{</span><span class="n">env</span><span class="p">,</span><span class="w"> </span><span class="n">net</span>::<span class="n">SocketAddr</span><span class="p">};</span><span class="w">
-</span><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="n">tokio_uring</span>::<span class="n">net</span>::<span class="n">TcpStream</span><span class="p">;</span><span class="w">
-</span><span class="w">
-</span><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">env</span>::<span class="n">args</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span><span class="w">
-</span><span class="w">
-</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span><span class="w">        </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;no addr specified&#34;</span><span class="p">);</span><span class="w">
-</span><span class="w">    </span><span class="p">}</span><span class="w">
-</span><span class="w">
-</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">socket_addr</span>: <span class="nc">SocketAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">parse</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
-</span><span class="w">
-</span><span class="w">    </span><span class="n">tokio_uring</span>::<span class="n">start</span><span class="p">(</span><span class="n">async</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TcpStream</span>::<span class="n">connect</span><span class="p">(</span><span class="n">socket_addr</span><span class="p">).</span><span class="n">await</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
-</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="mi">1</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">128</span><span class="p">];</span><span class="w">
-</span><span class="w">
-</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">buf</span><span class="p">).</span><span class="n">await</span><span class="p">;</span><span class="w">
-</span><span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;written: {}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">unwrap</span><span class="p">());</span><span class="w">
-</span><span class="w">
-</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="n">buf</span><span class="p">).</span><span class="n">await</span><span class="p">;</span><span class="w">
-</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
-</span><span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;read: {:?}&#34;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">buf</span><span class="p">[..</span><span class="n">read</span><span class="p">]);</span><span class="w">
-</span><span class="w">    </span><span class="p">});</span><span class="w">
-</span><span class="w"></span><span class="p">}</span><span class="w">
-</span></code></pre></div><p>If we run this under <code>strace</code>, we'll never see a <code>connect</code>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="p">{</span><span class="n">env</span><span class="p">,</span><span class="w"> </span><span class="n">net</span>::<span class="n">SocketAddr</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="n">tokio_uring</span>::<span class="n">net</span>::<span class="n">TcpStream</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">env</span>::<span class="n">args</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&#34;no addr specified&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">socket_addr</span>: <span class="nc">SocketAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">parse</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">tokio_uring</span>::<span class="n">start</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TcpStream</span>::<span class="n">connect</span><span class="p">(</span><span class="n">socket_addr</span><span class="p">).</span><span class="k">await</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mi">1</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">128</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">buf</span><span class="p">).</span><span class="k">await</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;written: </span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">unwrap</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="n">buf</span><span class="p">).</span><span class="k">await</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;read: </span><span class="si">{:?}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">buf</span><span class="p">[</span><span class="o">..</span><span class="n">read</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">});</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>If we run this under <code>strace</code>, we'll never see a <code>connect</code>
 syscall. Instead we'll see a <code>io_uring_setup</code> to initialize the
 buffers and then a series of syscalls like the following:</p>
-<pre><code>io_uring_enter(6, 1, 0, 0, NULL, 128)   = 1
+<pre tabindex="0"><code>io_uring_enter(6, 1, 0, 0, NULL, 128)   = 1
 </code></pre><p>Now let's add a seccomp filter. First we'll need to lookup the syscall
 number from the Linux source:</p>
-<pre><code>$ grep connect ~/src/linux/arch/x86/entry/syscalls/syscall_64.tbl
+<pre tabindex="0"><code>$ grep connect ~/src/linux/arch/x86/entry/syscalls/syscall_64.tbl
 42      common  connect                 sys_connect
 </code></pre><p>Then using the <a href="https://docs.rs/seccomp/latest/seccomp/"><code>seccomp</code> crate</a> we'll create a rule that blocks all
 uses of the syscall. Specifically the comparison function here is
 saying that we'll block the syscall if the first argument (the file
 handle) is greater than zero. We'll add this same code to the top of
 the main function in both examples:</p>
-<div class="highlight"><pre class="chroma"><code class="language-diff" data-lang="diff"><span class="gi">+extern crate libc;
-</span><span class="gi">+extern crate seccomp;
-</span><span class="gi">+
-</span><span class="gi"></span> use std::{env, net::SocketAddr};
-<span class="gi">+
-</span><span class="gi">+use seccomp::*;
-</span><span class="gi"></span> use tokio_uring::net::TcpStream;
-
- fn main() {
-<span class="gi">+    let mut ctx = Context::default(Action::Allow).unwrap();
-</span><span class="gi">+    let rule = Rule::new(
-</span><span class="gi">+        42, /* connect on x86_64 */
-</span><span class="gi">+        Compare::arg(0).using(Op::Gt).with(0).build().unwrap(),
-</span><span class="gi">+        Action::Errno(libc::EPERM), /* return EPERM */
-</span><span class="gi">+    );
-</span><span class="gi">+    ctx.add_rule(rule).unwrap();
-</span><span class="gi">+    ctx.load().unwrap();
-</span><span class="gi">+
-</span><span class="gi"></span>     let args: Vec&lt;_&gt; = env::args().collect();
-
-     if args.len() &lt;= 1 {
-</code></pre></div><p>If we run the synchronous syscall version, we'll get a permission
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-diff" data-lang="diff"><span class="line"><span class="cl"><span class="gi">+extern crate libc;
+</span></span></span><span class="line"><span class="cl"><span class="gi">+extern crate seccomp;
+</span></span></span><span class="line"><span class="cl"><span class="gi">+
+</span></span></span><span class="line"><span class="cl"><span class="gi"></span> use std::{env, net::SocketAddr};
+</span></span><span class="line"><span class="cl"><span class="gi">+
+</span></span></span><span class="line"><span class="cl"><span class="gi">+use seccomp::*;
+</span></span></span><span class="line"><span class="cl"><span class="gi"></span> use tokio_uring::net::TcpStream;
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"> fn main() {
+</span></span><span class="line"><span class="cl"><span class="gi">+    let mut ctx = Context::default(Action::Allow).unwrap();
+</span></span></span><span class="line"><span class="cl"><span class="gi">+    let rule = Rule::new(
+</span></span></span><span class="line"><span class="cl"><span class="gi">+        42, /* connect on x86_64 */
+</span></span></span><span class="line"><span class="cl"><span class="gi">+        Compare::arg(0).using(Op::Gt).with(0).build().unwrap(),
+</span></span></span><span class="line"><span class="cl"><span class="gi">+        Action::Errno(libc::EPERM), /* return EPERM */
+</span></span></span><span class="line"><span class="cl"><span class="gi">+    );
+</span></span></span><span class="line"><span class="cl"><span class="gi">+    ctx.add_rule(rule).unwrap();
+</span></span></span><span class="line"><span class="cl"><span class="gi">+    ctx.load().unwrap();
+</span></span></span><span class="line"><span class="cl"><span class="gi">+
+</span></span></span><span class="line"><span class="cl"><span class="gi"></span>     let args: Vec&lt;_&gt; = env::args().collect();
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">     if args.len() &lt;= 1 {
+</span></span></code></pre></div><p>If we run the synchronous syscall version, we'll get a permission
 denied error:</p>
-<pre><code>$ ./target/debug/no_iouring 127.0.0.1:8000
-thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value:
-Os { code: 1, kind: PermissionDenied, message: &quot;Operation not permitted&quot; },
+<pre tabindex="0"><code>$ ./target/debug/no_iouring 127.0.0.1:8000
+thread &#39;main&#39; panicked at &#39;called `Result::unwrap()` on an `Err` value:
+Os { code: 1, kind: PermissionDenied, message: &#34;Operation not permitted&#34; },
 src/bin/no_iouring.rs:28:54
 note: run with `RUST_BACKTRACE=1` environment variable to display
 a backtrace
 </code></pre><p>Whereas if we run the <code>io_uring</code> version, it connects just fine:</p>
-<pre><code>$ ./target/debug/with_iouring 127.0.0.1:8000
+<pre tabindex="0"><code>$ ./target/debug/with_iouring 127.0.0.1:8000
 written: 128
 read: [102, 111, 111, 10]
 </code></pre><p>It turns out you can setup <code>io_uring</code> with an allowlist

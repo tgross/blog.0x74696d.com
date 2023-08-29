@@ -69,13 +69,13 @@ docs</a>, check the
 output for which fields that's going to be under, and I incrementally
 massage my way through the JSON with trial and error and <code>jq</code> until I
 get something like:</p>
-<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh">ls nomad/*/metrics.json <span class="p">|</span>
-    xargs jq <span class="s1">&#39;
-</span><span class="s1">        .Gauges[]
-</span><span class="s1">        | select(.Name == &#34;nomad.runtime.num_goroutines&#34;)
-</span><span class="s1">        | .Value
-</span><span class="s1">        &#39;</span>
-</code></pre></div><p>Yes, yes. I know I can use <code>find -exec</code> instead. Take this and your
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">ls nomad/*/metrics.json <span class="p">|</span>
+</span></span><span class="line"><span class="cl">    xargs jq <span class="s1">&#39;
+</span></span></span><span class="line"><span class="cl"><span class="s1">        .Gauges[]
+</span></span></span><span class="line"><span class="cl"><span class="s1">        | select(.Name == &#34;nomad.runtime.num_goroutines&#34;)
+</span></span></span><span class="line"><span class="cl"><span class="s1">        | .Value
+</span></span></span><span class="line"><span class="cl"><span class="s1">        &#39;</span>
+</span></span></code></pre></div><p>Yes, yes. I know I can use <code>find -exec</code> instead. Take this and your
 &quot;useless use of cat&quot; and leave me alone.</p>
 <p>The result is a list of numbers, and if I could understand the
 <code>gnuplot</code> interface I'd probably pipe those numbers there. But
@@ -92,9 +92,9 @@ one metric.</p>
 <p>If I want to see the latency between the raft leader and its peers, I
 can pipe in the list of metrics files and search for that specific
 metric:</p>
-<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh">ls nomad/*/metrics.json <span class="p">|</span>
-    nomad-metrics-plot <span class="s2">&#34;nomad.raft.leader.lastContact&#34;</span>
-</code></pre></div><p>And the resulting visualization makes it obvious to me that this
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">ls nomad/*/metrics.json <span class="p">|</span>
+</span></span><span class="line"><span class="cl">    nomad-metrics-plot <span class="s2">&#34;nomad.raft.leader.lastContact&#34;</span>
+</span></span></code></pre></div><p>And the resulting visualization makes it obvious to me that this
 cluster is having latency issues between raft peers: the mean and
 maximum latency is well above what's recommended and they have spikes
 where the 500ms timeout is being hit, which forces a leader election.</p>
@@ -106,16 +106,16 @@ open the SVG in your browser for you. But I can put this in front of
 someone <em>today</em> without it causing me a huge support burden to get
 them spun up on it. And then I can iterate on it over time or abandon
 it if something better comes along.</p>
-<section class="footnotes" role="doc-endnotes">
+<div class="footnotes" role="doc-endnotes">
 <hr>
 <ol>
-<li id="fn:1" role="doc-endnote">
+<li id="fn:1">
 <p>This repo that originally went with this article unfortunately had
 to be removed to due overreaching GitHub account policy claims by
-my employer. <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+my employer.&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 </ol>
-</section>
+</div>
 
   
 

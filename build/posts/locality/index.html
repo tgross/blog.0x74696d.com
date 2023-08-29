@@ -46,17 +46,17 @@ Alexey Tumanov and Chenggang Wu) discussed this problem at more depth and seriou
 <p>There are definitely a few barriers to Manta's wider adoption. Without Linux support for the compute zones, machine learning teams are less likely to adopt it. It doesn't support the S3 API so organizations potentially have a bunch of third-party tooling to recreate. While Manta is open source, it's decidedly not a standalone application but really a way of building an entire datacenter. So it can't be deployed onto AWS if you're already there. (Joyent does have an excellent cloud offering if you don't need much in the way of AWS upstack services.) And most importantly from the standpoint of serverless workflows, there's not yet a way to &quot;watch&quot; for events on Manta or get a changefeed as an end user; this could allow Lambda-like workflows.</p>
 <aside>Update June 6, 2019: only days after publishing this, Joyent announced they are shutting down their public cloud offering. Triton and Manta are still open source, and many of Joyent's enterprise customers are running on-prem. But sadly I have trouble imagining someone starting a new project on Triton following that announcement.</aside>
 <p>If you are a smaller cloud provider or just an organization struggling with problems of data locality in your data pipeline, you could do much worse than standing on the shoulders of giants and taking a look at Manta. Even if you're already all-in on AWS and/or Linux containerization schedulers like k8s or Nomad, there's an opportunity for a sufficiently motivated team<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup> to take inspiration from Manta to build a system that brings better mechanical sympathy to serverless.</p>
-<section class="footnotes" role="doc-endnotes">
+<div class="footnotes" role="doc-endnotes">
 <hr>
 <ol>
-<li id="fn:1" role="doc-endnote">
-<p>Yes, more cooking metaphors. <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+<li id="fn:1">
+<p>Yes, more cooking metaphors.&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
-<li id="fn:2" role="doc-endnote">
-<p>Which could include me, if you were to hire me to work on projects like this at your org! <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+<li id="fn:2">
+<p>Which could include me, if you were to hire me to work on projects like this at your org!&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 </ol>
-</section>
+</div>
 
   
 

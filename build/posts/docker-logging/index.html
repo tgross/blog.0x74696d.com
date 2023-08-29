@@ -39,31 +39,31 @@
 <p>I spent a couple of days this week working on a new deployment design using <a href="http://docker.io">Docker</a>. Obviously Docker is a new project, so the documentation is a bit of a mess and not quite keeping up with progress on the code. You come to expect that on fast-moving open source projects, so we figured no biggie. But the one almost-deal-breaker for us was trying to figure out logging, so I thought I'd do a short write-up on that here.</p>
 <h1 id="docker-logs">docker logs</h1>
 <p>Having a <code>docker logs</code> command available must be what threw me off. Docker captures all the <code>stdout</code>/<code>stderr</code> from the process you're running, and you can get the docker daemon to spit this out with <code>docker logs $CONTAINER_ID</code>. But if the process you're running is a long-running daemon, that's probably less than satisfactory. At first I thought I'd be clever and thought I could periodically run <code>docker logs &gt;&gt; /var/log/myapp.log</code>. Let's try that with a Django app on gunicorn and see what happens.</p>
-<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash">$ <span class="nv">ID</span><span class="o">=</span>docker run myimage python manage.py run_gunicorn -b 0.0.0.0:8000
-$ docker logs <span class="nv">$ID</span>
-2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Starting gunicorn 0.14.2
-2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Listening at: http://0.0.0.0:8000 <span class="o">(</span>1710<span class="o">)</span>
-2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Using worker: sync
-2013-08-03 18:45:05 <span class="o">[</span>1713<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Booting worker with pid: <span class="m">1713</span>
-$ <span class="c1"># ok, let&#39;s do that again</span>
-$ docker logs <span class="nv">$ID</span>
-2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Starting gunicorn 0.14.2
-2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Listening at: http://0.0.0.0:8000 <span class="o">(</span>1710<span class="o">)</span>
-2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Using worker: sync
-2013-08-03 18:45:05 <span class="o">[</span>1713<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Booting worker with pid: <span class="m">1713</span>
-</code></pre></div><p>Uh oh. If I just append the output of <code>docker logs</code> I'll be writing the entire log out to the file each time. That's going to suck after a while. You don't want to use <code>docker logs</code> to write out logs for your process.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ <span class="nv">ID</span><span class="o">=</span>docker run myimage python manage.py run_gunicorn -b 0.0.0.0:8000
+</span></span><span class="line"><span class="cl">$ docker logs <span class="nv">$ID</span>
+</span></span><span class="line"><span class="cl">2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Starting gunicorn 0.14.2
+</span></span><span class="line"><span class="cl">2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Listening at: http://0.0.0.0:8000 <span class="o">(</span>1710<span class="o">)</span>
+</span></span><span class="line"><span class="cl">2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Using worker: sync
+</span></span><span class="line"><span class="cl">2013-08-03 18:45:05 <span class="o">[</span>1713<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Booting worker with pid: <span class="m">1713</span>
+</span></span><span class="line"><span class="cl">$ <span class="c1"># ok, let&#39;s do that again</span>
+</span></span><span class="line"><span class="cl">$ docker logs <span class="nv">$ID</span>
+</span></span><span class="line"><span class="cl">2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Starting gunicorn 0.14.2
+</span></span><span class="line"><span class="cl">2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Listening at: http://0.0.0.0:8000 <span class="o">(</span>1710<span class="o">)</span>
+</span></span><span class="line"><span class="cl">2013-08-03 18:45:05 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Using worker: sync
+</span></span><span class="line"><span class="cl">2013-08-03 18:45:05 <span class="o">[</span>1713<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Booting worker with pid: <span class="m">1713</span>
+</span></span></code></pre></div><p>Uh oh. If I just append the output of <code>docker logs</code> I'll be writing the entire log out to the file each time. That's going to suck after a while. You don't want to use <code>docker logs</code> to write out logs for your process.</p>
 <h1 id="mounted-volumes">mounted volumes</h1>
 <p>Instead you should bind a volume to the container and write your logs from your process to that mount point. This maps a location in the container's file system to a location on the host. You can then access the logs separately from the running process in your container and use tools like <code>logrotate</code> to handle them.</p>
-<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash">$ <span class="nv">ID</span><span class="o">=</span>docker run -v /var/myapp/log:/var/log myimage python manage.py
-  run_gunicorn -b 0.0.0.0:8000 --log-file<span class="o">=</span>/var/log/gunicorn.log
-$ docker logs <span class="nv">$ID</span>
-$ <span class="c1"># nada!</span>
-$ tail /var/myapp/log/gunicorn.log
-2013-08-03 18:53:11 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Starting gunicorn 0.14.2
-2013-08-03 18:53:11 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Listening at: http://0.0.0.0:8000 <span class="o">(</span>1710<span class="o">)</span>
-2013-08-03 18:53:11 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Using worker: sync
-2013-08-03 18:53:11 <span class="o">[</span>1713<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Booting worker with pid: <span class="m">1811</span>
-</code></pre></div><p>It's fair to note that attaching a volume from the host slightly weakens the LXC security advantages. The contained process can now write outside its container and this is a <a href="https://www.owasp.org/index.php/Log_injection">potential attack vector</a> if the contained process is compromised.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ <span class="nv">ID</span><span class="o">=</span>docker run -v /var/myapp/log:/var/log myimage python manage.py
+</span></span><span class="line"><span class="cl">  run_gunicorn -b 0.0.0.0:8000 --log-file<span class="o">=</span>/var/log/gunicorn.log
+</span></span><span class="line"><span class="cl">$ docker logs <span class="nv">$ID</span>
+</span></span><span class="line"><span class="cl">$ <span class="c1"># nada!</span>
+</span></span><span class="line"><span class="cl">$ tail /var/myapp/log/gunicorn.log
+</span></span><span class="line"><span class="cl">2013-08-03 18:53:11 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Starting gunicorn 0.14.2
+</span></span><span class="line"><span class="cl">2013-08-03 18:53:11 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Listening at: http://0.0.0.0:8000 <span class="o">(</span>1710<span class="o">)</span>
+</span></span><span class="line"><span class="cl">2013-08-03 18:53:11 <span class="o">[</span>1710<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Using worker: sync
+</span></span><span class="line"><span class="cl">2013-08-03 18:53:11 <span class="o">[</span>1713<span class="o">]</span> <span class="o">[</span>INFO<span class="o">]</span> Booting worker with pid: <span class="m">1811</span>
+</span></span></code></pre></div><p>It's fair to note that attaching a volume from the host slightly weakens the LXC security advantages. The contained process can now write outside its container and this is a <a href="https://www.owasp.org/index.php/Log_injection">potential attack vector</a> if the contained process is compromised.</p>
 <p>Despite the documentation woes and a few minor headaches like figuring out logging, getting started with Docker was a lot of fun and I think it has a lot of potential. I'll be sharing more Docker stories here going forward.</p>
 
   

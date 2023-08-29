@@ -38,7 +38,7 @@
   <p>I've been playing around with Rust a bit lately and needed to build something with an embedded database, so I reached for SQLite. I need to build SQLite with some specific features enabled and that's hard to guarantee with system packages cross-platform. This gave me a chance to try out building a Rust project linked with some custom C code. The overall direction I'm taking here is largely coming from <a href="https://users.rust-lang.org/t/linking-with-custom-c-library/637/4">this thread</a> and the Cargo <a href="http://doc.crates.io/build-script.html#case-study-building-some-native-code">build script</a> page. I'm using <a href="https://github.com/jgallagher/rusqlite">rusqlite</a> for the SQLite bindings, so I'll need to build that as well.</p>
 <h2 id="project-outline">Project outline</h2>
 <p>The other nice thing I got to try out here is how to build a sensible project structure for a project that might mix open source and private code. Cargo has some very minimal expectations about the source code directory, but doesn't dictate much past that. So unlike that <em>other</em> language <a href="https://blog.0x74696d.com/posts/go-get-considered-harmful/">(<em>ahem</em>)</a> Rust is pretty chill about letting you decide what works for your project and organization. How this reflects on the culture of those two languages is left as an exercise for the reader.</p>
-<pre><code>$ tree /src/tgross/demo
+<pre tabindex="0"><code>$ tree /src/tgross/demo
 .
 ├── build.rs
 ├── Cargo.toml
@@ -63,79 +63,78 @@ $ tree /src/jgallagher/rusqlite
 <p>Ok, rant over. Deep breaths...</p>
 <h2 id="cargotoml">Cargo.toml</h2>
 <p>This is just the &quot;hello world&quot; of <code>rusqlite</code>, so our demonstration application will be <a href="https://github.com/jgallagher/rusqlite/blob/master/README.md">the example code from the rusqlite README</a>. Here's our demo app's Cargo.toml:</p>
-<div class="highlight"><pre class="chroma"><code class="language-ini" data-lang="ini"><span class="k">[package]</span>
-<span class="na">name</span> <span class="o">=</span> <span class="s">&#34;demo&#34;</span>
-<span class="na">version</span> <span class="o">=</span> <span class="s">&#34;0.1.0&#34;</span>
-<span class="na">authors</span> <span class="o">=</span> <span class="s">[&#34;Tim Gross &lt;tim@0x74696d.com&gt;&#34;]</span>
-<span class="na">build</span> <span class="o">=</span> <span class="s">&#34;build.rs&#34;</span>
-<span class="na">links</span> <span class="o">=</span> <span class="s">&#34;libsqlite&#34;</span>
-
-<span class="k">[dependencies]</span>
-<span class="na">time</span> <span class="o">=</span> <span class="s">&#34;~0.1.0&#34;</span>
-
-<span class="k">[dependencies.rusqlite]</span>
-<span class="na">path</span> <span class="o">=</span> <span class="s">&#34;/src/jgallagher/rusqlite&#34;</span>
-
-<span class="k">[build-dependencies]</span>
-<span class="na">gcc</span> <span class="o">=</span> <span class="s">&#34;0.3&#34;</span>
-</code></pre></div><p>Note that I've got four different dependencies here and each one is being added in a different way. The most straightforward is the <code>time</code> crate, which our demonstration app uses to get the current time when inserting a row. We've pinned it to a specific version with the <code>~</code> flag, which means we'll accept patch version updates but not minor version increases (in the semver sense). When we build, Cargo will fetch this dependency from crates.io, compile it, and then cache the output of that compilation in our target directory for linking down the road.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-ini" data-lang="ini"><span class="line"><span class="cl"><span class="k">[package]</span>
+</span></span><span class="line"><span class="cl"><span class="na">name</span> <span class="o">=</span> <span class="s">&#34;demo&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="na">version</span> <span class="o">=</span> <span class="s">&#34;0.1.0&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="na">authors</span> <span class="o">=</span> <span class="s">[&#34;Tim Gross &lt;tim@0x74696d.com&gt;&#34;]</span>
+</span></span><span class="line"><span class="cl"><span class="na">build</span> <span class="o">=</span> <span class="s">&#34;build.rs&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="na">links</span> <span class="o">=</span> <span class="s">&#34;libsqlite&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">[dependencies]</span>
+</span></span><span class="line"><span class="cl"><span class="na">time</span> <span class="o">=</span> <span class="s">&#34;~0.1.0&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">[dependencies.rusqlite]</span>
+</span></span><span class="line"><span class="cl"><span class="na">path</span> <span class="o">=</span> <span class="s">&#34;/src/jgallagher/rusqlite&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">[build-dependencies]</span>
+</span></span><span class="line"><span class="cl"><span class="na">gcc</span> <span class="o">=</span> <span class="s">&#34;0.3&#34;</span>
+</span></span></code></pre></div><p>Note that I've got four different dependencies here and each one is being added in a different way. The most straightforward is the <code>time</code> crate, which our demonstration app uses to get the current time when inserting a row. We've pinned it to a specific version with the <code>~</code> flag, which means we'll accept patch version updates but not minor version increases (in the semver sense). When we build, Cargo will fetch this dependency from crates.io, compile it, and then cache the output of that compilation in our target directory for linking down the road.</p>
 <p>We also have a separate <code>[dependencies.rusqlite]</code> section here, where we've specified a path. This path will be an on-disk location where Cargo will try to find the dependency, rather than going out to the Internet for it. This is convenient if I want to work up a patch of <code>rusqlite</code> or if I've got another private project that I want to link in here without fetching it from GitHub (i.e. from the mirror of repos on my CI/CD system). We can also pass feature flags or other compiler options to the dependency when we have it in its own section like this. Another option is to just have a <code>path</code> field under your Cargo config and have Cargo search there first. But if you have a whole lot of code within those paths (as I do with a fairly flat <code>/src/tgross/</code> directory), then you're going to be risking annoying collisions.</p>
 <p>Next we have <code>gcc</code>, which is marked under <code>[build-dependencies]</code>. This feature lets you fetch crates for purposes of the build process (or for testing with <code>[dev-dependencies]</code>), but these crates won't be linked into your final library or executable binary output. We're going to use the <a href="http://alexcrichton.com/gcc-rs/gcc/index.html"><code>gcc</code> crate</a> to assist us with building SQLite.</p>
 <p>Lastly and perhaps less obviously, we have a <code>links</code> and <code>build</code> section under <code>[package]</code>. This is how we're going to tell Cargo that we have to build and link an external library.</p>
 <h2 id="buildrs">build.rs</h2>
 <p>We still need to tell Cargo how to actually build SQLite, and is pretty straightforward with the <code>gcc</code> crate. In our <a href="http://doc.crates.io/build-script.html"><code>build.rs</code> script</a> we just need to pass the appropriate arguments to the gcc methods and we'll get the expected output.</p>
-<div class="highlight"><pre class="chroma"><code class="language-rust" data-lang="rust"><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">gcc</span><span class="p">;</span><span class="w">
-</span><span class="w">
-</span><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span><span class="w"></span><span class="n">gcc</span>::<span class="n">Config</span>::<span class="n">new</span><span class="p">()</span><span class="w">
-</span><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_FTS5&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
-</span><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_RTREE&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
-</span><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_JSON1&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
-</span><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_DBSTAT_VTAB&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
-</span><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_EXPLAIN_COMMENTS&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
-</span><span class="w">    </span><span class="p">.</span><span class="n">file</span><span class="p">(</span><span class="s">&#34;/src/sqlite/src/sqlite3.c&#34;</span><span class="p">)</span><span class="w">
-</span><span class="w">    </span><span class="p">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#34;libsqlite3.a&#34;</span><span class="p">);</span><span class="w">
-</span><span class="w"></span><span class="p">}</span><span class="w">
-</span></code></pre></div><p>This is the equivalent of doing:</p>
-<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash">gcc -DSQLITE_ENABLE_FTS5<span class="o">=</span><span class="m">1</span> <span class="se">\
-</span><span class="se"></span>	-DSQLITE_ENABLE_RTREE<span class="o">=</span><span class="m">1</span> <span class="se">\
-</span><span class="se"></span>	-DSQLITE_ENABLE_JSON1<span class="o">=</span><span class="m">1</span> <span class="se">\
-</span><span class="se"></span>	-DSQLITE_ENABLE_DBSTAT_VTAB<span class="o">=</span><span class="m">1</span> <span class="se">\
-</span><span class="se"></span>	-DSQLITE_ENABLE_EXPLAIN_COMMENTS<span class="o">=</span><span class="m">1</span> <span class="se">\
-</span><span class="se"></span>	-c src/sqlite3.c <span class="se">\
-</span><span class="se"></span>	-lpthread -ldl <span class="se">\
-</span><span class="se"></span>	-o libsqlite3.a
-
-</code></pre></div><p>Note that the linked pthread and ld libs will be provided as part of our standard rust build. Optimization level and whether to include debug symbols will be set according to the Cargo build, but these can be overridden (see the <a href="http://alexcrichton.com/gcc-rs/gcc/struct.Config.html#method.opt_level"><code>gcc::Config</code></a> docs).</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">gcc</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="n">gcc</span>::<span class="n">Config</span>::<span class="n">new</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_FTS5&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_RTREE&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_JSON1&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_DBSTAT_VTAB&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">define</span><span class="p">(</span><span class="s">&#34;SQLITE_ENABLE_EXPLAIN_COMMENTS&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&#34;1&#34;</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">file</span><span class="p">(</span><span class="s">&#34;/src/sqlite/src/sqlite3.c&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#34;libsqlite3.a&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>This is the equivalent of doing:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">gcc -DSQLITE_ENABLE_FTS5<span class="o">=</span><span class="m">1</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>	-DSQLITE_ENABLE_RTREE<span class="o">=</span><span class="m">1</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>	-DSQLITE_ENABLE_JSON1<span class="o">=</span><span class="m">1</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>	-DSQLITE_ENABLE_DBSTAT_VTAB<span class="o">=</span><span class="m">1</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>	-DSQLITE_ENABLE_EXPLAIN_COMMENTS<span class="o">=</span><span class="m">1</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>	-c src/sqlite3.c <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>	-lpthread -ldl <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>	-o libsqlite3.a
+</span></span></code></pre></div><p>Note that the linked pthread and ld libs will be provided as part of our standard rust build. Optimization level and whether to include debug symbols will be set according to the Cargo build, but these can be overridden (see the <a href="http://alexcrichton.com/gcc-rs/gcc/struct.Config.html#method.opt_level"><code>gcc::Config</code></a> docs).</p>
 <p>Also note here that we're hard-coding the path to the <a href="https://www.sqlite.org/amalgamation.html">SQLite source amalgamation file</a>, which kinda sucks. The <code>libsqlite3-sys</code> crate handles this by taking an environment variable, or we could just vendor the <code>sqlite3.c</code> source and header file alongside our code. If anyone knows a good workaround I'd be interested to hear about it.</p>
 <p>In any case, now we're ready to build!</p>
-<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash">$ cargo build
-cargo build
-    Compiling bitflags v0.1.1
-    Compiling winapi v0.2.6
-    Compiling libc v0.2.8
-    Compiling pkg-config v0.3.8
-    Compiling winapi-build v0.1.1
-    Compiling gcc v0.3.25
-    Compiling kernel32-sys v0.2.1
-    Compiling libsqlite3-sys v0.4.0 <span class="o">(</span>file:///src/tgross/demo<span class="o">)</span>
-    Compiling <span class="nb">time</span> v0.1.34
-    Compiling demo v0.1.0 <span class="o">(</span>file:///src/tgross/demo<span class="o">)</span>
-    Compiling rusqlite v0.6.0 <span class="o">(</span>file:///src/tgross/demo<span class="o">)</span>
-
-$ ldd target/debug/demo
-    linux-vdso.so.1 <span class="o">(</span>0x00007ffdf7abe000<span class="o">)</span>
-    libdl.so.2 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libdl.so.2 <span class="o">(</span>0x00007f9404...
-    libpthread.so.0 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libpthread.so.0 <span class="o">(</span>0x...
-    libgcc_s.so.1 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libgcc_s.so.1 <span class="o">(</span>0x0000...
-    libc.so.6 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libc.so.6 <span class="o">(</span>0x00007f940385...
-    /lib64/ld-linux-x86-64.so.2 <span class="o">(</span>0x00007f94045b9000<span class="o">)</span>
-    libm.so.6 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libm.so.6 <span class="o">(</span>0x00007f940355...
-
-$ ./target/debug/demo
-Found person Person <span class="o">{</span> id: 1, name: <span class="s2">&#34;Steven&#34;</span>,
-time_created: Timespec <span class="o">{</span> sec: 1458435347, nsec: <span class="m">0</span> <span class="o">}</span>, data: None <span class="o">}</span>
-</code></pre></div>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ cargo build
+</span></span><span class="line"><span class="cl">cargo build
+</span></span><span class="line"><span class="cl">    Compiling bitflags v0.1.1
+</span></span><span class="line"><span class="cl">    Compiling winapi v0.2.6
+</span></span><span class="line"><span class="cl">    Compiling libc v0.2.8
+</span></span><span class="line"><span class="cl">    Compiling pkg-config v0.3.8
+</span></span><span class="line"><span class="cl">    Compiling winapi-build v0.1.1
+</span></span><span class="line"><span class="cl">    Compiling gcc v0.3.25
+</span></span><span class="line"><span class="cl">    Compiling kernel32-sys v0.2.1
+</span></span><span class="line"><span class="cl">    Compiling libsqlite3-sys v0.4.0 <span class="o">(</span>file:///src/tgross/demo<span class="o">)</span>
+</span></span><span class="line"><span class="cl">    Compiling <span class="nb">time</span> v0.1.34
+</span></span><span class="line"><span class="cl">    Compiling demo v0.1.0 <span class="o">(</span>file:///src/tgross/demo<span class="o">)</span>
+</span></span><span class="line"><span class="cl">    Compiling rusqlite v0.6.0 <span class="o">(</span>file:///src/tgross/demo<span class="o">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">$ ldd target/debug/demo
+</span></span><span class="line"><span class="cl">    linux-vdso.so.1 <span class="o">(</span>0x00007ffdf7abe000<span class="o">)</span>
+</span></span><span class="line"><span class="cl">    libdl.so.2 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libdl.so.2 <span class="o">(</span>0x00007f9404...
+</span></span><span class="line"><span class="cl">    libpthread.so.0 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libpthread.so.0 <span class="o">(</span>0x...
+</span></span><span class="line"><span class="cl">    libgcc_s.so.1 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libgcc_s.so.1 <span class="o">(</span>0x0000...
+</span></span><span class="line"><span class="cl">    libc.so.6 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libc.so.6 <span class="o">(</span>0x00007f940385...
+</span></span><span class="line"><span class="cl">    /lib64/ld-linux-x86-64.so.2 <span class="o">(</span>0x00007f94045b9000<span class="o">)</span>
+</span></span><span class="line"><span class="cl">    libm.so.6 <span class="o">=</span>&gt; /lib/x86_64-linux-gnu/libm.so.6 <span class="o">(</span>0x00007f940355...
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">$ ./target/debug/demo
+</span></span><span class="line"><span class="cl">Found person Person <span class="o">{</span> id: 1, name: <span class="s2">&#34;Steven&#34;</span>,
+</span></span><span class="line"><span class="cl">time_created: Timespec <span class="o">{</span> sec: 1458435347, nsec: <span class="m">0</span> <span class="o">}</span>, data: None <span class="o">}</span>
+</span></span></code></pre></div>
   
 
 </section>

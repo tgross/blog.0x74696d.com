@@ -1,289 +1,174 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  
   <url>
     <loc>https://blog.0x74696d.com/</loc>
     <lastmod>2022-11-27T18:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/</loc>
     <lastmod>2022-11-27T18:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/two-kinds-of-ux-blunder/</loc>
     <lastmod>2022-11-27T18:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/iouring-and-seccomp/</loc>
     <lastmod>2022-11-27T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/platforms-are-brownfield/</loc>
     <lastmod>2022-06-11T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/embedded-wasm-shell/</loc>
     <lastmod>2021-09-30T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/challenges-of-bpf-tracing-go/</loc>
     <lastmod>2021-08-28T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/networking-firecracker-lab/</loc>
     <lastmod>2021-07-27T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/strictly-aspirational-engineering-values/</loc>
     <lastmod>2021-05-01T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/small-design-up-front/</loc>
     <lastmod>2021-02-13T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/single-purpose-visualization/</loc>
     <lastmod>2021-01-30T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/hugo-one-byte-outputs/</loc>
     <lastmod>2021-01-27T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/main-branch/</loc>
     <lastmod>2021-01-26T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/exec-from-your-start-script/</loc>
     <lastmod>2021-01-25T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/dropped-signals/</loc>
     <lastmod>2021-01-24T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/git-send-email/</loc>
     <lastmod>2020-08-29T12:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/locality/</loc>
     <lastmod>2019-06-04T01:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/mise-en-place/</loc>
     <lastmod>2019-06-03T01:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/checkpointing-failure/</loc>
     <lastmod>2019-02-17T01:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/debugging-python-containers-in-production/</loc>
     <lastmod>2018-05-03T01:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/a-hotdog-is-not-a-sandwich/</loc>
     <lastmod>2018-05-02T01:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/</loc>
     <lastmod>2018-02-18T04:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/software-defined-culture-3-observability/</loc>
     <lastmod>2018-02-18T03:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/software-defined-culture-2-operability/</loc>
     <lastmod>2018-02-18T02:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/</loc>
     <lastmod>2018-02-18T01:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/software-defined-culture/</loc>
     <lastmod>2018-02-18T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/be-careful-what-you-benchmark/</loc>
     <lastmod>2017-02-20T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/secrets-management-in-the-autopilotpattern/</loc>
     <lastmod>2017-01-26T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/consul-etcd-on-triton/</loc>
     <lastmod>2016-08-02T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/video-intro-autopilot-pattern/</loc>
     <lastmod>2016-07-06T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/monitoring-and-scaling-with-application-telemetry/</loc>
     <lastmod>2016-04-12T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/building-sqlite-for-rust/</loc>
     <lastmod>2016-03-19T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/docker-log-drivers/</loc>
     <lastmod>2016-03-18T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/applications-on-autopilot/</loc>
     <lastmod>2016-03-03T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/mysql-on-autopilot/</loc>
     <lastmod>2016-02-22T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/blog-diet/</loc>
     <lastmod>2016-01-02T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/microservices-stack-in-seconds/</loc>
     <lastmod>2015-11-06T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/dynamic-dns-for-docker-w-containerbuddy/</loc>
     <lastmod>2015-11-03T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/container-native-architecture-talk/</loc>
     <lastmod>2015-10-30T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/anti-patterns-for-service-discovery-in-docker/</loc>
     <lastmod>2015-10-29T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/dynamic-nginx-upstreams-with-containerbuddy/</loc>
     <lastmod>2015-10-29T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/simplifying-service-discovery-in-docker-with-containerbuddy/</loc>
     <lastmod>2015-10-29T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/host-local-docker-registry/</loc>
     <lastmod>2015-07-06T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/analytics-on-the-cheap/</loc>
     <lastmod>2015-03-16T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/go-get-considered-harmful/</loc>
     <lastmod>2015-03-04T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/training-wheels-for-lxc-part-i/</loc>
     <lastmod>2014-02-18T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/tag-all-the-things/</loc>
     <lastmod>2013-10-12T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/docker-logging/</loc>
     <lastmod>2013-08-03T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/session-store-design/</loc>
     <lastmod>2013-07-17T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb-part-ii/</loc>
     <lastmod>2013-07-11T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/falling-in-and-out-of-love-with-dynamodb/</loc>
     <lastmod>2013-06-18T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/dynamodb-batch-uploads/</loc>
     <lastmod>2013-06-05T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/django-db-antipatterns/</loc>
     <lastmod>2013-05-19T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/charlesssl/</loc>
     <lastmod>2013-05-13T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/posts/newblog/</loc>
     <lastmod>2013-05-12T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/index.html</loc>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://blog.0x74696d.com/community/</loc>
   </url>
-  
 </urlset>

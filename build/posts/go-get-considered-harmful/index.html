@@ -51,7 +51,7 @@
 <blockquote>
 <p>To get started, create a workspace directory and set GOPATH accordingly. Your workspace can be located wherever you like, but we'll use $HOME/go in this document. Note that this must not be the same path as your Go installation.</p>
 </blockquote>
-<pre><code>$ mkdir $HOME/go
+<pre tabindex="0"><code>$ mkdir $HOME/go
 $ export GOPATH=$HOME/go
 </code></pre><p>Bam, we already gave a budding Go developer bad advice. Because he or she is off to the races with <code>go get</code> and is now polluting a shared namespace with dependency code that can't be version-pinned. You can't get away with having a shared <code>GOPATH</code>; this is probably obvious to some people but it's definitely not obvious to many of the developers I've encountered.</p>
 <h1 id="bad-dependency-management-leads-to-bad-workarounds">Bad dependency management leads to bad workarounds</h1>
@@ -72,7 +72,7 @@ $ export GOPATH=$HOME/go
 <li>You have a makefile in your project repo. It contains the target <code>get</code>. For each dependency that you're going to import, you have a line in the form <code>git clone git@mygit.example.com:MyOrg/somepackage .godeps/SomeThirdParty/somepackage &amp;&amp; cd .godeps/SomeThirdParty/somepackage &amp;&amp; git checkout &lt;pinned version&gt;</code>.</li>
 </ol>
 <p>This results in a directory that looks like this:</p>
-<pre><code>    tgross@durandal:~/src/tgross/mygoproject$ tree -a
+<pre tabindex="0"><code>    tgross@durandal:~/src/tgross/mygoproject$ tree -a
     |_ .git/
     |_ .gitignore
     |_ .godeps/
@@ -88,40 +88,39 @@ $ export GOPATH=$HOME/go
     |_ doc/
     |_ src/
        |_ mylibrary/
-
 </code></pre><p>And a makefile that might look like this:</p>
-<div class="highlight"><pre class="chroma"><code class="language-make" data-lang="make"><span class="nv">MAKEFLAGS</span> <span class="o">+=</span> --warn-undefined-variables
-<span class="nv">SHELL</span> <span class="o">:=</span> /bin/bash
-<span class="nv">.SHELLFLAGS</span> <span class="o">:=</span> -eu -o pipefail
-<span class="nv">.DEFAULT_GOAL</span> <span class="o">:=</span> all
-
-<span class="k">export </span><span class="nv">GOPATH</span> <span class="o">:=</span> <span class="k">$(</span>shell <span class="nb">pwd</span><span class="k">)</span>/.godeps:<span class="k">$(</span>shell <span class="nb">pwd</span><span class="k">)</span>
-<span class="nv">DEPS</span> <span class="o">:=</span> .godeps/src/github.com
-
-<span class="nf">.PHONY</span><span class="o">:</span>	*
-
-<span class="nf">all</span><span class="o">:</span>	<span class="n">clean</span> .<span class="n">godeps</span> <span class="n">test</span> <span class="n">build</span>
-
-<span class="nf">clean</span><span class="o">:</span>
-	rm -rf .godeps/*
-	rm -rf build/*
-
-<span class="nf">.godeps</span><span class="o">:</span>
-	mkdir -p .godeps
-	git clone git@github.com:MyOrg/somepackage.git <span class="se">\
-</span><span class="se"></span>        <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyA/somepackage <span class="se">\
-</span><span class="se"></span>        <span class="o">&amp;&amp;</span> <span class="nb">cd</span> <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyA/somepackage <span class="o">&amp;&amp;</span> git checkout c7d7a7c
-	git clone git@github.com:MyOrg/some-other-package.git <span class="se">\
-</span><span class="se"></span>        <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyB/some-other-package <span class="se">\
-</span><span class="se"></span>        <span class="o">&amp;&amp;</span> <span class="nb">cd</span> <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyB/some-other-package <span class="o">&amp;&amp;</span> git checkout aa3257c
-
-<span class="nf">test</span><span class="o">:</span>
-	go vet mylibrary
-	go <span class="nb">test</span> mylibrary -v -race -coverprofile<span class="o">=</span>coverage.out
-
-<span class="nf">build</span><span class="o">:</span>
-	docker build -t<span class="o">=</span><span class="s2">&#34;my-container-image&#34;</span> .
-</code></pre></div><p>Note that there's no re-writing imports here. Your Go code is blissfully unaware of the behind-the-scenes work you're doing here to give it the correctly pinned dependencies.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-make" data-lang="make"><span class="line"><span class="cl"><span class="nv">MAKEFLAGS</span> <span class="o">+=</span> --warn-undefined-variables
+</span></span><span class="line"><span class="cl"><span class="nv">SHELL</span> <span class="o">:=</span> /bin/bash
+</span></span><span class="line"><span class="cl"><span class="nv">.SHELLFLAGS</span> <span class="o">:=</span> -eu -o pipefail
+</span></span><span class="line"><span class="cl"><span class="nv">.DEFAULT_GOAL</span> <span class="o">:=</span> all
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">export </span><span class="nv">GOPATH</span> <span class="o">:=</span> <span class="k">$(</span>shell <span class="nb">pwd</span><span class="k">)</span>/.godeps:<span class="k">$(</span>shell <span class="nb">pwd</span><span class="k">)</span>
+</span></span><span class="line"><span class="cl"><span class="nv">DEPS</span> <span class="o">:=</span> .godeps/src/github.com
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nf">.PHONY</span><span class="o">:</span>	*
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nf">all</span><span class="o">:</span>	<span class="n">clean</span> .<span class="n">godeps</span> <span class="n">test</span> <span class="n">build</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nf">clean</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">	rm -rf .godeps/*
+</span></span><span class="line"><span class="cl">	rm -rf build/*
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nf">.godeps</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">	mkdir -p .godeps
+</span></span><span class="line"><span class="cl">	git clone git@github.com:MyOrg/somepackage.git <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyA/somepackage <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        <span class="o">&amp;&amp;</span> <span class="nb">cd</span> <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyA/somepackage <span class="o">&amp;&amp;</span> git checkout c7d7a7c
+</span></span><span class="line"><span class="cl">	git clone git@github.com:MyOrg/some-other-package.git <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyB/some-other-package <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        <span class="o">&amp;&amp;</span> <span class="nb">cd</span> <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyB/some-other-package <span class="o">&amp;&amp;</span> git checkout aa3257c
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nf">test</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">	go vet mylibrary
+</span></span><span class="line"><span class="cl">	go <span class="nb">test</span> mylibrary -v -race -coverprofile<span class="o">=</span>coverage.out
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nf">build</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">	docker build -t<span class="o">=</span><span class="s2">&#34;my-container-image&#34;</span> .
+</span></span></code></pre></div><p>Note that there's no re-writing imports here. Your Go code is blissfully unaware of the behind-the-scenes work you're doing here to give it the correctly pinned dependencies.</p>
 <p>The advantages to this approach are:</p>
 <ol>
 <li>All deps can be pinned but pulled from private repos.</li>

@@ -59,7 +59,7 @@ thing but this container stuff doesn't. And no one has ever bothered
 to teach them what this is supposed to look like because developers
 are only supposed to care about business logic anyways. So we end up
 with a process tree in the container like this:</p>
-<pre><code>$ ps f -o pid,comm
+<pre tabindex="0"><code>$ ps f -o pid,comm
   PID COMMAND
     1 /bin/sh start.sh
     8  \_ /usr/local/bin/gunicorn
@@ -73,7 +73,7 @@ anything about signals, so it dies and takes the application with it.</p>
 <a href="https://github.com/krallin/tini"><code>tini</code></a> init process in there as
 PID1 that'll pass signals to the <code>start.sh</code> script, but the result is
 the same because the signals never reach the application server.</p>
-<pre><code>$ ps f -o pid,comm
+<pre tabindex="0"><code>$ ps f -o pid,comm
   PID COMMAND
     1 init
     7 \_ /bin/sh start.sh
@@ -82,7 +82,7 @@ the same because the signals never reach the application server.</p>
    23        \_ gunicorn worker
 </code></pre><p>What we wanted to do is to call <code>exec</code> in our <code>start.sh</code> script. Then
 the process tree looks like this:</p>
-<pre><code>$ ps f -o pid,comm
+<pre tabindex="0"><code>$ ps f -o pid,comm
   PID COMMAND
     1 /usr/local/bin/gunicorn
     7 \_ gunicorn worker
@@ -91,28 +91,28 @@ the process tree looks like this:</p>
 the shell script and they'll be set in our new application server
 process. A minimal working example looks like the following.</p>
 <p>Here's our mock application:</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-    <span class="nx">c</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">chan</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Signal</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="nx">signal</span><span class="p">.</span><span class="nf">Notify</span><span class="p">(</span><span class="nx">c</span><span class="p">,</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGINT</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">env</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Environ</span><span class="p">()</span> <span class="p">{</span>
-        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">env</span><span class="p">)</span>
-    <span class="p">}</span>
-    <span class="o">&lt;-</span><span class="nx">c</span>
-    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;\ngraceful shutdown!&#34;</span><span class="p">)</span>
-<span class="p">}</span>
-</code></pre></div><p>Our minimal startup script:</p>
-<pre><code>#!/bin/sh
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">c</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">chan</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Signal</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">signal</span><span class="p">.</span><span class="nf">Notify</span><span class="p">(</span><span class="nx">c</span><span class="p">,</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGINT</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">env</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Environ</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">env</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="o">&lt;-</span><span class="nx">c</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;\ngraceful shutdown!&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>Our minimal startup script:</p>
+<pre tabindex="0"><code>#!/bin/sh
 export SUPER_SECRET_FROM_VAULT=xyzzy
 export PLATFORM=$(uname)
 exec printenvvars
 </code></pre><p>And our Dockerfile:</p>
-<pre><code>FROM busybox:1
+<pre tabindex="0"><code>FROM busybox:1
 COPY printenvvars /bin/printenvvars
 COPY start.sh /bin/start.sh
-ENTRYPOINT [&quot;/bin/start.sh&quot;]
+ENTRYPOINT [&#34;/bin/start.sh&#34;]
 </code></pre><p>We build that with <code>docker build -t test .</code> and now let's run it:</p>
-<pre><code>$ docker run test
+<pre tabindex="0"><code>$ docker run test
 HOSTNAME=741960aa5144
 HOME=/root
 SUPER_SECRET_FROM_VAULT=xyzzy

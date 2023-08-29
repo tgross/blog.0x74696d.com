@@ -41,12 +41,9 @@
 <p>We use Jenkins to build and ship the containers. My colleagues <a href="https://www.youtube.com/watch?v=8fcDZB-QMRA">Bridget and Peter</a> talked about this in depth at this year's ChefConf. And one of our team's alumni <a href="https://www.youtube.com/watch?v=yU0QhhS-XzI">Jeff</a> talked about GrubHub's implementation of a very similar setup at Dockercon a couple weeks ago. Our Jenkins server has the same host-local Docker Registry setup, but has IAM permissions to write to the S3 bucket. As the sole node allowed to write to S3, we avoid any possibility of data races on the backing store. (If you need multiple writers you'll want to shard which repositories they write to by namespace.)</p>
 <p>With this setup, network I/O throughput on start is limited only by the host that requires a new image and whatever S3 can give us. This lets us scale up nodes as fast as AWS can give them to us without worrying about the registry as a point of failure.</p>
 
-  
-
 </section>
 <section class="meta">
   <section class="blocks">
-  
 
   <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
     <span class="ss-social-circle ss-octocat"></span>
@@ -66,7 +63,7 @@
 
   <div class="disclaimer">
     <p>&copy; Timothy Gross</p>
-    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/legalcode">Creative Common Attribution-ShareAlike 4.0 International License</a>. All code content is licensed under the <a href="/LICENSE">MIT license</a>, unless an excerpt from a larger work under another license.</p>
   </div>
   <div style="clear: both"></div>
 

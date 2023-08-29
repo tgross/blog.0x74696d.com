@@ -102,12 +102,9 @@
 </span></span></code></pre></div><p>Last we use our multiprocessing pool to split the job over a large number of processes. I used <code>split -a 3 -l 300000</code> to split my big CSVs into a couple hundred files. With no shared memory between the processes, I can use the non-thread-safe code above without worry. This let me crank through all the input files within a few hours and I was ready for beer o'clock.</p>
 <aside>Download this example code <a href="https://github.com/tgross/blog.0x74696d.com/blob/trunk/static/_code/dynamodb-batch-uploads/batch_upload.py">here</a></aside>
 
-  
-
 </section>
 <section class="meta">
   <section class="blocks">
-  
 
   <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
     <span class="ss-social-circle ss-octocat"></span>
@@ -127,7 +124,7 @@
 
   <div class="disclaimer">
     <p>&copy; Timothy Gross</p>
-    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/legalcode">Creative Common Attribution-ShareAlike 4.0 International License</a>. All code content is licensed under the <a href="/LICENSE">MIT license</a>, unless an excerpt from a larger work under another license.</p>
   </div>
   <div style="clear: both"></div>
 

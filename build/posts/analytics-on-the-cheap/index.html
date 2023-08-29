@@ -148,12 +148,9 @@ data=|2014-01-15T19:33:23|xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx|1234567|Registere
 <p>Even not counting the analysis part, there's one more nice bit about this setup which is that it's modular and reusable across applications. We can imagine a poor-mans version of this for a static web site. Instead of signing the GET, a piece of Javascript on the page makes the GET (or a resource is loaded remotely like the classic 1x1 transparent tracking pixel). You can't validate the input or sign the request if you do this, which is probably dangerous, so don't go 'round telling your clients I said you should do this. But it's &quot;infinitely&quot; scalable — if reddit decides to hit your blog your web server won't fall over serving analytics tracking.</p>
 <p>But the really nice thing here is that these log events are just a bunch of files when you're done. The lines of the log can serve as an immutable event source — so long as you only ever read from them. You can back them up to cold storage, use them in different data stores, treat them as your audit log, whatever you need.</p>
 
-  
-
 </section>
 <section class="meta">
   <section class="blocks">
-  
 
   <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
     <span class="ss-social-circle ss-octocat"></span>
@@ -173,7 +170,7 @@ data=|2014-01-15T19:33:23|xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx|1234567|Registere
 
   <div class="disclaimer">
     <p>&copy; Timothy Gross</p>
-    <p>Except where otherwise noted, content on this site is licensed under <a href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US">Creative Common Attribution 3.0 Unported License</a>. The code of this blog and all code content is licensed under the <a href="/LICENSE">MIT license</a>.</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/legalcode">Creative Common Attribution-ShareAlike 4.0 International License</a>. All code content is licensed under the <a href="/LICENSE">MIT license</a>, unless an excerpt from a larger work under another license.</p>
   </div>
   <div style="clear: both"></div>
 

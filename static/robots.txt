@@ -7,4 +7,31 @@ Disallow: /css
 Disallow: /fonts
 Disallow: /me
 Disallow: /_redirects
-Disallow: /zohoverify
+
+# Feeds AI bullshit
+# TODO: googlebot/bingbot don't have separate crawlers
+User-agent: Amazonbot
+User-agent: CCBot
+User-agent: ChatGPT-User
+User-agent: GPTBot
+Disallow: /
+
+# Marketing/SEO crap or aggressive
+User-agent: AhrefsBot
+User-agent: AspiegelBot
+User-agent: BLEXBot
+User-agent: DataForSeoBot
+User-agent: MJ12bot
+User-agent: SemrushBot
+User-agent: SemrushBot-SA
+User-agent: Turnitin
+User-agent: ZoominfoBot
+User-agent: dotbot
+User-agent: rogerbot
+User-agent: turnitinbot
+Disallow: /
+
+# Misbehaving
+User-agent: Seekport Crawler
+User-agent: Yandex
+Disallow: /

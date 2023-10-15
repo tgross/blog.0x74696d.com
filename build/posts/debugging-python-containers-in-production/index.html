@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
   <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
 
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
 </head>
 
 <body>
@@ -45,26 +44,26 @@
 <p>The Docker Hub has a <a href="https://store.docker.com/images/python">Python image</a> in its library. We need to slightly modify that build and make sure it's part of our continuous integration system. The source for the Dockerfiles is <a href="https://github.com/docker-library/python/tree/master">on GitHub</a>. We only care about Python 3.6 and above.</p>
 <aside>Addendum (Feb 2019): I submitted a pull request to the Docker library (<a href="https://github.com/docker-library/python/pull/366">PR #366</a>) for compiling in <code>usdt</code> hooks. The change was benchmarked using Python's own benchmarking suite. Although many of the benchmarks don't show a significant difference between <code>--with-dtrace</code> and not, <strong>26 of the 60 tests show a 5%-17% performance hit</strong>, even without an active trace. This is probably not the approach you want. For live profiling in production you might instead want to check out <a href="https://github.com/benfred/py-spy"><code>py-spy</code></a></aside>
 <p>Python is written in C, and like many C applications under Unix it's built via Autotools. A <code>configure</code> step takes a Makefile template and some parameters, and generates a Makefile that we call <code>make</code> on to build the software. We want to alter the parameters that the Docker build is using to add debugging symbols (the <code>--with-pydebug</code> flag) and tracepoints (the <code>--with-dtrace</code> flag). So for example as of this writing, we'd be adding these flags to the template used for the <code>docker/python:3.6-slim</code> version <a href="https://github.com/docker-library/python/blob/ba5711fb564133bf9c8b870b431682a4db427219/Dockerfile-slim.template#L61-L67">here</a>. We also need to include the installation of <code>systemtap-sdt-dev</code>.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-diff" data-lang="diff"><span class="line"><span class="cl"><span class="gh">index 6799174..16dbbf0 100644
-</span></span></span><span class="line"><span class="cl"><span class="gh"></span><span class="gd">--- a/Dockerfile-debian.template
-</span></span></span><span class="line"><span class="cl"><span class="gd"></span><span class="gi">+++ b/Dockerfile-debian.template
-</span></span></span><span class="line"><span class="cl"><span class="gi"></span><span class="gu">@@ -19,6 +19,7 @@ ENV PYTHON_VERSION %%PLACEHOLDER%%
-</span></span></span><span class="line"><span class="cl"><span class="gu"></span> RUN set -ex \
-</span></span><span class="line"><span class="cl">         &amp;&amp; buildDeps=&#39; \
-</span></span><span class="line"><span class="cl">                dpkg-dev \
-</span></span><span class="line"><span class="cl"><span class="gi">+               systemtap-sdt-dev \
-</span></span></span><span class="line"><span class="cl"><span class="gi"></span>                tcl-dev \
-</span></span><span class="line"><span class="cl">                tk-dev \
-</span></span><span class="line"><span class="cl">         &#39; \
-</span></span><span class="line"><span class="cl"><span class="gu">@@ -43,6 +44,8 @@ RUN set -ex \
-</span></span></span><span class="line"><span class="cl"><span class="gu"></span>                --with-system-expat \
-</span></span><span class="line"><span class="cl">                --with-system-ffi \
-</span></span><span class="line"><span class="cl">                --without-ensurepip \
-</span></span><span class="line"><span class="cl"><span class="gi">+               --with-pydebug \
-</span></span></span><span class="line"><span class="cl"><span class="gi">+               --with-dtrace \
-</span></span></span><span class="line"><span class="cl"><span class="gi"></span>       &amp;&amp; make -j &#34;$(nproc)&#34; \
-</span></span><span class="line"><span class="cl">       &amp;&amp; make install \
-</span></span><span class="line"><span class="cl">       &amp;&amp; ldconfig \
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-diff" data-lang="diff"><span style="display:flex;"><span>index 6799174..16dbbf0 100644
+</span></span><span style="display:flex;"><span>--- a/Dockerfile-debian.template
+</span></span><span style="display:flex;"><span>+++ b/Dockerfile-debian.template
+</span></span><span style="display:flex;"><span>@@ -19,6 +19,7 @@ ENV PYTHON_VERSION %%PLACEHOLDER%%
+</span></span><span style="display:flex;"><span> RUN set -ex \
+</span></span><span style="display:flex;"><span>         &amp;&amp; buildDeps=&#39; \
+</span></span><span style="display:flex;"><span>                dpkg-dev \
+</span></span><span style="display:flex;"><span>+               systemtap-sdt-dev \
+</span></span><span style="display:flex;"><span>                tcl-dev \
+</span></span><span style="display:flex;"><span>                tk-dev \
+</span></span><span style="display:flex;"><span>         &#39; \
+</span></span><span style="display:flex;"><span>@@ -43,6 +44,8 @@ RUN set -ex \
+</span></span><span style="display:flex;"><span>                --with-system-expat \
+</span></span><span style="display:flex;"><span>                --with-system-ffi \
+</span></span><span style="display:flex;"><span>                --without-ensurepip \
+</span></span><span style="display:flex;"><span>+               --with-pydebug \
+</span></span><span style="display:flex;"><span>+               --with-dtrace \
+</span></span><span style="display:flex;"><span>       &amp;&amp; make -j &#34;$(nproc)&#34; \
+</span></span><span style="display:flex;"><span>       &amp;&amp; make install \
+</span></span><span style="display:flex;"><span>       &amp;&amp; ldconfig \
 </span></span></code></pre></div><p>The &quot;best&quot; way to accomplish this is going to depend a lot on how you build the rest of your software. But the overall steps you need are:</p>
 <ul>
 <li>Fork the <a href="https://github.com/docker-library/python">https://github.com/docker-library/python</a> and add the patch above to any of the templates you need.</li>
@@ -73,49 +72,49 @@
 </ul>
 <p>You can find my fork at <a href="https://github.com/tgross/docker-python">https://github.com/tgross/docker-python</a>. I'm using TravisCI to create a weekly build of Python 3.6 and 3.7 for Debian and pushing it to the Docker Hub under <a href="https://hub.docker.com/r/0x74696d/python/">https://hub.docker.com/r/0x74696d/python/</a>.</p>
 <p>If you aren't using containers, don't have immutable infrastructure, and deploy your software via <code>git pull</code> in <code>ssh</code> in a for loop, then you'll probably want to do something like the following instead. This assumes you're on a Debian-based distro like Ubuntu and that you have a clone of the Python source code handy:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># juuuuust a couple of dependencies...</span>
-</span></span><span class="line"><span class="cl">sudo apt install <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    build-essential libssl-dev zlib1g-dev <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    libncurses5-dev libncursesw5-dev libreadline-dev <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    libsqlite3-dev libgdbm-dev libdb5.3-dev libbz2-dev <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    libexpat1-dev liblzma-dev tk-dev <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    systemtap-sdt-dev
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">./configure <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --with-pydebug <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --with-dtrace <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --enable-loadable-sqlite-extensions <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --enable-shared <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --with-system-expat <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --with-system-ffi <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --without-ensurepip
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">make
-</span></span><span class="line"><span class="cl">make <span class="nb">test</span>
-</span></span><span class="line"><span class="cl">sudo make install
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#888;font-style:italic"># juuuuust a couple of dependencies...</span>
+</span></span><span style="display:flex;"><span>sudo apt install <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    build-essential libssl-dev zlib1g-dev <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    libncurses5-dev libncursesw5-dev libreadline-dev <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    libsqlite3-dev libgdbm-dev libdb5.3-dev libbz2-dev <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    libexpat1-dev liblzma-dev tk-dev <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    systemtap-sdt-dev
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>./configure <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --with-pydebug <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --with-dtrace <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --enable-loadable-sqlite-extensions <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --enable-shared <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --with-system-expat <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --with-system-ffi <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --without-ensurepip
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>make
+</span></span><span style="display:flex;"><span>make <span style="font-weight:bold;font-style:italic">test</span>
+</span></span><span style="display:flex;"><span>sudo make install
 </span></span></code></pre></div><h2 id="debugging-from-sidecars">Debugging From Sidecars</h2>
 <p>Container images don't typically include debugging tools. They add a lot to the image size, but they also require root-like privileges (ex. <code>ptrace</code>, <code>CAP_SYSADMIN</code>) and the whole point of a container is that you can run it with reduced privileges. So typically you'll debug a container either from the host (if you have access to the host) or from a &quot;swiss army knife&quot; sidecar container like the one you can find at <a href="https://github.com/tgross/swiss-army-knife">https://github.com/tgross/swiss-army-knife</a></p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Dockerfile" data-lang="Dockerfile"><span class="line"><span class="cl"><span class="c"># swiss-army-knife container for debugging as side-car</span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">FROM</span><span class="s"> ubuntu:16.04</span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># add whatever tools you want here</span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">RUN</span> apt-get update <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    <span class="o">&amp;&amp;</span> apt-get install -y <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>       gdb <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>       strace <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>       tcpdump <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>       linux-tools <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>       software-properties-common <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>       apt-transport-https <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>       ca-certificates <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>       curl <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>       jq <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    <span class="o">&amp;&amp;</span> rm -rf /var/lib/apt/lists/*<span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">RUN</span> add-apt-repository <span class="s2">&#34;deb [trusted=yes] https://repo.iovisor.org/apt/xenial xenial-nightly main&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    <span class="o">&amp;&amp;</span> apt-get update <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    <span class="o">&amp;&amp;</span> apt-get install -y --allow-unauthenticated bcc-tools <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    <span class="o">&amp;&amp;</span> rm -rf /var/lib/apt/lists/*<span class="err">
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Dockerfile" data-lang="Dockerfile"><span style="display:flex;"><span><span style="color:#888;font-style:italic"># swiss-army-knife container for debugging as side-car</span><span style="">
+</span></span></span><span style="display:flex;"><span><span style=""></span><span style="font-weight:bold">FROM</span><span style="color:#666;font-style:italic"> ubuntu:16.04</span><span style="">
+</span></span></span><span style="display:flex;"><span><span style="">
+</span></span></span><span style="display:flex;"><span><span style=""></span><span style="color:#888;font-style:italic"># add whatever tools you want here</span><span style="">
+</span></span></span><span style="display:flex;"><span><span style=""></span><span style="font-weight:bold">RUN</span> apt-get update <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    &amp;&amp; apt-get install -y <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>       gdb <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>       strace <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>       tcpdump <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>       linux-tools <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>       software-properties-common <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>       apt-transport-https <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>       ca-certificates <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>       curl <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>       jq <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    &amp;&amp; rm -rf /var/lib/apt/lists/*<span style="">
+</span></span></span><span style="display:flex;"><span><span style="">
+</span></span></span><span style="display:flex;"><span><span style=""></span><span style="font-weight:bold">RUN</span> add-apt-repository <span style="color:#666;font-style:italic">&#34;deb [trusted=yes] https://repo.iovisor.org/apt/xenial xenial-nightly main&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    &amp;&amp; apt-get update <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    &amp;&amp; apt-get install -y --allow-unauthenticated bcc-tools <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    &amp;&amp; rm -rf /var/lib/apt/lists/*<span style="">
 </span></span></span></code></pre></div><p>In either case you need to be aware of process namespaces. When you run a process in a container, it can't see all the other processes running on the host. In our Python container, the first process in the process tree (PID1) is typically going to be Python. Whereas PID1 on the container host is <code>systemd</code> or some other init system. You need to know which view of the process tree you have when you pass the process ID to your debugging tools.</p>
 <p>If we look at the process tree from the host we get one list of processes:</p>
 <pre tabindex="0"><code>$ ps afx
@@ -141,35 +140,35 @@
 3446 {gunicorn} /usr/local/bin/python /usr/local/bin/gunicorn --name myapp
 3453 {gunicorn} /usr/local/bin/python /usr/local/bin/gunicorn --name myapp
 </code></pre><p>If we want to run the eBPF tool <code>pythoncalls</code> (see below) from the host, we need to use the PID from the point-of-view of the host: <code>sudo /usr/share/bcc/tools/pythoncalls 479</code>. If we want to run this from a sidecar container, we need to use the container's view of the PID tree, share the process and network namespace, and give our sidecar elevated privileges for debugging:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">docker run -it <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --pid<span class="o">=</span>container:6b6e053851ca <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --net<span class="o">=</span>container:6b6e053851ca <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --cap-add sys_admin <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --cap-add sys_ptrace <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    swiss-army-knife <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    /usr/share/bcc/tools/pythoncalls -p <span class="m">1</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>docker run -it <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --pid=container:6b6e053851ca <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --net=container:6b6e053851ca <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --cap-add sys_admin <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    --cap-add sys_ptrace <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    swiss-army-knife <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>    /usr/share/bcc/tools/pythoncalls -p 1
 </span></span></code></pre></div><h2 id="fatal-failure">Fatal Failure</h2>
 <p>A fatal failure is one in which the process dies. This can be explicit — the program has an instruction that tells it to exit because it can't safely continue. Or it can be implicit — the program can't continue and crashes unexpectedly (for example, with a segfault or Python traceback). While fatal failure is unfortunate from the perspective of the user, it's often much easier to debug.</p>
 <p>The reason is that whether implicit or explicit, fatal failure allows for post-mortem debugging. We can start with the fatal state (a core dump), and move it off the production environment into our development environment where it can be examined with a lot less pressure. We use tools (our debugger) to reason backwards from the fatal state to a root technical cause. (Yes, yes, I realize there's no such thing as &quot;root cause&quot; in a complex socio-technical system. We're talking about the root <em>technical</em> cause here.) The nice thing about this is that so long as the state was preserved we can typically discover the cause after a single failure.</p>
 <p>Python has its <code>pdb</code> debugger, but doesn't have a facility for dumping Python interpreter state to use it offline. If you attach <code>pdb</code> to a running process, it halts the process (which your users will not like), but you can't use it to debug post-mortem either. A Python traceback is only serializable in the trivial sense (dump to structured text), which is what services like Sentry use. Fortunately we can get core dumps from Python that are usable in the GNU debugger <code>gdb</code>.</p>
 <p>When the Python interpreter receives a <code>SIGABRT</code> signal, it dumps the interpreter's memory to a core file on disk. On Linux we can use <code>gdb</code> to read this core dump just as we would any other program. But what's cool about Python being interpreted is that your Python source code is all in the interpreter's memory, so <code>gdb</code> has some extensions that let us debug into the Python application code just as we would the interpreter.</p>
 <p>Under normal circumstances, Python won't dump core. We can send the <code>kill</code> signal to it manually, but there's another option — we can force Python to dump core on uncaught exception. I would only recommend this approach if you have good test coverage and are generally confident in your team's ability to write code that rarely crashes, as core dumps can get really large and eat up all your disk space unless you have something like <a href="https://github.com/joyent/manta-thoth">Joyent's Thoth</a> to move them off-disk to shared object storage. Here's how you'd add this to something like a Django middleware:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">os</span>
-</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">logging</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="k">class</span> <span class="nc">AbortOnUncaughtExceptionMiddleware</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">get_response</span><span class="p">):</span>
-</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">get_response</span> <span class="o">=</span> <span class="n">get_response</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
-</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_response</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">process_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
-</span></span><span class="line"><span class="cl">        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="n">os</span><span class="o">.</span><span class="n">abort</span><span class="p">()</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="font-weight:bold">import</span> <span style="color:#666;font-weight:bold;font-style:italic">os</span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">import</span> <span style="color:#666;font-weight:bold;font-style:italic">logging</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>logger = logging.getLogger(__name__)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">class</span> <span style="color:#666;font-weight:bold;font-style:italic">AbortOnUncaughtExceptionMiddleware</span>(<span style="font-weight:bold;font-style:italic">object</span>):
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">def</span> __init__(<span style="font-weight:bold;font-style:italic">self</span>, get_response):
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">self</span>.get_response = get_response
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">def</span> __call__(<span style="font-weight:bold;font-style:italic">self</span>, request):
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold">return</span> <span style="font-weight:bold;font-style:italic">self</span>.get_response(request)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">def</span> <span style="color:#666;font-weight:bold;font-style:italic">process_exception</span>(<span style="font-weight:bold;font-style:italic">self</span>, request, exception):
+</span></span><span style="display:flex;"><span>        logger.error(exception)
+</span></span><span style="display:flex;"><span>        os.abort()
 </span></span></code></pre></div><p>This causes the application to crash and core dump if an exception wasn't handled. You probably want this to be the last middleware that gets called (so first in the list for Django) so that you can catch things like HTTP 404s more gracefully. Of course you'll also need your supervisor (<code>systemd</code> or similar) to restart the process after it crashes.</p>
 <p>On <code>systemd</code>-based systems, core dumps are handled by <code>coredumpctl</code>. We can use <code>coredumpctl</code> to output to a file which we'll then move to our development environment. Here we're taking the first python3.6 dump listed by <code>coredumpctl</code> and outputting it to the file <code>api.coredump</code>.</p>
 <pre tabindex="0"><code>$ coredumpctl list

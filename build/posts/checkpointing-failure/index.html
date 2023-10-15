@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
   <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
 
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
 </head>
 
 <body>
@@ -68,32 +67,32 @@
 <p>I've worked up a simple model to demonstrate the effect the two knobs of idempotency and checkpoint rate have on both correctness and throughput, at various error rates. This model ignores concurrency for clarity, but concurrent tasks make the correctness problem even more important to solve. You can follow along with the code <a href="https://github.com/tgross/blog.0x74696d.com/blob/trunk/static/_code/checkpointing/checkpoint.py">on GitHub</a>.</p>
 <p>We run each set of parameters through our model for 100,000 &quot;ticks&quot;. For each tick through our model, our task updates a pair of counters in a SQL database. In the middle of doing so, there is a small chance that the update fails. Each model reports the values for each counter. The difference in value between the two counters (if any) we'll refer to as the <strong>drift</strong> and it reflects correctness. The maximum value of the counter reflects the throughput. In a perfect world where there is a 0% error rate, both counters will have a value of 100,000.</p>
 <p>Let's look at our idempotent task processor first.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">idempotent_task</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">,</span> <span class="n">err_rate</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">event_id</span><span class="p">):</span>
-</span></span><span class="line"><span class="cl">    <span class="k">try</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">        <span class="n">cur</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&#34;INSERT OR REPLACE INTO counterA VALUES (?)&#34;</span><span class="p">,</span> <span class="p">(</span><span class="n">event_id</span><span class="p">,))</span>
-</span></span><span class="line"><span class="cl">        <span class="n">maybe_error</span><span class="p">(</span><span class="n">err_rate</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&#34;INSERT OR REPLACE INTO counterB VALUES (?)&#34;</span><span class="p">,</span> <span class="p">(</span><span class="n">event_id</span><span class="p">,))</span>
-</span></span><span class="line"><span class="cl">        <span class="n">maybe_checkpoint</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="n">event_id</span> <span class="o">+=</span> <span class="mi">1</span>
-</span></span><span class="line"><span class="cl">    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">        <span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">event_id</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="font-weight:bold">def</span> <span style="color:#666;font-weight:bold;font-style:italic">idempotent_task</span>(conn, checkpoint_steps, err_rate, tick, event_id):
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">try</span>:
+</span></span><span style="display:flex;"><span>        cur = conn.cursor()
+</span></span><span style="display:flex;"><span>        cur.execute(<span style="color:#666;font-style:italic">&#34;INSERT OR REPLACE INTO counterA VALUES (?)&#34;</span>, (event_id,))
+</span></span><span style="display:flex;"><span>        maybe_error(err_rate)
+</span></span><span style="display:flex;"><span>        cur.execute(<span style="color:#666;font-style:italic">&#34;INSERT OR REPLACE INTO counterB VALUES (?)&#34;</span>, (event_id,))
+</span></span><span style="display:flex;"><span>        maybe_checkpoint(conn, tick, checkpoint_steps)
+</span></span><span style="display:flex;"><span>        event_id += 1
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">except</span> Exception:
+</span></span><span style="display:flex;"><span>        conn.rollback()
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">return</span> event_id
 </span></span></code></pre></div><p>We pass the <code>event_id</code> into the task and increment it upon success. The <code>event_id</code> is returned whether or not it has been incremented, so the next iteration will retry failed events. Additionally, we update both counters in a single <strong>atomic transaction</strong> so that we can't have partial updates. Note that atomicity and idempotency aren't the same thing! But you can't have idempotency without atomicity if you make multiple updates in a given task.</p>
 <p>An alternative to retrying events would be to simply drop work that fails and not retry it. If our interest in the event is bound by time, this might be correct behavior. For example, if the event was a location update of our moving rideshare car, we might decide to ignore a stale update in favor of simply waiting for the next one.</p>
 <p>Now let's take a look at our non-idempotent processor.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">non_idempotent_task</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">,</span> <span class="n">err_rate</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">event_id</span><span class="p">):</span>
-</span></span><span class="line"><span class="cl">    <span class="k">try</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">        <span class="n">cur</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&#34;INSERT OR REPLACE INTO counterA VALUES (?)&#34;</span><span class="p">,</span> <span class="p">(</span><span class="n">event_id</span><span class="p">,))</span>
-</span></span><span class="line"><span class="cl">        <span class="n">maybe_checkpoint</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="n">maybe_error</span><span class="p">(</span><span class="n">err_rate</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&#34;INSERT OR REPLACE INTO counterB VALUES (?)&#34;</span><span class="p">,</span> <span class="p">(</span><span class="n">event_id</span><span class="p">,))</span>
-</span></span><span class="line"><span class="cl">        <span class="n">maybe_checkpoint</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">checkpoint_steps</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="n">event_id</span> <span class="o">+=</span> <span class="mi">1</span>
-</span></span><span class="line"><span class="cl">    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">        <span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">event_id</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="font-weight:bold">def</span> <span style="color:#666;font-weight:bold;font-style:italic">non_idempotent_task</span>(conn, checkpoint_steps, err_rate, tick, event_id):
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">try</span>:
+</span></span><span style="display:flex;"><span>        cur = conn.cursor()
+</span></span><span style="display:flex;"><span>        cur.execute(<span style="color:#666;font-style:italic">&#34;INSERT OR REPLACE INTO counterA VALUES (?)&#34;</span>, (event_id,))
+</span></span><span style="display:flex;"><span>        maybe_checkpoint(conn, tick, checkpoint_steps)
+</span></span><span style="display:flex;"><span>        maybe_error(err_rate)
+</span></span><span style="display:flex;"><span>        cur.execute(<span style="color:#666;font-style:italic">&#34;INSERT OR REPLACE INTO counterB VALUES (?)&#34;</span>, (event_id,))
+</span></span><span style="display:flex;"><span>        maybe_checkpoint(conn, tick, checkpoint_steps)
+</span></span><span style="display:flex;"><span>        event_id += 1
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">except</span> Exception:
+</span></span><span style="display:flex;"><span>        conn.rollback()
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">return</span> event_id
 </span></span></code></pre></div><p>This non-idempotent task represents a common source of bugs. We've tried to make it idempotent by using the <code>event_id</code> as we did in our previous task. But because this isn't an atomic transaction, each table can see a different set of events! The most common way this happens in my experience is <strong>write skew</strong>: an application that reads from the database, and then writes values back based on those values without taking into account concurrent updaters.</p>
 <p>I've run these two tasks with error rates ranging up to 2%. That rate is perhaps pathological, but consider a task with a 20-minute long step between checkpoints. If its host is restarted once per week for kernel updates that's a 2% &quot;failure rate&quot; per host, assuming nothing else goes wrong. The other parameter is checkpoint steps ranging from 1 (checkpoint every tick) to 11 (checkpoint every 11 ticks).</p>
 <p><img src="/images/20190217/plot.png" alt="diagram"></p>

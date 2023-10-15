@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
   <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
 
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
 </head>
 
 <body>
@@ -86,30 +85,30 @@ particular use.</p>
 <p>Because my Scheme interpreter is incomplete and not the point of this
 post, we'll start with the dumbest possible shell that just echos
 whatever you input:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">user_input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span>::<span class="n">new</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">io</span>::<span class="n">stdin</span><span class="p">()</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="p">.</span><span class="n">read_line</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">user_input</span><span class="p">)</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="p">.</span><span class="n">expect</span><span class="p">(</span><span class="s">&#34;error reading in user input&#34;</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">eval</span><span class="p">(</span><span class="o">&amp;</span><span class="n">user_input</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;</span><span class="si">{:?}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">fn</span> <span class="nf">eval</span><span class="p">(</span><span class="n">input</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="kt">str</span> <span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">input</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>We'll set up a Cargo workspace with an empty host application, and
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">main</span>() {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">loop</span> {
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold">mut</span> user_input = <span style="font-weight:bold;font-style:italic">String</span>::new();
+</span></span><span style="display:flex;"><span>        io::stdin()
+</span></span><span style="display:flex;"><span>            .read_line(&amp;<span style="font-weight:bold">mut</span> user_input)
+</span></span><span style="display:flex;"><span>            .expect(<span style="color:#666;font-style:italic">&#34;error reading in user input&#34;</span>);
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">let</span> result = eval(&amp;user_input);
+</span></span><span style="display:flex;"><span>        println!(<span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">{:?}</span><span style="color:#666;font-style:italic">&#34;</span>, result);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">eval</span>(input: <span style="font-weight:bold">&amp;</span><span style="font-weight:bold">str</span>) -&gt; <span style="font-weight:bold">&amp;</span><span style="font-weight:bold">str</span> {
+</span></span><span style="display:flex;"><span>    input
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>We'll set up a Cargo workspace with an empty host application, and
 exclude the shell from the workspace so that we can compile it to a
 separate target via a Makefile<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>. Then we compile the shell with
 <a href="https://github.com/bytecodealliance/cargo-wasi"><code>cargo wasi build</code></a> and get a <code>.wasm</code> target. This is commit <a href="https://github.com/tgross/wasm-shell-example/commit/0e7dff66bf2537f4da0254a7683922a031731cf4"><code>0e7dff6</code></a>.</p>
 <p>Next we'll build the host. Most of this is right out of the <a href="https://docs.wasmtime.dev/examples-rust-hello-world.html">Wasmtime
 docs on embedding in Rust</a>, but I want to point out that we're using
 WASI to let the guest inherit stdin/stdout from the host:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="kd">let</span><span class="w"> </span><span class="n">wasi</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">WasiCtxBuilder</span>::<span class="n">new</span><span class="p">().</span><span class="n">inherit_stdio</span><span class="p">().</span><span class="n">build</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">store</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Store</span>::<span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">engine</span><span class="p">,</span><span class="w"> </span><span class="n">wasi</span><span class="p">);</span><span class="w">
-</span></span></span></code></pre></div><p>With <code>cargo run</code> we can interact with the shell directly in our
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">let</span> wasi = WasiCtxBuilder::new().inherit_stdio().build();
+</span></span><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold">mut</span> store = Store::new(&amp;engine, wasi);
+</span></span></code></pre></div><p>With <code>cargo run</code> we can interact with the shell directly in our
 terminal. This is commit <a href="https://github.com/tgross/wasm-shell-example/commit/c1e34bb804d81932d9e9dc1c92fc360e576362d0"><code>c1e34bb</code></a>, but it's not very interesting.</p>
 <p>Instead, let's have the host expose a Unix Domain Socket, and have
 each connection on this socket start its own shell. This gives us an
@@ -123,60 +122,60 @@ to more WASM &quot;fuel&quot; than others. So long as we implement the
 and reference-counted copies of the WASM engine, our compile module,
 the linker with our functions (we'll come back to those in a moment),
 and the application state:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="kd">let</span><span class="w"> </span><span class="n">linker</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">linker</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">let</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">State</span>::<span class="n">new</span><span class="p">()));</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">let</span><span class="w"> </span><span class="n">listener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UnixListener</span>::<span class="n">bind</span><span class="p">(</span><span class="n">bind_path</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">for</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">listener</span><span class="p">.</span><span class="n">incoming</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">Ok</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">engine</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">module</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">linker</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">linker</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">thread</span>::<span class="n">spawn</span><span class="p">(</span><span class="k">move</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">handle_client</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">engine</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">module</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">linker</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">state</span><span class="p">));</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">Err</span><span class="p">(</span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&#34;connection failed&#34;</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="k">break</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>In the handler, we end up needing to clone the stream twice: once to
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">let</span> linker = Arc::new(linker);
+</span></span><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">let</span> state = Arc::new(Mutex::new(State::new()));
+</span></span><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">let</span> listener = UnixListener::bind(bind_path)?;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">for</span> stream <span style="font-weight:bold">in</span> listener.incoming() {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">match</span> stream {
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">Ok</span>(stream) =&gt; {
+</span></span><span style="display:flex;"><span>            <span style="font-weight:bold;font-style:italic">let</span> state = state.clone();
+</span></span><span style="display:flex;"><span>            <span style="font-weight:bold;font-style:italic">let</span> engine = engine.clone();
+</span></span><span style="display:flex;"><span>            <span style="font-weight:bold;font-style:italic">let</span> module = module.clone();
+</span></span><span style="display:flex;"><span>            <span style="font-weight:bold;font-style:italic">let</span> linker = linker.clone();
+</span></span><span style="display:flex;"><span>            thread::spawn(<span style="font-weight:bold">move</span> || handle_client(stream, &amp;engine, &amp;module, &amp;linker, &amp;state));
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">Err</span>(_) =&gt; {
+</span></span><span style="display:flex;"><span>            eprintln!(<span style="color:#666;font-style:italic">&#34;connection failed&#34;</span>);
+</span></span><span style="display:flex;"><span>            <span style="font-weight:bold">break</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>In the handler, we end up needing to clone the stream twice: once to
 split it into a reader and writer stream (for stdin and stdout), and
 once more to have an error channel so the host can send in-band error
 messages to the client even if the guest shell exits unexpectedly.</p>
 <p>Next we present the two streams as <code>WasiFile</code> to the WASI context, and
 spawn a new <code>wasmtime::Store</code> from this context and the application
 state:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="kd">let</span><span class="w"> </span><span class="n">wasi</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">WasiCtxBuilder</span>::<span class="n">new</span><span class="p">()</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">stdin</span><span class="p">(</span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="n">ReadPipe</span>::<span class="n">new</span><span class="p">(</span><span class="n">stream</span><span class="p">))</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">WasiFile</span><span class="o">&gt;</span><span class="p">)</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">stdout</span><span class="p">(</span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="n">WritePipe</span>::<span class="n">new</span><span class="p">(</span><span class="n">write_stream</span><span class="p">))</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">WasiFile</span><span class="o">&gt;</span><span class="p">)</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">.</span><span class="n">build</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">store</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Store</span>::<span class="n">new</span><span class="p">(</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="o">&amp;</span><span class="n">engine</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">StoreData</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">state</span>: <span class="nc">state</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">wasi</span>: <span class="nc">wasi</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">},</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">);</span><span class="w">
-</span></span></span></code></pre></div><p>And finally we instantiate our WASM instance with the shell. Because
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">let</span> wasi = WasiCtxBuilder::new()
+</span></span><span style="display:flex;"><span>    .stdin(<span style="font-weight:bold;font-style:italic">Box</span>::new(ReadPipe::new(stream)) <span style="font-weight:bold">as</span> <span style="font-weight:bold;font-style:italic">Box</span>&lt;<span style="font-weight:bold">dyn</span> WasiFile&gt;)
+</span></span><span style="display:flex;"><span>    .stdout(<span style="font-weight:bold;font-style:italic">Box</span>::new(WritePipe::new(write_stream)) <span style="font-weight:bold">as</span> <span style="font-weight:bold;font-style:italic">Box</span>&lt;<span style="font-weight:bold">dyn</span> WasiFile&gt;)
+</span></span><span style="display:flex;"><span>    .build();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold">mut</span> store = Store::new(
+</span></span><span style="display:flex;"><span>    &amp;engine,
+</span></span><span style="display:flex;"><span>    StoreData {
+</span></span><span style="display:flex;"><span>        state: <span style="color:#666;font-weight:bold;font-style:italic">state</span>,
+</span></span><span style="display:flex;"><span>        wasi: <span style="color:#666;font-weight:bold;font-style:italic">wasi</span>,
+</span></span><span style="display:flex;"><span>    },
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></div><p>And finally we instantiate our WASM instance with the shell. Because
 we've built a binary (i.e. something with a <code>main</code>), we'll call the
 <code>_start</code> function. This is commit <a href="https://github.com/tgross/wasm-shell-example/commit/fafc0f316ad30ef318019b8f7253dd896a920ea4"><code>fafc0f3</code></a>.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">run_interpreter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">move</span><span class="w"> </span><span class="o">||</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Trap</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">linker</span><span class="p">.</span><span class="n">instantiate</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">store</span><span class="p">,</span><span class="w"> </span><span class="n">module</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">get_typed_func</span>::<span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="p">(),</span><span class="w"> </span><span class="n">_</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">store</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;_start&#34;</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">run</span><span class="p">.</span><span class="n">call</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">store</span><span class="p">,</span><span class="w"> </span><span class="p">())</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">};</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">run_interpreter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">write!</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">err_stream</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;{}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&#34;</span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">};</span><span class="w">
-</span></span></span></code></pre></div><p>At this point we can <code>cargo run</code> and connect to the socket file from
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold">mut</span> run_interpreter = <span style="font-weight:bold">move</span> || -&gt; <span style="font-weight:bold;font-style:italic">Result</span>&lt;(), Trap&gt; {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> instance = linker.instantiate(&amp;<span style="font-weight:bold">mut</span> store, module)?;
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> run = instance.get_typed_func::&lt;(), (), _&gt;(&amp;<span style="font-weight:bold">mut</span> store, <span style="color:#666;font-style:italic">&#34;_start&#34;</span>)?;
+</span></span><span style="display:flex;"><span>    run.call(&amp;<span style="font-weight:bold">mut</span> store, ())
+</span></span><span style="display:flex;"><span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">if</span> <span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold;font-style:italic">Err</span>(e) = run_interpreter() {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">if</span> <span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold;font-style:italic">Err</span>(e) = write!(&amp;<span style="font-weight:bold">mut</span> err_stream, <span style="color:#666;font-style:italic">&#34;{}&#34;</span>, e) {
+</span></span><span style="display:flex;"><span>        eprintln!(<span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">{}</span><span style="color:#666;font-style:italic">&#34;</span>, e);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">return</span>;
+</span></span><span style="display:flex;"><span>};
+</span></span></code></pre></div><p>At this point we can <code>cargo run</code> and connect to the socket file from
 another terminal with <code>socat - UNIX-CONNECT:/tmp/wasm-shell.sock</code>. But
 our shell still doesn't <em>do</em> anything other than echo back our
 results. Let's change that.</p>
@@ -186,32 +185,32 @@ results. Let's change that.</p>
 <code>WasiCtx</code> for the WASM engine. The host application will use this same
 object to manipulate state from its side. This could even include a
 reference to your database connection if our application had one.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">struct</span> <span class="nc">State</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">counts</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">struct</span> <span class="nc">StoreData</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">state</span>: <span class="kp">&amp;</span><span class="na">&#39;a</span> <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">State</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">wasi</span>: <span class="nc">WasiCtx</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>Our state is a vector of integers, and the two functions we're going
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold">struct</span> <span style="color:#666;font-weight:bold;font-style:italic">State</span> {
+</span></span><span style="display:flex;"><span>    counts: <span style="font-weight:bold;font-style:italic">Vec</span>&lt;<span style="font-weight:bold">i32</span>&gt;,
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">struct</span> <span style="color:#666;font-weight:bold;font-style:italic">StoreData</span>&lt;&#39;a&gt; {
+</span></span><span style="display:flex;"><span>    state: <span style="font-weight:bold">&amp;</span>&#39;a <span style="color:#666;font-weight:bold;font-style:italic">Arc</span>&lt;Mutex&lt;State&gt;&gt;,
+</span></span><span style="display:flex;"><span>    wasi: <span style="color:#666;font-weight:bold;font-style:italic">WasiCtx</span>,
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Our state is a vector of integers, and the two functions we're going
 to expose to the shell are <code>add</code> to push another number onto the
 vector, and <code>sum</code> to total all the numbers we've seen so far. I'm
 intentionally punting on more complex objects like strings for the
 moment, but we'll come back to that.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">impl</span><span class="w"> </span><span class="n">State</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">val</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">counts</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">val</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">fn</span> <span class="nf">sum</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">counts</span><span class="p">.</span><span class="n">iter</span><span class="p">().</span><span class="n">fold</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="k">mut</span><span class="w"> </span><span class="n">sum</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">sum</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">})</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>Wrapping one of these functions has some important details to call
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold">impl</span> State {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">add</span>(&amp;<span style="font-weight:bold">mut</span> <span style="font-weight:bold;font-style:italic">self</span>, val: <span style="font-weight:bold">i32</span>) {
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">self</span>.counts.push(val);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">sum</span>(&amp;<span style="font-weight:bold;font-style:italic">self</span>) -&gt; <span style="font-weight:bold">i32</span> {
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">self</span>.counts.iter().fold(0, |<span style="font-weight:bold">mut</span> sum, &amp;x| {
+</span></span><span style="display:flex;"><span>            sum += x;
+</span></span><span style="display:flex;"><span>            sum
+</span></span><span style="display:flex;"><span>        })
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Wrapping one of these functions has some important details to call
 out. The first string is the name of the module our guest will import,
 and the second string is the name we'll expose to the guest shell. The
 signature of the closure is a <a href="https://docs.rs/wasmtime/0.18.0/wasmtime/struct.Func.html#method.wrap"><code>wasmtime::IntoFunc</code></a> and all the
@@ -221,41 +220,41 @@ struct. When we want to manipulate the state, we call either <code>data()</code>
 or <code>data_mut()</code> to get a reference (or mutable reference) to the
 caller's <code>Store</code>, and then take the mutex to finally get our <code>State</code>
 methods.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="n">linker</span><span class="p">.</span><span class="n">func_wrap</span><span class="p">(</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;host&#34;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;host_add&#34;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="o">|</span><span class="k">mut</span><span class="w"> </span><span class="n">caller</span>: <span class="nc">Caller</span><span class="o">&lt;</span><span class="nb">&#39;_</span><span class="p">,</span><span class="w"> </span><span class="n">StoreData</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">param</span>: <span class="kt">i32</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">caller</span><span class="p">.</span><span class="n">data_mut</span><span class="p">().</span><span class="n">state</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">add</span><span class="p">(</span><span class="n">param</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">},</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span></code></pre></div><p>How do we call these functions from our shell? The Wasmtime <a href="https://docs.wasmtime.dev/wasm-rust.html#importing-host-functionality">import
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span>linker.func_wrap(
+</span></span><span style="display:flex;"><span>    <span style="color:#666;font-style:italic">&#34;host&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#666;font-style:italic">&#34;host_add&#34;</span>,
+</span></span><span style="display:flex;"><span>    |<span style="font-weight:bold">mut</span> caller: <span style="color:#666;font-weight:bold;font-style:italic">Caller</span>&lt;<span style="font-weight:bold;font-style:italic">&#39;_</span>, StoreData&gt;, param: <span style="font-weight:bold">i32</span>| {
+</span></span><span style="display:flex;"><span>        caller.data_mut().state.lock().unwrap().add(param);
+</span></span><span style="display:flex;"><span>    },
+</span></span><span style="display:flex;"><span>)?;
+</span></span></code></pre></div><p>How do we call these functions from our shell? The Wasmtime <a href="https://docs.wasmtime.dev/wasm-rust.html#importing-host-functionality">import
 host functionality</a> docs are helpful here. Note that calling these
 functions is always <code>unsafe</code>:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="cp">#[link(wasm_import_module = </span><span class="s">&#34;host&#34;</span><span class="cp">)]</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="s">&#34;C&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">fn</span> <span class="nf">host_add</span><span class="p">(</span><span class="n">count</span>: <span class="kt">i32</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">fn</span> <span class="nf">host_sum</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>Lastly, we'll update our <code>eval</code> function in the guest to parse our
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#888;font-weight:bold">#[link(wasm_import_module = </span><span style="color:#666;font-style:italic">&#34;host&#34;</span><span style="color:#888;font-weight:bold">)]</span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">extern</span> <span style="color:#666;font-style:italic">&#34;C&#34;</span> {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">host_add</span>(count: <span style="font-weight:bold">i32</span>);
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">host_sum</span>() -&gt; <span style="font-weight:bold">i32</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Lastly, we'll update our <code>eval</code> function in the guest to parse our
 inputs and call the functions. Normally we'd probably want to use a
 real command-line parsing library, but this will do for now.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">eval</span><span class="p">(</span><span class="n">input</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">String</span> <span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">parsed</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="p">.</span><span class="n">trim_end</span><span class="p">().</span><span class="n">trim_start</span><span class="p">().</span><span class="n">split</span><span class="p">(</span><span class="sc">&#39; &#39;</span><span class="p">).</span><span class="n">collect</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">parsed</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="s">&#34;sum&#34;</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="fm">format!</span><span class="p">(</span><span class="s">&#34;</span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">host_sum</span><span class="p">())</span><span class="w"> </span><span class="p">},</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="s">&#34;add&#34;</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">match</span><span class="w"> </span><span class="n">parsed</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nb">Some</span><span class="p">(</span><span class="n">next</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">match</span><span class="w"> </span><span class="kt">str</span>::<span class="n">parse</span><span class="p">(</span><span class="n">next</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nb">Ok</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">host_add</span><span class="p">(</span><span class="n">i</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="s">&#34;ok&#34;</span><span class="p">.</span><span class="n">to_string</span><span class="p">()</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="p">},</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>At this point we should be able to run the application, and connect
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">eval</span>(input: <span style="font-weight:bold">&amp;</span><span style="font-weight:bold">str</span>) -&gt; <span style="font-weight:bold;font-style:italic">String</span> {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> parsed: <span style="font-weight:bold;font-style:italic">Vec</span>&lt;_&gt; = input.trim_end().trim_start().split(<span style="color:#666;font-style:italic">&#39; &#39;</span>).collect();
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">match</span> parsed.get(0) {
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">Some</span>(&amp;<span style="color:#666;font-style:italic">&#34;sum&#34;</span>) =&gt; <span style="font-weight:bold">unsafe</span> { format!(<span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">{}</span><span style="color:#666;font-style:italic">&#34;</span>, host_sum()) },
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">Some</span>(&amp;<span style="color:#666;font-style:italic">&#34;add&#34;</span>) =&gt; <span style="font-weight:bold">match</span> parsed.get(1) {
+</span></span><span style="display:flex;"><span>            <span style="font-weight:bold;font-style:italic">Some</span>(next) =&gt; <span style="font-weight:bold">match</span> <span style="font-weight:bold">str</span>::parse(next) {
+</span></span><span style="display:flex;"><span>                <span style="font-weight:bold;font-style:italic">Ok</span>(i) =&gt; {
+</span></span><span style="display:flex;"><span>                    <span style="font-weight:bold">unsafe</span> { host_add(i); }
+</span></span><span style="display:flex;"><span>                    <span style="color:#666;font-style:italic">&#34;ok&#34;</span>.to_string()
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>                _ =&gt; { ... }
+</span></span><span style="display:flex;"><span>            },
+</span></span><span style="display:flex;"><span>            _ =&gt; { ... }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>At this point we should be able to run the application, and connect
 with two different instances of socat. Each connection should be able
 to see the changes written to the state by the other, so if we <code>add 2</code>
 in one and <code>add 3</code> in the other, <code>sum</code> will now return <code>5</code> in
@@ -284,18 +283,18 @@ WASM Memory</em></a>. The control flow we have here is reverse from Matei's
 post, because the guest is deciding what to allocate. But as it turns
 out this largely gets implemented in the same way. We want these two
 functions in the guest:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">alloc</span><span class="p">(</span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="n">len</span><span class="p">];</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">.</span><span class="n">as_mut_ptr</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">std</span>::<span class="n">mem</span>::<span class="n">forget</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">ptr</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">dealloc</span><span class="p">(</span><span class="n">ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">_buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">from_raw_parts</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">std</span>::<span class="n">mem</span>::<span class="nb">drop</span><span class="p">(</span><span class="n">_buf</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>If we were exporting these functions from the guest these would need
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">alloc</span>(len: <span style="font-weight:bold">usize</span>) -&gt; *<span style="font-weight:bold">mut</span> <span style="font-weight:bold">u8</span> {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold">mut</span> buf = vec![0<span style="font-weight:bold">u8</span>; len];
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> ptr = buf.as_mut_ptr();
+</span></span><span style="display:flex;"><span>    std::mem::forget(buf);
+</span></span><span style="display:flex;"><span>    ptr
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">unsafe</span> <span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">dealloc</span>(ptr: *<span style="font-weight:bold">mut</span> <span style="font-weight:bold">u8</span>, len: <span style="font-weight:bold">usize</span>) {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> _buf = <span style="font-weight:bold;font-style:italic">Vec</span>::from_raw_parts(ptr, 0, len);
+</span></span><span style="display:flex;"><span>    std::mem::<span style="font-weight:bold;font-style:italic">drop</span>(_buf);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>If we were exporting these functions from the guest these would need
 to be <code>extern &quot;C&quot;</code>, but in this workflow we'll keep all the <code>unsafe</code>
 code inside the guest. When the guest prepares a buffer for the host
 (either a parameter or space for the result), it calls <code>alloc</code>. That
@@ -313,36 +312,36 @@ it. We also need to allocate the buffer for the response. Then we pass
 the pointers and lengths of both buffers into the <code>host_kv_get</code>
 function that we've imported. The return value of <code>host_kv_get</code> will
 be the number of bytes written into the response buffer.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">eval_kv_get</span><span class="p">(</span><span class="n">key</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">String</span> <span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">key_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">key</span><span class="p">.</span><span class="n">len</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">key_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">alloc</span><span class="p">(</span><span class="n">key</span><span class="p">.</span><span class="n">len</span><span class="p">());</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">std</span>::<span class="n">ptr</span>::<span class="n">copy</span><span class="p">(</span><span class="n">key</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">(),</span><span class="w"> </span><span class="n">key_ptr</span><span class="p">,</span><span class="w"> </span><span class="n">key_len</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">res_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">alloc</span><span class="p">(</span><span class="no">MAX_RESPONSE_LENGTH</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">_res_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">host_kv_get</span><span class="p">(</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">key_ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">key_len</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">res_ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="no">MAX_RESPONSE_LENGTH</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">res_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_res_len</span><span class="p">.</span><span class="n">try_into</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read_results</span><span class="p">(</span><span class="n">res_ptr</span><span class="p">,</span><span class="w"> </span><span class="n">res_len</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// free our forgotten memory for the key; the from_utf8 will
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="c1">// free the response buffer
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="n">dealloc</span><span class="p">(</span><span class="n">key_ptr</span><span class="p">,</span><span class="w"> </span><span class="n">key_len</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">std</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">Ok</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">Err</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">format!</span><span class="p">(</span><span class="s">&#34;error parsing results as string: </span><span class="si">{:?}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">err</span><span class="p">),</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>The <code>eval_key_set</code> function is almost identical, but with an extra
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">eval_kv_get</span>(key: <span style="font-weight:bold">&amp;</span><span style="font-weight:bold">str</span>) -&gt; <span style="font-weight:bold;font-style:italic">String</span> {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> key_len = key.len();
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> res;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">unsafe</span> {
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">let</span> key_ptr = alloc(key.len());
+</span></span><span style="display:flex;"><span>        std::ptr::copy(key.as_ptr(), key_ptr, key_len);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">let</span> res_ptr = alloc(<span style="color:#666;font-weight:bold;font-style:italic">MAX_RESPONSE_LENGTH</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">let</span> _res_len = host_kv_get(
+</span></span><span style="display:flex;"><span>            key_ptr <span style="font-weight:bold">as</span> <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>            key_len <span style="font-weight:bold">as</span> <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>            res_ptr <span style="font-weight:bold">as</span> <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#666;font-weight:bold;font-style:italic">MAX_RESPONSE_LENGTH</span> <span style="font-weight:bold">as</span> <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>        );
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">let</span> res_len = _res_len.try_into().unwrap();
+</span></span><span style="display:flex;"><span>        res = read_results(res_ptr, res_len);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#888;font-style:italic">// free our forgotten memory for the key; the from_utf8 will
+</span></span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"></span>        <span style="color:#888;font-style:italic">// free the response buffer
+</span></span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"></span>        dealloc(key_ptr, key_len);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">match</span> std::<span style="font-weight:bold">str</span>::from_utf8(&amp;res) {
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">Ok</span>(s) =&gt; s.to_string(),
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">Err</span>(err) =&gt; format!(<span style="color:#666;font-style:italic">&#34;error parsing results as string: </span><span style="color:#666;font-style:italic">{:?}</span><span style="color:#666;font-style:italic">&#34;</span>, err),
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>The <code>eval_key_set</code> function is almost identical, but with an extra
 buffer for the value we want to set. The guest side of this work is
 commit <a href="https://github.com/tgross/wasm-shell-example/commit/c84c5960726bdaf4e02ae25541d2a33a378adb51"><code>c84c596</code></a>.</p>
 <h2 id="reading-memory-from-the-host">Reading Memory From the Host</h2>
@@ -355,71 +354,71 @@ need a mutable borrow. I've elided some error handling here but you
 can see the full code listing in commit <a href="https://github.com/tgross/wasm-shell-example/commit/f95d3980b7d77a446d1b5c23cf466af33a0792d7"><code>f95d398</code></a>. Note that we're
 looking for the export named &quot;memory&quot;, which is what the <code>wasm32-wasi</code>
 target <a href="https://docs.wasmtime.dev/wasm-rust.html#exporting-rust-functionality">exports by default</a>.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="n">linker</span><span class="p">.</span><span class="n">func_wrap</span><span class="p">(</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;host&#34;</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;host_kv_get&#34;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="o">|</span><span class="k">mut</span><span class="w"> </span><span class="n">caller</span>: <span class="nc">Caller</span><span class="o">&lt;</span><span class="nb">&#39;_</span><span class="p">,</span><span class="w"> </span><span class="n">StoreData</span><span class="o">&gt;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">     </span><span class="n">key_ptr</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">key_len</span>: <span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">     </span><span class="n">res_ptr</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">res_len</span>: <span class="kt">u32</span><span class="o">|</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">     </span>-&gt; <span class="kt">u32</span> <span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">mem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">match</span><span class="w"> </span><span class="n">caller</span><span class="p">.</span><span class="n">get_export</span><span class="p">(</span><span class="o">&amp;</span><span class="s">&#34;memory&#34;</span><span class="p">){</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">store</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">caller</span><span class="p">.</span><span class="n">as_context</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kv_get</span><span class="p">(</span><span class="n">mem</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">store</span><span class="p">,</span><span class="w"> </span><span class="n">key_ptr</span><span class="p">,</span><span class="w"> </span><span class="n">key_len</span><span class="p">,</span><span class="w"> </span><span class="n">res_ptr</span><span class="p">,</span><span class="w"> </span><span class="n">res_len</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// now that we&#39;re done with our borrow, upgrade to mutable
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">store</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">caller</span><span class="p">.</span><span class="n">as_context_mut</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nb">Ok</span><span class="p">(</span><span class="n">response</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">write_response</span><span class="p">(</span><span class="n">mem</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">store</span><span class="p">,</span><span class="w"> </span><span class="n">res_ptr</span><span class="p">,</span><span class="w"> </span><span class="n">res_len</span><span class="p">,</span><span class="w"> </span><span class="n">response</span><span class="p">)</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="p">.</span><span class="n">map_err</span><span class="p">(</span><span class="o">|</span><span class="n">err</span><span class="o">|</span><span class="w"> </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&#34;</span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">err</span><span class="p">))</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="p">.</span><span class="n">unwrap_or</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nb">Err</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">},</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span></code></pre></div><p>This wrapper is calling into functions that return a <code>Result</code> and then
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span>linker.func_wrap(
+</span></span><span style="display:flex;"><span>    <span style="color:#666;font-style:italic">&#34;host&#34;</span>, <span style="color:#666;font-style:italic">&#34;host_kv_get&#34;</span>,
+</span></span><span style="display:flex;"><span>    |<span style="font-weight:bold">mut</span> caller: <span style="color:#666;font-weight:bold;font-style:italic">Caller</span>&lt;<span style="font-weight:bold;font-style:italic">&#39;_</span>, StoreData&gt;,
+</span></span><span style="display:flex;"><span>     key_ptr: <span style="font-weight:bold">u32</span>, key_len: <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>     res_ptr: <span style="font-weight:bold">u32</span>, res_len: <span style="font-weight:bold">u32</span>|
+</span></span><span style="display:flex;"><span>     -&gt; <span style="font-weight:bold">u32</span> {
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">let</span> mem = <span style="font-weight:bold">match</span> caller.get_export(&amp;<span style="color:#666;font-style:italic">&#34;memory&#34;</span>){ ... }
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">let</span> store = caller.as_context();
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold;font-style:italic">let</span> result = kv_get(mem, &amp;store, key_ptr, key_len, res_ptr, res_len);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#888;font-style:italic">// now that we&#39;re done with our borrow, upgrade to mutable
+</span></span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"></span>        <span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold">mut</span> store = caller.as_context_mut();
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold">match</span> result {
+</span></span><span style="display:flex;"><span>            <span style="font-weight:bold;font-style:italic">Ok</span>(response) =&gt; {
+</span></span><span style="display:flex;"><span>                <span style="font-weight:bold">return</span> write_response(mem, &amp;<span style="font-weight:bold">mut</span> store, res_ptr, res_len, response)
+</span></span><span style="display:flex;"><span>                    .map_err(|err| eprintln!(<span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">{}</span><span style="color:#666;font-style:italic">&#34;</span>, err))
+</span></span><span style="display:flex;"><span>                    .unwrap_or(0);
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            <span style="font-weight:bold;font-style:italic">Err</span>(err) =&gt; { ... }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    },
+</span></span><span style="display:flex;"><span>)?;
+</span></span></code></pre></div><p>This wrapper is calling into functions that return a <code>Result</code> and then
 it's responsible for writing that response back. The <code>kv_get</code>
 implementation can be fairly slim:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">kv_get</span><span class="p">(</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">mem</span>: <span class="nc">Memory</span><span class="p">,</span><span class="w"> </span><span class="n">store</span>: <span class="kp">&amp;</span><span class="nc">StoreContext</span><span class="o">&lt;</span><span class="n">StoreData</span><span class="o">&gt;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">key_ptr</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">key_len</span>: <span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">res_ptr</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">res_len</span>: <span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read_parameter</span><span class="p">(</span><span class="n">mem</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">store</span><span class="p">,</span><span class="w"> </span><span class="n">key_ptr</span><span class="p">,</span><span class="w"> </span><span class="n">key_len</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">validate_wasm_param</span><span class="p">(</span><span class="n">res_ptr</span><span class="p">,</span><span class="w"> </span><span class="n">res_len</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">max_len</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="n">res_len</span><span class="p">.</span><span class="n">try_into</span><span class="p">().</span><span class="n">unwrap_or</span><span class="p">(</span><span class="mi">1024</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">store</span><span class="p">.</span><span class="n">data</span><span class="p">().</span><span class="n">state</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">map</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">map</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">key</span><span class="p">).</span><span class="n">ok_or</span><span class="p">(</span><span class="fm">anyhow!</span><span class="p">(</span><span class="s">&#34;no such key&#34;</span><span class="p">))</span><span class="o">?</span><span class="p">.</span><span class="n">to_string</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">response</span><span class="p">.</span><span class="n">truncate</span><span class="p">(</span><span class="n">max_len</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">response</span><span class="p">)</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>And finally we have a couple of helper functions for reading and
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">kv_get</span>(
+</span></span><span style="display:flex;"><span>    mem: <span style="color:#666;font-weight:bold;font-style:italic">Memory</span>, store: <span style="font-weight:bold">&amp;</span><span style="color:#666;font-weight:bold;font-style:italic">StoreContext</span>&lt;StoreData&gt;,
+</span></span><span style="display:flex;"><span>    key_ptr: <span style="font-weight:bold">u32</span>, key_len: <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>    res_ptr: <span style="font-weight:bold">u32</span>, res_len: <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>) -&gt; <span style="font-weight:bold;font-style:italic">Result</span>&lt;<span style="font-weight:bold;font-style:italic">String</span>&gt; {
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> key = read_parameter(mem, &amp;store, key_ptr, key_len)?;
+</span></span><span style="display:flex;"><span>    validate_wasm_param(res_ptr, res_len)?;
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> max_len: <span style="font-weight:bold">usize</span> = res_len.try_into().unwrap_or(1024);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> map = &amp;store.data().state.lock().unwrap().map;
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold">mut</span> response = map.get(&amp;key).ok_or(anyhow!(<span style="color:#666;font-style:italic">&#34;no such key&#34;</span>))?.to_string();
+</span></span><span style="display:flex;"><span>    response.truncate(max_len);
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">Ok</span>(response)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>And finally we have a couple of helper functions for reading and
 writing the memory:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">read_parameter</span><span class="p">(</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">mem</span>: <span class="nc">Memory</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">store</span>: <span class="kp">&amp;</span><span class="nc">StoreContext</span><span class="o">&lt;</span><span class="n">StoreData</span><span class="o">&gt;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">ptr</span>: <span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">len</span>: <span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">validate_wasm_param</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">];</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">mem</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="o">&amp;</span><span class="n">store</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span><span class="p">.</span><span class="n">try_into</span><span class="p">()</span><span class="o">?</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">std</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buf</span><span class="p">)</span><span class="o">?</span><span class="p">.</span><span class="n">to_string</span><span class="p">())</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">fn</span> <span class="nf">write_response</span><span class="p">(</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">mem</span>: <span class="nc">Memory</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">store</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">StoreContextMut</span><span class="o">&lt;</span><span class="n">StoreData</span><span class="o">&gt;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">ptr</span>: <span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">max_len</span>: <span class="kt">u32</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">mut</span><span class="w"> </span><span class="n">response</span>: <span class="nb">String</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">response</span><span class="p">.</span><span class="n">truncate</span><span class="p">(</span><span class="n">max_len</span><span class="p">.</span><span class="n">try_into</span><span class="p">()</span><span class="o">?</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">mem</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">store</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span><span class="p">.</span><span class="n">try_into</span><span class="p">()</span><span class="o">?</span><span class="p">,</span><span class="w"> </span><span class="n">response</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">())</span><span class="o">?</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">response</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">)</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>This is all wired up in commit <a href="https://github.com/tgross/wasm-shell-example/commit/f95d3980b7d77a446d1b5c23cf466af33a0792d7"><code>f95d398</code></a>. Now we can <code>cargo run</code> and
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">read_parameter</span>(
+</span></span><span style="display:flex;"><span>    mem: <span style="color:#666;font-weight:bold;font-style:italic">Memory</span>,
+</span></span><span style="display:flex;"><span>    store: <span style="font-weight:bold">&amp;</span><span style="color:#666;font-weight:bold;font-style:italic">StoreContext</span>&lt;StoreData&gt;,
+</span></span><span style="display:flex;"><span>    ptr: <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>    len: <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>) -&gt; <span style="font-weight:bold;font-style:italic">Result</span>&lt;<span style="font-weight:bold;font-style:italic">String</span>&gt; {
+</span></span><span style="display:flex;"><span>    validate_wasm_param(ptr, len)?;
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">let</span> <span style="font-weight:bold">mut</span> buf = vec![0<span style="font-weight:bold">u8</span>; len <span style="font-weight:bold">as</span> <span style="font-weight:bold">usize</span>];
+</span></span><span style="display:flex;"><span>    mem.read(&amp;store, ptr.try_into()?, &amp;<span style="font-weight:bold">mut</span> buf)?;
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">Ok</span>(std::<span style="font-weight:bold">str</span>::from_utf8(&amp;buf)?.to_string())
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">fn</span> <span style="color:#666;font-weight:bold;font-style:italic">write_response</span>(
+</span></span><span style="display:flex;"><span>    mem: <span style="color:#666;font-weight:bold;font-style:italic">Memory</span>,
+</span></span><span style="display:flex;"><span>    store: <span style="font-weight:bold">&amp;</span><span style="color:#666;font-weight:bold;font-style:italic">mut</span> StoreContextMut&lt;StoreData&gt;,
+</span></span><span style="display:flex;"><span>    ptr: <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>    max_len: <span style="font-weight:bold">u32</span>,
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">mut</span> response: <span style="font-weight:bold;font-style:italic">String</span>,
+</span></span><span style="display:flex;"><span>) -&gt; <span style="font-weight:bold;font-style:italic">Result</span>&lt;<span style="font-weight:bold">u32</span>&gt; {
+</span></span><span style="display:flex;"><span>    response.truncate(max_len.try_into()?);
+</span></span><span style="display:flex;"><span>    mem.write(store, ptr.try_into()?, response.as_bytes())?;
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">Ok</span>(response.len() <span style="font-weight:bold">as</span> <span style="font-weight:bold">u32</span>)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>This is all wired up in commit <a href="https://github.com/tgross/wasm-shell-example/commit/f95d3980b7d77a446d1b5c23cf466af33a0792d7"><code>f95d398</code></a>. Now we can <code>cargo run</code> and
 connect to the shell, and do <code>set :key :val</code> in one shell and retrieve
 that value from <code>get :key</code> in another shell.</p>
 <h2 id="wrapping-up">Wrapping Up</h2>

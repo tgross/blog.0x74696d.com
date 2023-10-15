@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
   <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
 
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
 </head>
 
 <body>
@@ -69,12 +68,12 @@ docs</a>, check the
 output for which fields that's going to be under, and I incrementally
 massage my way through the JSON with trial and error and <code>jq</code> until I
 get something like:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">ls nomad/*/metrics.json <span class="p">|</span>
-</span></span><span class="line"><span class="cl">    xargs jq <span class="s1">&#39;
-</span></span></span><span class="line"><span class="cl"><span class="s1">        .Gauges[]
-</span></span></span><span class="line"><span class="cl"><span class="s1">        | select(.Name == &#34;nomad.runtime.num_goroutines&#34;)
-</span></span></span><span class="line"><span class="cl"><span class="s1">        | .Value
-</span></span></span><span class="line"><span class="cl"><span class="s1">        &#39;</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>ls nomad/*/metrics.json |
+</span></span><span style="display:flex;"><span>    xargs jq <span style="color:#666;font-style:italic">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">        .Gauges[]
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">        | select(.Name == &#34;nomad.runtime.num_goroutines&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">        | .Value
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">        &#39;</span>
 </span></span></code></pre></div><p>Yes, yes. I know I can use <code>find -exec</code> instead. Take this and your
 &quot;useless use of cat&quot; and leave me alone.</p>
 <p>The result is a list of numbers, and if I could understand the
@@ -92,8 +91,8 @@ one metric.</p>
 <p>If I want to see the latency between the raft leader and its peers, I
 can pipe in the list of metrics files and search for that specific
 metric:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">ls nomad/*/metrics.json <span class="p">|</span>
-</span></span><span class="line"><span class="cl">    nomad-metrics-plot <span class="s2">&#34;nomad.raft.leader.lastContact&#34;</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>ls nomad/*/metrics.json |
+</span></span><span style="display:flex;"><span>    nomad-metrics-plot <span style="color:#666;font-style:italic">&#34;nomad.raft.leader.lastContact&#34;</span>
 </span></span></code></pre></div><p>And the resulting visualization makes it obvious to me that this
 cluster is having latency issues between raft peers: the mean and
 maximum latency is well above what's recommended and they have spikes

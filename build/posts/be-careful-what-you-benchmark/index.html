@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
   <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
 
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
 </head>
 
 <body>
@@ -46,19 +45,19 @@
 <p>One version was a straight port of Twitter's Scala code which looked OK but obviously wasn't very idiomatic golang code. Another was laughably unthreadsafe. Another had an API that tangled up the server setup with implementation details for their worker ID generation. And so on. All the implementations I found return a <code>uint64</code> or <code>int64</code> directly without wrapping it. I want any consuming code I write later to notice if I accidentally do something stupid like try to do math on an ID, so embedding the <code>uint64</code> in a <code>Snowflake</code> type gives me a modicum of type safety. There was also a nagging doubt in my mind about the number of times the original design was checking the time. (<em>Ooo... foreshadowing!</em>)</p>
 <p>So I implemented my own version, where the server listens on a channel for millisecond ticks and resets the sequence ID counter. In theory this would avoid a lot of calls to get the time but would involve an extra mutex per millisecond-long cycle. Because I'm paranoid I wanted to make sure I wasn't missing some profound performance regression in dumping the original Twitter design.</p>
 <p>I also took the library that was the closest direct implementation of Twitter's design, <a href="https://github.com/sdming/gosnow"><code>sdming/gosnow</code></a>, and ported it to use the same API as my own, and also took a slightly different approach, Matt Ho's <a href="https://github.com/savaki/snowflake"><code>savaki/snowflake</code></a>, and gave it the same treatment. After writing a bunch of test code to make sure all three implementations were correct in behavior, I put them all through the same benchmark (each with different names of course):</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">result</span> <span class="nx">Snowflake</span> <span class="c1">// avoids compiler optimizing-away output
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkSnowflakeGen</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">server</span> <span class="o">:=</span> <span class="nf">NewServer</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">	<span class="kd">var</span> <span class="nx">id</span> <span class="nx">Snowflake</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">b</span><span class="p">.</span><span class="nf">RunParallel</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">pb</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">PB</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">		<span class="k">for</span> <span class="nx">pb</span><span class="p">.</span><span class="nf">Next</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">			<span class="nx">id</span> <span class="p">=</span> <span class="nx">server</span><span class="p">.</span><span class="nf">GetSnowflake</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">		<span class="p">}</span>
-</span></span><span class="line"><span class="cl">	<span class="p">})</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">result</span> <span class="p">=</span> <span class="nx">id</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">var</span> result Snowflake <span style="color:#888;font-style:italic">// avoids compiler optimizing-away output
+</span></span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"></span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">func</span> <span style="color:#666;font-weight:bold;font-style:italic">BenchmarkSnowflakeGen</span>(b *testing.B) {
+</span></span><span style="display:flex;"><span>	server := <span style="color:#666;font-weight:bold;font-style:italic">NewServer</span>()
+</span></span><span style="display:flex;"><span>	<span style="font-weight:bold;font-style:italic">var</span> id Snowflake
+</span></span><span style="display:flex;"><span>	b.<span style="color:#666;font-weight:bold;font-style:italic">ResetTimer</span>()
+</span></span><span style="display:flex;"><span>	b.<span style="color:#666;font-weight:bold;font-style:italic">RunParallel</span>(<span style="font-weight:bold;font-style:italic">func</span>(pb *testing.PB) {
+</span></span><span style="display:flex;"><span>		<span style="font-weight:bold">for</span> pb.<span style="color:#666;font-weight:bold;font-style:italic">Next</span>() {
+</span></span><span style="display:flex;"><span>			id = server.<span style="color:#666;font-weight:bold;font-style:italic">GetSnowflake</span>()
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>	})
+</span></span><span style="display:flex;"><span>	result = id
+</span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><h2 id="the-benchmarks">The Benchmarks</h2>
 <p>Before I ran the benchmark I wanted to do some reasoning from first principles. Because I can't generate more than 4096 IDs per millisecond, I know that we have a lower bound of 244 nanoseconds assuming we can saturate the server. A single thread could manage this only if all the rest of the code was free. So that's our target for multi-threaded code. I ran through all three benchmarks on my Linux development machine and I was pretty happy with the result.</p>
 <pre tabindex="0"><code>$ cat /proc/cpuinfo | grep &#34;model name&#34; | head -1
@@ -217,39 +216,39 @@ ROUTINE ======================== snowflake.(*Server).GetSnowflake in snowflake.g
          .          .    104:                   (uint64(sequence)))
          .          .    105:}
 </code></pre><p>This code perhaps makes little sense without the rest of the server code. Here's that.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// Server ...
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">Server</span> <span class="kd">struct</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">workerID</span>      <span class="nx">workerID</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">ticker</span>        <span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Ticker</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">lock</span>          <span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">lastTimestamp</span> <span class="kt">uint64</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">id</span>            <span class="kt">uint16</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1">// NewServer ...
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">NewServer</span><span class="p">()</span> <span class="o">*</span><span class="nx">Server</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">ticker</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">NewTicker</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nx">Millisecond</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">server</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">Server</span><span class="p">{</span>
-</span></span><span class="line"><span class="cl">                <span class="nx">ticker</span><span class="p">:</span>        <span class="nx">ticker</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">                <span class="nx">workerID</span><span class="p">:</span>      <span class="mi">0</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">                <span class="nx">lock</span><span class="p">:</span>          <span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span><span class="p">{},</span>
-</span></span><span class="line"><span class="cl">                <span class="nx">id</span><span class="p">:</span>            <span class="mi">0</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">                <span class="nx">lastTimestamp</span><span class="p">:</span> <span class="nb">uint64</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">UnixNano</span><span class="p">()</span><span class="o">/</span><span class="nx">nano</span> <span class="o">-</span> <span class="nx">idEpoch</span><span class="p">),</span>
-</span></span><span class="line"><span class="cl">        <span class="p">}</span>
-</span></span><span class="line"><span class="cl">        <span class="k">go</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">                <span class="k">for</span> <span class="nx">tick</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">ticker</span><span class="p">.</span><span class="nx">C</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">                        <span class="nx">server</span><span class="p">.</span><span class="nf">reset</span><span class="p">(</span><span class="nx">tick</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">                <span class="p">}</span>
-</span></span><span class="line"><span class="cl">        <span class="p">}()</span>
-</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">server</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">s</span> <span class="o">*</span><span class="nx">Server</span><span class="p">)</span> <span class="nf">reset</span><span class="p">(</span><span class="nx">tick</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">s</span><span class="p">.</span><span class="nx">lock</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">        <span class="k">defer</span> <span class="nx">s</span><span class="p">.</span><span class="nx">lock</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">s</span><span class="p">.</span><span class="nx">lastTimestamp</span> <span class="p">=</span> <span class="nb">uint64</span><span class="p">(</span><span class="nx">tick</span><span class="p">.</span><span class="nf">UnixNano</span><span class="p">()</span><span class="o">/</span><span class="nx">nano</span> <span class="o">-</span> <span class="nx">idEpoch</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">s</span><span class="p">.</span><span class="nx">id</span> <span class="p">=</span> <span class="mi">0</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#888;font-style:italic">// Server ...
+</span></span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"></span><span style="font-weight:bold;font-style:italic">type</span> Server <span style="font-weight:bold;font-style:italic">struct</span> {
+</span></span><span style="display:flex;"><span>        workerID      workerID
+</span></span><span style="display:flex;"><span>        ticker        *time.Ticker
+</span></span><span style="display:flex;"><span>        lock          sync.Mutex
+</span></span><span style="display:flex;"><span>        lastTimestamp <span style="font-weight:bold">uint64</span>
+</span></span><span style="display:flex;"><span>        id            <span style="font-weight:bold">uint16</span>
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic">// NewServer ...
+</span></span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"></span><span style="font-weight:bold;font-style:italic">func</span> <span style="color:#666;font-weight:bold;font-style:italic">NewServer</span>() *Server {
+</span></span><span style="display:flex;"><span>        ticker := time.<span style="color:#666;font-weight:bold;font-style:italic">NewTicker</span>(time.Millisecond)
+</span></span><span style="display:flex;"><span>        server := &amp;Server{
+</span></span><span style="display:flex;"><span>                ticker:        ticker,
+</span></span><span style="display:flex;"><span>                workerID:      0,
+</span></span><span style="display:flex;"><span>                lock:          sync.Mutex{},
+</span></span><span style="display:flex;"><span>                id:            0,
+</span></span><span style="display:flex;"><span>                lastTimestamp: <span style="font-weight:bold;font-style:italic">uint64</span>(time.<span style="color:#666;font-weight:bold;font-style:italic">Now</span>().<span style="color:#666;font-weight:bold;font-style:italic">UnixNano</span>()/nano - idEpoch),
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold">go</span> <span style="font-weight:bold;font-style:italic">func</span>() {
+</span></span><span style="display:flex;"><span>                <span style="font-weight:bold">for</span> tick := <span style="font-weight:bold">range</span> ticker.C {
+</span></span><span style="display:flex;"><span>                        server.<span style="color:#666;font-weight:bold;font-style:italic">reset</span>(tick)
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>        }()
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold">return</span> server
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">func</span> (s *Server) <span style="color:#666;font-weight:bold;font-style:italic">reset</span>(tick time.Time) {
+</span></span><span style="display:flex;"><span>        s.lock.<span style="color:#666;font-weight:bold;font-style:italic">Lock</span>()
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold">defer</span> s.lock.<span style="color:#666;font-weight:bold;font-style:italic">Unlock</span>()
+</span></span><span style="display:flex;"><span>        s.lastTimestamp = <span style="font-weight:bold;font-style:italic">uint64</span>(tick.<span style="color:#666;font-weight:bold;font-style:italic">UnixNano</span>()/nano - idEpoch)
+</span></span><span style="display:flex;"><span>        s.id = 0
+</span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>Let's now do the same for the Twitter port. A bit less time being spent in the mutex and a bit more spent switching in the runtime. Nothing unexpected. I've provided the code listing below again.</p>
 <pre tabindex="0"><code>$ go tool pprof cpu-snowflake-twitter.prof
 Entering interactive mode (type &#34;help&#34; for commands)

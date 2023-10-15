@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
   <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
 
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
 </head>
 
 <body>
@@ -89,37 +88,37 @@ $ export GOPATH=$HOME/go
     |_ src/
        |_ mylibrary/
 </code></pre><p>And a makefile that might look like this:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-make" data-lang="make"><span class="line"><span class="cl"><span class="nv">MAKEFLAGS</span> <span class="o">+=</span> --warn-undefined-variables
-</span></span><span class="line"><span class="cl"><span class="nv">SHELL</span> <span class="o">:=</span> /bin/bash
-</span></span><span class="line"><span class="cl"><span class="nv">.SHELLFLAGS</span> <span class="o">:=</span> -eu -o pipefail
-</span></span><span class="line"><span class="cl"><span class="nv">.DEFAULT_GOAL</span> <span class="o">:=</span> all
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="k">export </span><span class="nv">GOPATH</span> <span class="o">:=</span> <span class="k">$(</span>shell <span class="nb">pwd</span><span class="k">)</span>/.godeps:<span class="k">$(</span>shell <span class="nb">pwd</span><span class="k">)</span>
-</span></span><span class="line"><span class="cl"><span class="nv">DEPS</span> <span class="o">:=</span> .godeps/src/github.com
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="nf">.PHONY</span><span class="o">:</span>	*
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="nf">all</span><span class="o">:</span>	<span class="n">clean</span> .<span class="n">godeps</span> <span class="n">test</span> <span class="n">build</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="nf">clean</span><span class="o">:</span>
-</span></span><span class="line"><span class="cl">	rm -rf .godeps/*
-</span></span><span class="line"><span class="cl">	rm -rf build/*
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="nf">.godeps</span><span class="o">:</span>
-</span></span><span class="line"><span class="cl">	mkdir -p .godeps
-</span></span><span class="line"><span class="cl">	git clone git@github.com:MyOrg/somepackage.git <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>        <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyA/somepackage <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>        <span class="o">&amp;&amp;</span> <span class="nb">cd</span> <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyA/somepackage <span class="o">&amp;&amp;</span> git checkout c7d7a7c
-</span></span><span class="line"><span class="cl">	git clone git@github.com:MyOrg/some-other-package.git <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>        <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyB/some-other-package <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>        <span class="o">&amp;&amp;</span> <span class="nb">cd</span> <span class="si">${</span><span class="nv">DEPS</span><span class="si">}</span>/ThirdPartyB/some-other-package <span class="o">&amp;&amp;</span> git checkout aa3257c
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="nf">test</span><span class="o">:</span>
-</span></span><span class="line"><span class="cl">	go vet mylibrary
-</span></span><span class="line"><span class="cl">	go <span class="nb">test</span> mylibrary -v -race -coverprofile<span class="o">=</span>coverage.out
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="nf">build</span><span class="o">:</span>
-</span></span><span class="line"><span class="cl">	docker build -t<span class="o">=</span><span class="s2">&#34;my-container-image&#34;</span> .
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-make" data-lang="make"><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">MAKEFLAGS</span> += --warn-undefined-variables
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">SHELL</span> := /bin/bash
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">.SHELLFLAGS</span> := -eu -o pipefail
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">.DEFAULT_GOAL</span> := all
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">export </span><span style="color:#666;font-weight:bold;font-style:italic">GOPATH</span> := <span style="font-weight:bold">$(</span>shell <span style="font-weight:bold;font-style:italic">pwd</span><span style="font-weight:bold">)</span>/.godeps:<span style="font-weight:bold">$(</span>shell <span style="font-weight:bold;font-style:italic">pwd</span><span style="font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">DEPS</span> := .godeps/src/github.com
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">.PHONY</span>:	*
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">all</span>:	clean .godeps test build
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">clean</span>:
+</span></span><span style="display:flex;"><span>	rm -rf .godeps/*
+</span></span><span style="display:flex;"><span>	rm -rf build/*
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">.godeps</span>:
+</span></span><span style="display:flex;"><span>	mkdir -p .godeps
+</span></span><span style="display:flex;"><span>	git clone git@github.com:MyOrg/somepackage.git <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>        <span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">DEPS</span><span style="color:#666;font-style:italic">}</span>/ThirdPartyA/somepackage <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>        &amp;&amp; <span style="font-weight:bold;font-style:italic">cd</span> <span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">DEPS</span><span style="color:#666;font-style:italic">}</span>/ThirdPartyA/somepackage &amp;&amp; git checkout c7d7a7c
+</span></span><span style="display:flex;"><span>	git clone git@github.com:MyOrg/some-other-package.git <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>        <span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">DEPS</span><span style="color:#666;font-style:italic">}</span>/ThirdPartyB/some-other-package <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>        &amp;&amp; <span style="font-weight:bold;font-style:italic">cd</span> <span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">DEPS</span><span style="color:#666;font-style:italic">}</span>/ThirdPartyB/some-other-package &amp;&amp; git checkout aa3257c
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">test</span>:
+</span></span><span style="display:flex;"><span>	go vet mylibrary
+</span></span><span style="display:flex;"><span>	go <span style="font-weight:bold;font-style:italic">test</span> mylibrary -v -race -coverprofile=coverage.out
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">build</span>:
+</span></span><span style="display:flex;"><span>	docker build -t=<span style="color:#666;font-style:italic">&#34;my-container-image&#34;</span> .
 </span></span></code></pre></div><p>Note that there's no re-writing imports here. Your Go code is blissfully unaware of the behind-the-scenes work you're doing here to give it the correctly pinned dependencies.</p>
 <p>The advantages to this approach are:</p>
 <ol>

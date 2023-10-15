@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
   <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
 
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
 </head>
 
 <body>
@@ -93,7 +92,7 @@ these IPs routable on my LAN. I wrapped this all up in a control
 script I'm calling
 <a href="https://gist.github.com/tgross/8aa33b65cba1850ebe430f33fafd6e41"><code>vmctl</code></a>
 which gets invoked as follows:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">vmctl create --id <span class="k">$(</span>uuidgen<span class="k">)</span> --template ./vmconfigs/example.json
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>vmctl create --id <span style="font-weight:bold">$(</span>uuidgen<span style="font-weight:bold">)</span> --template ./vmconfigs/example.json
 </span></span></code></pre></div><p>This creates a network namespace named after the <code>$id</code> and runs the
 CNI plugins to allocate an IP address from the network bridge and
 create a tuntap device. The output from CNI gets saved as a JSON file
@@ -110,20 +109,20 @@ where <code>{{ prefix }}</code> gets rendered with a &quot;subnet prefix&quot; f
 the three physical machines. For example, one machine's prefix is
 <code>&quot;192.168.30&quot;</code>, which gets rendered as an IP of <code>192.168.30.1/24</code> with
 an IP range of <code>192.168.30.2</code> to <code>192.168.30.254</code>:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-xml" data-lang="xml"><span class="line"><span class="cl"><span class="nt">&lt;network&gt;</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&lt;name&gt;</span>default<span class="nt">&lt;/name&gt;</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&lt;bridge</span> <span class="na">name=</span><span class="s">&#39;virbr0&#39;</span> <span class="na">stp=</span><span class="s">&#39;on&#39;</span> <span class="na">delay=</span><span class="s">&#39;0&#39;</span><span class="nt">/&gt;</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&lt;forward</span> <span class="na">mode=</span><span class="s">&#39;route&#39;</span><span class="nt">/&gt;</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&lt;ip</span> <span class="na">address=</span><span class="s">&#39;{{ prefix }}.1&#39;</span> <span class="na">netmask=</span><span class="s">&#39;255.255.255.0&#39;</span><span class="nt">&gt;</span>
-</span></span><span class="line"><span class="cl">    <span class="nt">&lt;dhcp&gt;</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&lt;range</span> <span class="na">start=</span><span class="s">&#39;{{ prefix }}.2&#39;</span> <span class="na">end=</span><span class="s">&#39;{{ prefix }}.254&#39;</span><span class="nt">/&gt;</span>
-</span></span><span class="line"><span class="cl">    <span class="nt">&lt;/dhcp&gt;</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&lt;/ip&gt;</span>
-</span></span><span class="line"><span class="cl"><span class="nt">&lt;/network&gt;</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-xml" data-lang="xml"><span style="display:flex;"><span>&lt;network&gt;
+</span></span><span style="display:flex;"><span>  &lt;name&gt;default&lt;/name&gt;
+</span></span><span style="display:flex;"><span>  &lt;bridge name=<span style="color:#666;font-style:italic">&#39;virbr0&#39;</span> stp=<span style="color:#666;font-style:italic">&#39;on&#39;</span> delay=<span style="color:#666;font-style:italic">&#39;0&#39;</span>/&gt;
+</span></span><span style="display:flex;"><span>  &lt;forward mode=<span style="color:#666;font-style:italic">&#39;route&#39;</span>/&gt;
+</span></span><span style="display:flex;"><span>  &lt;ip address=<span style="color:#666;font-style:italic">&#39;{{ prefix }}.1&#39;</span> netmask=<span style="color:#666;font-style:italic">&#39;255.255.255.0&#39;</span>&gt;
+</span></span><span style="display:flex;"><span>    &lt;dhcp&gt;
+</span></span><span style="display:flex;"><span>      &lt;range start=<span style="color:#666;font-style:italic">&#39;{{ prefix }}.2&#39;</span> end=<span style="color:#666;font-style:italic">&#39;{{ prefix }}.254&#39;</span>/&gt;
+</span></span><span style="display:flex;"><span>    &lt;/dhcp&gt;
+</span></span><span style="display:flex;"><span>  &lt;/ip&gt;
+</span></span><span style="display:flex;"><span>&lt;/network&gt;
 </span></span></code></pre></div><p>A handler in the Ansible role configures this bridge as follows:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">virsh net-define ./virbr0.xml
-</span></span><span class="line"><span class="cl">virsh net-autostart default
-</span></span><span class="line"><span class="cl">virsh net-start default
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>virsh net-define ./virbr0.xml
+</span></span><span style="display:flex;"><span>virsh net-autostart default
+</span></span><span style="display:flex;"><span>virsh net-start default
 </span></span></code></pre></div><p>And that results in a bridge interface named <code>virbr0</code> with the IP
 <code>192.168.30.1/24</code> on our example machine.</p>
 <h2 id="cni">CNI</h2>
@@ -134,31 +133,31 @@ allocates an IP address from the given range. Note that the range
 starts at <code>192.168.30.32</code> so that I have some room at the bottom for
 the existing QEMU VMs. Next it sets up the appropriate iptables
 ingress rules, and creates a tuntap device.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;firecracker&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&#34;cniVersion&#34;</span><span class="p">:</span> <span class="s2">&#34;0.4.0&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&#34;plugins&#34;</span><span class="p">:</span> <span class="p">[</span>
-</span></span><span class="line"><span class="cl">    <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;bridge&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;firecracker-bridge&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;bridge&#34;</span><span class="p">:</span> <span class="s2">&#34;virbr0&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;ipam&#34;</span><span class="p">:</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;host-local&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">        <span class="nt">&#34;resolvConf&#34;</span><span class="p">:</span> <span class="s2">&#34;/etc/resolv.conf&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">        <span class="nt">&#34;dataDir&#34;</span><span class="p">:</span> <span class="s2">&#34;/srv/vm/networks&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">        <span class="nt">&#34;subnet&#34;</span><span class="p">:</span> <span class="s2">&#34;192.168.30.0/24&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">        <span class="nt">&#34;rangeStart&#34;</span><span class="p">:</span> <span class="s2">&#34;192.168.30.32&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">        <span class="nt">&#34;gateway&#34;</span><span class="p">:</span> <span class="s2">&#34;192.168.30.1&#34;</span>
-</span></span><span class="line"><span class="cl">      <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="p">},</span>
-</span></span><span class="line"><span class="cl">    <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;firewall&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="p">},</span>
-</span></span><span class="line"><span class="cl">    <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;tc-redirect-tap&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="p">]</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  &#34;name&#34;: <span style="color:#666;font-style:italic">&#34;firecracker&#34;</span>,
+</span></span><span style="display:flex;"><span>  &#34;cniVersion&#34;: <span style="color:#666;font-style:italic">&#34;0.4.0&#34;</span>,
+</span></span><span style="display:flex;"><span>  &#34;plugins&#34;: [
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      &#34;type&#34;: <span style="color:#666;font-style:italic">&#34;bridge&#34;</span>,
+</span></span><span style="display:flex;"><span>      &#34;name&#34;: <span style="color:#666;font-style:italic">&#34;firecracker-bridge&#34;</span>,
+</span></span><span style="display:flex;"><span>      &#34;bridge&#34;: <span style="color:#666;font-style:italic">&#34;virbr0&#34;</span>,
+</span></span><span style="display:flex;"><span>      &#34;ipam&#34;: {
+</span></span><span style="display:flex;"><span>        &#34;type&#34;: <span style="color:#666;font-style:italic">&#34;host-local&#34;</span>,
+</span></span><span style="display:flex;"><span>        &#34;resolvConf&#34;: <span style="color:#666;font-style:italic">&#34;/etc/resolv.conf&#34;</span>,
+</span></span><span style="display:flex;"><span>        &#34;dataDir&#34;: <span style="color:#666;font-style:italic">&#34;/srv/vm/networks&#34;</span>,
+</span></span><span style="display:flex;"><span>        &#34;subnet&#34;: <span style="color:#666;font-style:italic">&#34;192.168.30.0/24&#34;</span>,
+</span></span><span style="display:flex;"><span>        &#34;rangeStart&#34;: <span style="color:#666;font-style:italic">&#34;192.168.30.32&#34;</span>,
+</span></span><span style="display:flex;"><span>        &#34;gateway&#34;: <span style="color:#666;font-style:italic">&#34;192.168.30.1&#34;</span>
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>    },
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      &#34;type&#34;: <span style="color:#666;font-style:italic">&#34;firewall&#34;</span>
+</span></span><span style="display:flex;"><span>    },
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      &#34;type&#34;: <span style="color:#666;font-style:italic">&#34;tc-redirect-tap&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  ]
+</span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>The CNI plugin is running as root inside the network namespace, before
 we start the jailer. But the tuntap device will be opened by the
 unprivileged Firecracker process the jailer starts. CNI plugin authors
@@ -174,29 +173,29 @@ a chain of plugins, so you need to pass another argument
 to respect. The resulting <code>vmctl</code> code looks something like the
 following (some error handling and setting the <code>$uid</code> and <code>$gid</code> of
 the jailer user have been elided for brevity).</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="k">if</span> <span class="o">[</span> ! -f <span class="s2">&#34;/var/run/netns/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">&#34;</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
-</span></span><span class="line"><span class="cl">    sudo ip netns add <span class="s2">&#34;</span><span class="nv">$id</span><span class="s2">&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="k">fi</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1"># I&#39;ve named the device tap1 because the default is tap0</span>
-</span></span><span class="line"><span class="cl"><span class="c1"># and it makes it easier to verify args have been passed</span>
-</span></span><span class="line"><span class="cl"><span class="c1"># through to the CNI plugin correctly; we can reuse the</span>
-</span></span><span class="line"><span class="cl"><span class="c1"># name safely because each device ends up in its own netns</span>
-</span></span><span class="line"><span class="cl"><span class="nv">cniArgs</span><span class="o">=</span><span class="s2">&#34;IgnoreUnknown=1&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="nv">cniArgs</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">cniArgs</span><span class="si">}</span><span class="s2">;TC_REDIRECT_TAP_UID=</span><span class="nv">$uid</span><span class="s2">&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="nv">cniArgs</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">cniArgs</span><span class="si">}</span><span class="s2">;TC_REDIRECT_TAP_GID=</span><span class="nv">$gid</span><span class="s2">&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="nv">cniArgs</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">cniArgs</span><span class="si">}</span><span class="s2">;TC_REDIRECT_TAP_NAME=tap1&#34;</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="nv">result</span><span class="o">=</span><span class="k">$(</span>sudo <span class="nv">CNI_PATH</span><span class="o">=</span><span class="s2">&#34;/opt/cni/bin&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>              <span class="nv">NETCONFPATH</span><span class="o">=</span><span class="s2">&#34;/etc/cni/net.d&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>              <span class="nv">CNI_ARGS</span><span class="o">=</span><span class="s2">&#34;</span><span class="nv">$cniArgs</span><span class="s2">&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>              cnitool add firecracker <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>              <span class="s2">&#34;/var/run/netns/</span><span class="nv">$id</span><span class="s2">&#34;</span><span class="k">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1"># we don&#39;t pipe the cnitool straight into the file because</span>
-</span></span><span class="line"><span class="cl"><span class="c1"># we want to return early if we get an error without writing</span>
-</span></span><span class="line"><span class="cl"><span class="c1"># this file that we use to check for idempotency</span>
-</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;</span><span class="nv">$result</span><span class="s2">&#34;</span> <span class="p">|</span> sudo tee <span class="s2">&#34;/srv/vm/networks/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">.json&#34;</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="font-weight:bold">if</span> [ ! -f <span style="color:#666;font-style:italic">&#34;/var/run/netns/</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">id</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">&#34;</span> ]; <span style="font-weight:bold">then</span>
+</span></span><span style="display:flex;"><span>    sudo ip netns add <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$id</span><span style="color:#666;font-style:italic">&#34;</span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">fi</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># I&#39;ve named the device tap1 because the default is tap0</span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># and it makes it easier to verify args have been passed</span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># through to the CNI plugin correctly; we can reuse the</span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># name safely because each device ends up in its own netns</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">cniArgs</span>=<span style="color:#666;font-style:italic">&#34;IgnoreUnknown=1&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">cniArgs</span>=<span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">cniArgs</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">;TC_REDIRECT_TAP_UID=</span><span style="color:#666;font-weight:bold;font-style:italic">$uid</span><span style="color:#666;font-style:italic">&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">cniArgs</span>=<span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">cniArgs</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">;TC_REDIRECT_TAP_GID=</span><span style="color:#666;font-weight:bold;font-style:italic">$gid</span><span style="color:#666;font-style:italic">&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">cniArgs</span>=<span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">cniArgs</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">;TC_REDIRECT_TAP_NAME=tap1&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">result</span>=<span style="font-weight:bold">$(</span>sudo <span style="color:#666;font-weight:bold;font-style:italic">CNI_PATH</span>=<span style="color:#666;font-style:italic">&#34;/opt/cni/bin&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>              <span style="color:#666;font-weight:bold;font-style:italic">NETCONFPATH</span>=<span style="color:#666;font-style:italic">&#34;/etc/cni/net.d&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>              <span style="color:#666;font-weight:bold;font-style:italic">CNI_ARGS</span>=<span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$cniArgs</span><span style="color:#666;font-style:italic">&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>              cnitool add firecracker <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>              <span style="color:#666;font-style:italic">&#34;/var/run/netns/</span><span style="color:#666;font-weight:bold;font-style:italic">$id</span><span style="color:#666;font-style:italic">&#34;</span><span style="font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># we don&#39;t pipe the cnitool straight into the file because</span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># we want to return early if we get an error without writing</span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># this file that we use to check for idempotency</span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">echo</span> <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$result</span><span style="color:#666;font-style:italic">&#34;</span> | sudo tee <span style="color:#666;font-style:italic">&#34;/srv/vm/networks/</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">id</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">.json&#34;</span>
 </span></span></code></pre></div><p>The <code>firecracker</code> argument to the <code>add</code> subcommand refers to the name
 of the CNI configuration.</p>
 <h2 id="firecracker-configuration">Firecracker Configuration</h2>
@@ -204,29 +203,29 @@ of the CNI configuration.</p>
 jailer and to create a Firecracker configuration file from the
 <code>$template</code> argument. A minimal template looks like the following JSON
 file.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&#34;boot-source&#34;</span><span class="p">:</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nt">&#34;kernel_image_path&#34;</span><span class="p">:</span> <span class="s2">&#34;vmlinux-5.8&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">    <span class="nt">&#34;boot_args&#34;</span><span class="p">:</span> <span class="s2">&#34;console=ttyS0 reboot=k panic=1 pci=off&#34;</span>
-</span></span><span class="line"><span class="cl">  <span class="p">},</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&#34;drives&#34;</span><span class="p">:</span> <span class="p">[</span>
-</span></span><span class="line"><span class="cl">    <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;drive_id&#34;</span><span class="p">:</span> <span class="s2">&#34;rootfs&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;path_on_host&#34;</span><span class="p">:</span> <span class="s2">&#34;alpine-rootfs.ext4&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="p">],</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&#34;machine-config&#34;</span><span class="p">:</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nt">&#34;vcpu_count&#34;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">    <span class="nt">&#34;mem_size_mib&#34;</span><span class="p">:</span> <span class="mi">512</span>
-</span></span><span class="line"><span class="cl">  <span class="p">},</span>
-</span></span><span class="line"><span class="cl">  <span class="nt">&#34;network-interfaces&#34;</span><span class="p">:</span> <span class="p">[</span>
-</span></span><span class="line"><span class="cl">    <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;iface_id&#34;</span><span class="p">:</span> <span class="s2">&#34;eth0&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;guest_mac&#34;</span><span class="p">:</span> <span class="s2">&#34;$MAC&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">      <span class="nt">&#34;host_dev_name&#34;</span><span class="p">:</span> <span class="s2">&#34;$TAP&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="p">]</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  &#34;boot-source&#34;: {
+</span></span><span style="display:flex;"><span>    &#34;kernel_image_path&#34;: <span style="color:#666;font-style:italic">&#34;vmlinux-5.8&#34;</span>,
+</span></span><span style="display:flex;"><span>    &#34;boot_args&#34;: <span style="color:#666;font-style:italic">&#34;console=ttyS0 reboot=k panic=1 pci=off&#34;</span>
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  &#34;drives&#34;: [
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      &#34;drive_id&#34;: <span style="color:#666;font-style:italic">&#34;rootfs&#34;</span>,
+</span></span><span style="display:flex;"><span>      &#34;path_on_host&#34;: <span style="color:#666;font-style:italic">&#34;alpine-rootfs.ext4&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  ],
+</span></span><span style="display:flex;"><span>  &#34;machine-config&#34;: {
+</span></span><span style="display:flex;"><span>    &#34;vcpu_count&#34;: 1,
+</span></span><span style="display:flex;"><span>    &#34;mem_size_mib&#34;: 512
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  &#34;network-interfaces&#34;: [
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      &#34;iface_id&#34;: <span style="color:#666;font-style:italic">&#34;eth0&#34;</span>,
+</span></span><span style="display:flex;"><span>      &#34;guest_mac&#34;: <span style="color:#666;font-style:italic">&#34;$MAC&#34;</span>,
+</span></span><span style="display:flex;"><span>      &#34;host_dev_name&#34;: <span style="color:#666;font-style:italic">&#34;$TAP&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  ]
+</span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>For the kernel, initrd, and any drives, <code>vmctl</code> looks for the file in
 a well-known location, creates a hardlink from there to the
 jailer's chroot, and ensures the target is owned by the jailer user
@@ -237,72 +236,72 @@ MAC address, append an <code>ip</code> argument to the boot arguments, and do
 some fairly gross things with <code>jq</code> to write that configuration to
 <code>/srv/vm/configs/$id.json</code>. That configuration is hardlinked to the
 chroot at <code>/srv/vm/jailer/$id/root/config.json</code> and owned by root.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># read from the CNI ouput</span>
-</span></span><span class="line"><span class="cl"><span class="nv">netcfg</span><span class="o">=</span><span class="s2">&#34;/srv/vm/networks/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">.json&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="nv">ip</span><span class="o">=</span><span class="k">$(</span>jq -r <span class="s1">&#39;.ips[0].address | rtrimstr(&#34;/24&#34;)&#39;</span> &lt; <span class="s2">&#34;</span><span class="nv">$netcfg</span><span class="s2">&#34;</span><span class="k">)</span>
-</span></span><span class="line"><span class="cl"><span class="nv">gateway_ip</span><span class="o">=</span><span class="k">$(</span>jq -r <span class="s1">&#39;.ips[0].gateway&#39;</span> &lt; <span class="s2">&#34;</span><span class="nv">$netcfg</span><span class="s2">&#34;</span><span class="k">)</span>
-</span></span><span class="line"><span class="cl"><span class="nv">mac</span><span class="o">=</span><span class="k">$(</span>jq -r <span class="s1">&#39;.interfaces[] | select(.name == &#34;eth0&#34;).mac&#39;</span> &lt; <span class="s2">&#34;</span><span class="nv">$netcfg</span><span class="s2">&#34;</span><span class="k">)</span>
-</span></span><span class="line"><span class="cl"><span class="nv">mask</span><span class="o">=</span><span class="s2">&#34;255.255.255.0&#34;</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1"># shorten the uuid to something reasonable</span>
-</span></span><span class="line"><span class="cl"><span class="nv">hostname</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span> <span class="s2">&#34;</span><span class="nv">$id</span><span class="s2">&#34;</span> <span class="p">|</span> tr -d <span class="s1">&#39;-&#39;</span> <span class="p">|</span> head -c 16<span class="k">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1"># capture the args from the template</span>
-</span></span><span class="line"><span class="cl"><span class="nv">boot_args</span><span class="o">=</span><span class="k">$(</span>jq -r <span class="s1">&#39;.&#34;boot-source&#34;.boot-args&#39;</span> &lt; <span class="s2">&#34;</span><span class="nv">$template</span><span class="s2">&#34;</span><span class="k">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1"># append our ip configuration:</span>
-</span></span><span class="line"><span class="cl"><span class="c1"># guest-ip:[server-ip]:gateway-ip:netmask:hostname:iface:state</span>
-</span></span><span class="line"><span class="cl"><span class="nv">boot_args</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">boot_args</span><span class="si">}</span><span class="s2"> ip=</span><span class="si">${</span><span class="nv">ip</span><span class="si">}</span><span class="s2">::</span><span class="si">${</span><span class="nv">gateway_ip</span><span class="si">}</span><span class="s2">:</span><span class="si">${</span><span class="nv">mask</span><span class="si">}</span><span class="s2">:</span><span class="si">${</span><span class="nv">hostname</span><span class="si">}</span><span class="s2">:eth0:off&#34;</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1"># render the template</span>
-</span></span><span class="line"><span class="cl">jq <span class="s2">&#34;(.\&#34;boot-source\&#34;.boot_args) |= \&#34;</span><span class="nv">$boot_args</span><span class="s2">\&#34;
-</span></span></span><span class="line"><span class="cl"><span class="s2">    | (.\&#34;network-interfaces\&#34;[0].guest_mac) |= \&#34;</span><span class="nv">$mac</span><span class="s2">\&#34;
-</span></span></span><span class="line"><span class="cl"><span class="s2">      &#34;</span> &lt; <span class="s2">&#34;</span><span class="nv">$template</span><span class="s2">&#34;</span> <span class="p">|</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>          sudo tee <span class="s2">&#34;/srv/vm/config/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">.json&#34;</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#888;font-style:italic"># read from the CNI ouput</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">netcfg</span>=<span style="color:#666;font-style:italic">&#34;/srv/vm/networks/</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">id</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">.json&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">ip</span>=<span style="font-weight:bold">$(</span>jq -r <span style="color:#666;font-style:italic">&#39;.ips[0].address | rtrimstr(&#34;/24&#34;)&#39;</span> &lt; <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$netcfg</span><span style="color:#666;font-style:italic">&#34;</span><span style="font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">gateway_ip</span>=<span style="font-weight:bold">$(</span>jq -r <span style="color:#666;font-style:italic">&#39;.ips[0].gateway&#39;</span> &lt; <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$netcfg</span><span style="color:#666;font-style:italic">&#34;</span><span style="font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">mac</span>=<span style="font-weight:bold">$(</span>jq -r <span style="color:#666;font-style:italic">&#39;.interfaces[] | select(.name == &#34;eth0&#34;).mac&#39;</span> &lt; <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$netcfg</span><span style="color:#666;font-style:italic">&#34;</span><span style="font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">mask</span>=<span style="color:#666;font-style:italic">&#34;255.255.255.0&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># shorten the uuid to something reasonable</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">hostname</span>=<span style="font-weight:bold">$(</span><span style="font-weight:bold;font-style:italic">echo</span> <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$id</span><span style="color:#666;font-style:italic">&#34;</span> | tr -d <span style="color:#666;font-style:italic">&#39;-&#39;</span> | head -c 16<span style="font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># capture the args from the template</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">boot_args</span>=<span style="font-weight:bold">$(</span>jq -r <span style="color:#666;font-style:italic">&#39;.&#34;boot-source&#34;.boot-args&#39;</span> &lt; <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$template</span><span style="color:#666;font-style:italic">&#34;</span><span style="font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># append our ip configuration:</span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># guest-ip:[server-ip]:gateway-ip:netmask:hostname:iface:state</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">boot_args</span>=<span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">boot_args</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic"> ip=</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">ip</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">::</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">gateway_ip</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">:</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">mask</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">:</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">hostname</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">:eth0:off&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># render the template</span>
+</span></span><span style="display:flex;"><span>jq <span style="color:#666;font-style:italic">&#34;(.\&#34;boot-source\&#34;.boot_args) |= \&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$boot_args</span><span style="color:#666;font-style:italic">\&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">    | (.\&#34;network-interfaces\&#34;[0].guest_mac) |= \&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$mac</span><span style="color:#666;font-style:italic">\&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">      &#34;</span> &lt; <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$template</span><span style="color:#666;font-style:italic">&#34;</span> | <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>          sudo tee <span style="color:#666;font-style:italic">&#34;/srv/vm/config/</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">id</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">.json&#34;</span>
 </span></span></code></pre></div><p>Lastly <code>vmctl</code> ties this all together by invoking jailer like I've
 shown below. To get the <code>firecracker</code> binary I need to use <code>readlink</code>
 so that I can chase a symlink from <code>/usr/local/bin</code> to my local build
 from source.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">sudo jailer <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --id <span class="s2">&#34;</span><span class="nv">$id</span><span class="s2">&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --daemonize <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --exec-file <span class="k">$(</span>readlink <span class="k">$(</span>which firecracker<span class="k">))</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --uid <span class="s2">&#34;</span><span class="nv">$uid</span><span class="s2">&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --gid <span class="s2">&#34;</span><span class="nv">$gid</span><span class="s2">&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --chroot-base-dir <span class="s2">&#34;/srv/vm/jailer&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --netns <span class="s2">&#34;/var/run/netns/</span><span class="nv">$id</span><span class="s2">&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --new-pid-ns <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     -- <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --config-file <span class="s2">&#34;config.json&#34;</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo jailer <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --id <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$id</span><span style="color:#666;font-style:italic">&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --daemonize <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --exec-file <span style="font-weight:bold">$(</span>readlink <span style="font-weight:bold">$(</span>which firecracker<span style="font-weight:bold">))</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --uid <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$uid</span><span style="color:#666;font-style:italic">&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --gid <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$gid</span><span style="color:#666;font-style:italic">&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --chroot-base-dir <span style="color:#666;font-style:italic">&#34;/srv/vm/jailer&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --netns <span style="color:#666;font-style:italic">&#34;/var/run/netns/</span><span style="color:#666;font-weight:bold;font-style:italic">$id</span><span style="color:#666;font-style:italic">&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --new-pid-ns <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     -- <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --config-file <span style="color:#666;font-style:italic">&#34;config.json&#34;</span>
 </span></span></code></pre></div><h2 id="stopping-a-vm">Stopping a VM</h2>
 <p>To stop one of the VMs without destroying it entirely, I need to send
 it a graceful shutdown, and then clean up the runtime files in the
 jailer's chroot. The next time I create the VM, <code>vmctl</code> will see that
 we already have the network, VM configuration, and hardlinks in place
 and will skip to calling jailer.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="nv">jail</span><span class="o">=</span><span class="s2">&#34;/srv/vm/jailer/firecracker/</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">/root&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="nv">pid</span><span class="o">=</span><span class="k">$(</span>sudo cat <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/firecracker.pid&#34;</span><span class="k">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">sudo curl <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --unix-socket <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/run/firecracker.socket&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     -H <span class="s2">&#34;accept: application/json&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     -H <span class="s2">&#34;Content-Type: application/json&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     -X PUT <span class="s2">&#34;http://localhost/actions&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     -d <span class="s2">&#34;{ \&#34;action_type\&#34;: \&#34;SendCtrlAltDel\&#34; }&#34;</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="k">while</span> :
-</span></span><span class="line"><span class="cl"><span class="k">do</span>
-</span></span><span class="line"><span class="cl">    ps <span class="s2">&#34;</span><span class="nv">$pid</span><span class="s2">&#34;</span> &gt; /dev/null <span class="o">||</span> <span class="nb">break</span>
-</span></span><span class="line"><span class="cl">    sleep <span class="m">1</span>
-</span></span><span class="line"><span class="cl">    <span class="nb">echo</span> -n <span class="s2">&#34;.&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="k">done</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="nb">echo</span>
-</span></span><span class="line"><span class="cl">sudo rm -r <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/firecracker.pid&#34;</span>
-</span></span><span class="line"><span class="cl">sudo rm -r <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/dev&#34;</span>
-</span></span><span class="line"><span class="cl">sudo rm -r <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/run&#34;</span>
-</span></span><span class="line"><span class="cl">sudo rm -r <span class="s2">&#34;</span><span class="si">${</span><span class="nv">jail</span><span class="si">}</span><span class="s2">/firecracker&#34;</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">jail</span>=<span style="color:#666;font-style:italic">&#34;/srv/vm/jailer/firecracker/</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">id</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">/root&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#666;font-weight:bold;font-style:italic">pid</span>=<span style="font-weight:bold">$(</span>sudo cat <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">jail</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">/firecracker.pid&#34;</span><span style="font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>sudo curl <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     --unix-socket <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">jail</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">/run/firecracker.socket&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     -H <span style="color:#666;font-style:italic">&#34;accept: application/json&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     -H <span style="color:#666;font-style:italic">&#34;Content-Type: application/json&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     -X PUT <span style="color:#666;font-style:italic">&#34;http://localhost/actions&#34;</span> <span style="color:#666;font-style:italic">\
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic"></span>     -d <span style="color:#666;font-style:italic">&#34;{ \&#34;action_type\&#34;: \&#34;SendCtrlAltDel\&#34; }&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">while</span> :
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">do</span>
+</span></span><span style="display:flex;"><span>    ps <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-weight:bold;font-style:italic">$pid</span><span style="color:#666;font-style:italic">&#34;</span> &gt; /dev/null || <span style="font-weight:bold;font-style:italic">break</span>
+</span></span><span style="display:flex;"><span>    sleep 1
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold;font-style:italic">echo</span> -n <span style="color:#666;font-style:italic">&#34;.&#34;</span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">done</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">echo</span>
+</span></span><span style="display:flex;"><span>sudo rm -r <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">jail</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">/firecracker.pid&#34;</span>
+</span></span><span style="display:flex;"><span>sudo rm -r <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">jail</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">/dev&#34;</span>
+</span></span><span style="display:flex;"><span>sudo rm -r <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">jail</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">/run&#34;</span>
+</span></span><span style="display:flex;"><span>sudo rm -r <span style="color:#666;font-style:italic">&#34;</span><span style="color:#666;font-style:italic">${</span><span style="color:#666;font-weight:bold;font-style:italic">jail</span><span style="color:#666;font-style:italic">}</span><span style="color:#666;font-style:italic">/firecracker&#34;</span>
 </span></span></code></pre></div><p>This doesn't currently handle cleaning up if the VM shuts itself down,
 so I'll need to return to that at some point and also add a <code>vmctl stop</code> for all running VMs to the host machine's shutdown.</p>
 <h2 id="routing">Routing</h2>
@@ -310,27 +309,27 @@ so I'll need to return to that at some point and also add a <code>vmctl stop</co
 other machines can reach the VMs. On each host we set forwarding,
 which looks like the following Ansible tasks but you can also do via
 ex. <code>echo 1 &gt; /proc/sys/net/ipv4/ip_forward</code></p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yml" data-lang="yml"><span class="line"><span class="cl">- <span class="nt">sysctl</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">net.ipv4.ip_forward</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;1&#39;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">state</span><span class="p">:</span><span class="w"> </span><span class="l">present</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">reload</span><span class="p">:</span><span class="w"> </span><span class="kc">yes</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">become</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">sysctl</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">net.ipv4.conf.all.forwarding</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;1&#39;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">state</span><span class="p">:</span><span class="w"> </span><span class="l">present</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">reload</span><span class="p">:</span><span class="w"> </span><span class="kc">yes</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">become</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">sysctl</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">net.ipv6.conf.all.forwarding</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;1&#39;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">state</span><span class="p">:</span><span class="w"> </span><span class="l">present</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">reload</span><span class="p">:</span><span class="w"> </span><span class="kc">yes</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">become</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
-</span></span></span></code></pre></div><p>And then on the ISP's router, we set up routing rules. I've got a Fios
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yml" data-lang="yml"><span style="display:flex;"><span>- sysctl:
+</span></span><span style="display:flex;"><span>    name: net.ipv4.ip_forward
+</span></span><span style="display:flex;"><span>    value: <span style="color:#666;font-style:italic">&#39;1&#39;</span>
+</span></span><span style="display:flex;"><span>    state: present
+</span></span><span style="display:flex;"><span>    reload: <span style="font-weight:bold">yes</span>
+</span></span><span style="display:flex;"><span>  become: <span style="font-weight:bold">true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- sysctl:
+</span></span><span style="display:flex;"><span>    name: net.ipv4.conf.all.forwarding
+</span></span><span style="display:flex;"><span>    value: <span style="color:#666;font-style:italic">&#39;1&#39;</span>
+</span></span><span style="display:flex;"><span>    state: present
+</span></span><span style="display:flex;"><span>    reload: <span style="font-weight:bold">yes</span>
+</span></span><span style="display:flex;"><span>  become: <span style="font-weight:bold">true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- sysctl:
+</span></span><span style="display:flex;"><span>    name: net.ipv6.conf.all.forwarding
+</span></span><span style="display:flex;"><span>    value: <span style="color:#666;font-style:italic">&#39;1&#39;</span>
+</span></span><span style="display:flex;"><span>    state: present
+</span></span><span style="display:flex;"><span>    reload: <span style="font-weight:bold">yes</span>
+</span></span><span style="display:flex;"><span>  become: <span style="font-weight:bold">true</span>
+</span></span></code></pre></div><p>And then on the ISP's router, we set up routing rules. I've got a Fios
 router here, so I go to the <code>#/advanced/routing</code> page and configure a
 rule for each machine. The &quot;destination&quot; field is the subnet prefix
 (ex. <code>192.168.30.0</code>), whereas the &quot;gateway&quot; field is the IP address of

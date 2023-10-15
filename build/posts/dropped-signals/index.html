@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
   <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
 
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
 </head>
 
 <body>
@@ -62,31 +61,31 @@ the middle of doing a configuration load and get a shutdown notice,
 we'll queue-up the shutdown signal and process it afterwards. The
 signal mask is still in place, so any other signal sent during that
 window will get dropped.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">c</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">chan</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Signal</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">signal</span><span class="p">.</span><span class="nf">Notify</span><span class="p">(</span><span class="nx">c</span><span class="p">,</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGINT</span><span class="p">,</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGHUP</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">s</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">c</span>
-</span></span><span class="line"><span class="cl">        <span class="k">switch</span> <span class="nx">s</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="k">case</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGHUP</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">            <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Got SIGHUP, reloading config...&#34;</span><span class="p">,</span> <span class="nx">s</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">            <span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="k">case</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGINT</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">            <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Got SIGINT, gracefully shutting down...&#34;</span><span class="p">,</span> <span class="nx">s</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">            <span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">        <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="font-weight:bold;font-style:italic">func</span> <span style="color:#666;font-weight:bold;font-style:italic">main</span>() {
+</span></span><span style="display:flex;"><span>    c := <span style="font-weight:bold;font-style:italic">make</span>(<span style="font-weight:bold;font-style:italic">chan</span> os.Signal, 1)
+</span></span><span style="display:flex;"><span>    signal.<span style="color:#666;font-weight:bold;font-style:italic">Notify</span>(c, syscall.SIGINT, syscall.SIGHUP)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="font-weight:bold">for</span> {
+</span></span><span style="display:flex;"><span>        s := &lt;-c
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold">switch</span> s {
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold">case</span> syscall.SIGHUP:
+</span></span><span style="display:flex;"><span>            fmt.<span style="color:#666;font-weight:bold;font-style:italic">Println</span>(<span style="color:#666;font-style:italic">&#34;Got SIGHUP, reloading config...&#34;</span>, s)
+</span></span><span style="display:flex;"><span>            time.<span style="color:#666;font-weight:bold;font-style:italic">Sleep</span>(1 * time.Second)
+</span></span><span style="display:flex;"><span>        <span style="font-weight:bold">case</span> syscall.SIGINT:
+</span></span><span style="display:flex;"><span>            fmt.<span style="color:#666;font-weight:bold;font-style:italic">Println</span>(<span style="color:#666;font-style:italic">&#34;Got SIGINT, gracefully shutting down...&#34;</span>, s)
+</span></span><span style="display:flex;"><span>            time.<span style="color:#666;font-weight:bold;font-style:italic">Sleep</span>(1 * time.Second)
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>If we run this program in one terminal and then send it 3 signals in a
 row, we can see we drop one of them.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="c1"># first terminal</span>
-</span></span><span class="line"><span class="cl">$ go run .
-</span></span><span class="line"><span class="cl">Got SIGHUP, reloading config... hangup
-</span></span><span class="line"><span class="cl">Got SIGHUP, reloading config... hangup
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1"># second terminal</span>
-</span></span><span class="line"><span class="cl">$ pkill -SIGHUP signals<span class="p">;</span> pkill -SIGHUP signals<span class="p">;</span> pkill -SIGINT signals
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="color:#888;font-style:italic"># first terminal</span>
+</span></span><span style="display:flex;"><span>$ go run .
+</span></span><span style="display:flex;"><span>Got SIGHUP, reloading config... hangup
+</span></span><span style="display:flex;"><span>Got SIGHUP, reloading config... hangup
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#888;font-style:italic"># second terminal</span>
+</span></span><span style="display:flex;"><span>$ pkill -SIGHUP signals; pkill -SIGHUP signals; pkill -SIGINT signals
 </span></span></code></pre></div><p>This would be a catastrophic bug in an init system or process
 supervisor (and/or something like
 <a href="https://github.com/joyent/containerpilot">ContainerPilot</a>, where it

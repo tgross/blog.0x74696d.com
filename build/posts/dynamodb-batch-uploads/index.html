@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
   <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
 
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
 </head>
 
 <body>
@@ -46,59 +45,59 @@
 </code></pre>
 <p>Timestamp in this case is position within the video. And DynamoDB only takes strings and numbers, so there's no good way to dates represented which is how you end up with ISO-format date strings.</p>
 <p>Next I needed to be able to generate a lot of simultaneous parallel requests in order to hit the throughput I wanted. I have a production system using <code>gevent</code> that can process 1000+ writes/sec to DynamoDB per core before it has its coffee in the morning, but it's specialized for its task and again, I was in a hurry. And even with that system I'd previously ran into throughput problems due to GIL contention, so multiprocessing was the way to go.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">csv</span>
-</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">boto</span>
-</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="kn">import</span> <span class="n">Pool</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">write_data</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-</span></span><span class="line"><span class="cl">   <span class="s2">&#34;&#34;&#34;
-</span></span></span><span class="line"><span class="cl"><span class="s2">   This will be called by __main__ for each process in our Pool.
-</span></span></span><span class="line"><span class="cl"><span class="s2">   Error handling and logging of results elided.
-</span></span></span><span class="line"><span class="cl"><span class="s2">   Don&#39;t write production code like this!
-</span></span></span><span class="line"><span class="cl"><span class="s2">   &#34;&#34;&#34;</span>
-</span></span><span class="line"><span class="cl">   <span class="n">conn</span> <span class="o">=</span> <span class="n">boto</span><span class="o">.</span><span class="n">connect_dynamodb</span><span class="p">(</span><span class="n">aws_access_key_id</span><span class="o">=</span><span class="n">MY_ID</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">                         <span class="n">aws_secret_access_key</span><span class="o">=</span><span class="n">MY_SECRET</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">   <span class="n">table</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="s1">&#39;my_table_name&#39;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">   <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">      <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">      <span class="n">items</span> <span class="o">=</span> <span class="p">[]</span>
-</span></span><span class="line"><span class="cl">      <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">         <span class="n">dyn_row</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">new_item</span><span class="p">(</span><span class="n">hash_key</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span><span class="nb">format</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
-</span></span><span class="line"><span class="cl">                                  <span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;series&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
-</span></span><span class="line"><span class="cl">                                           <span class="s1">&#39;episode&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
-</span></span><span class="line"><span class="cl">                                           <span class="s1">&#39;timestamp&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
-</span></span><span class="line"><span class="cl">                                           <span class="s1">&#39;moddt&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="p">})</span>
-</span></span><span class="line"><span class="cl">         <span class="n">items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dyn_row</span><span class="p">)</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="font-weight:bold">import</span> <span style="color:#666;font-weight:bold;font-style:italic">csv</span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">import</span> <span style="color:#666;font-weight:bold;font-style:italic">boto</span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">from</span> <span style="color:#666;font-weight:bold;font-style:italic">multiprocessing</span> <span style="font-weight:bold">import</span> Pool
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">def</span> <span style="color:#666;font-weight:bold;font-style:italic">write_data</span>(filename):
+</span></span><span style="display:flex;"><span>   <span style="color:#666;font-style:italic">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">   This will be called by __main__ for each process in our Pool.
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">   Error handling and logging of results elided.
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">   Don&#39;t write production code like this!
+</span></span></span><span style="display:flex;"><span><span style="color:#666;font-style:italic">   &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>   conn = boto.connect_dynamodb(aws_access_key_id=MY_ID,
+</span></span><span style="display:flex;"><span>                         aws_secret_access_key=MY_SECRET)
+</span></span><span style="display:flex;"><span>   table = conn.get_table(<span style="color:#666;font-style:italic">&#39;my_table_name&#39;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   <span style="font-weight:bold">with</span> <span style="font-weight:bold;font-style:italic">open</span>(filename, <span style="color:#666;font-style:italic">&#39;rb&#39;</span>) <span style="font-weight:bold">as</span> f:
+</span></span><span style="display:flex;"><span>      reader = csv.reader(f)
+</span></span><span style="display:flex;"><span>      items = []
+</span></span><span style="display:flex;"><span>      <span style="font-weight:bold">for</span> row <span style="font-weight:bold">in</span> reader:
+</span></span><span style="display:flex;"><span>         dyn_row = table.new_item(hash_key=<span style="color:#666;font-style:italic">&#39;</span><span style="color:#666;font-style:italic">{}</span><span style="color:#666;font-style:italic">&#39;</span>,<span style="font-weight:bold;font-style:italic">format</span>(row[0]),
+</span></span><span style="display:flex;"><span>                                  attrs = {<span style="color:#666;font-style:italic">&#39;series&#39;</span>: row[1],
+</span></span><span style="display:flex;"><span>                                           <span style="color:#666;font-style:italic">&#39;episode&#39;</span>: row[2],
+</span></span><span style="display:flex;"><span>                                           <span style="color:#666;font-style:italic">&#39;timestamp&#39;</span>: row[3],
+</span></span><span style="display:flex;"><span>                                           <span style="color:#666;font-style:italic">&#39;moddt&#39;</span>: row[4] })
+</span></span><span style="display:flex;"><span>         items.append(dyn_row)
 </span></span></code></pre></div><p>Now, you could stop here and just <code>batch_write</code> things up to DynamoDB and that will work if you're writing a couple thousand rows. But it should be obvious we're going to blow up memory on our laptop if we try that.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl">      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">items</span><span class="p">)</span> <span class="o">==</span> <span class="mi">25</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">         <span class="n">batch_list</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">new_batch_write_list</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">         <span class="n">batch_list</span><span class="o">.</span><span class="n">add_batch</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">         <span class="n">response</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">batch_write_item</span><span class="p">(</span><span class="n">batch_list</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">         <span class="n">items</span> <span class="o">=</span> <span class="p">[]</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>      <span style="font-weight:bold">if</span> <span style="font-weight:bold;font-style:italic">len</span>(items) == 25:
+</span></span><span style="display:flex;"><span>         batch_list = conn.new_batch_write_list()
+</span></span><span style="display:flex;"><span>         batch_list.add_batch(table, items)
+</span></span><span style="display:flex;"><span>         response = conn.batch_write_item(batch_list)
+</span></span><span style="display:flex;"><span>         items = []
 </span></span></code></pre></div><p>Okay, so we'll treat our list as a queue, and when it gets to the maximum size we can push in a single batch write, we'll push that up. But I buried the problem with this when I elided the error handling — if the write is throttled by DynamoDB, you'll be silently dropping writes because <code>boto</code> doesn't raise an exception. So let's try that part again.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl">      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">items</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">25</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">         <span class="n">batch_items</span> <span class="o">=</span> <span class="n">items</span><span class="p">[:</span><span class="mi">25</span><span class="p">]</span>
-</span></span><span class="line"><span class="cl">         <span class="n">batch_list</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">new_batch_write_list</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">         <span class="n">batch_list</span><span class="o">.</span><span class="n">add_batch</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">batch_items</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">         <span class="n">response</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">batch_write_item</span><span class="p">(</span><span class="n">batch_list</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">         <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;UnprocessedItems&#39;</span><span class="p">]:</span>
-</span></span><span class="line"><span class="cl">            <span class="n">items</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="mi">25</span><span class="p">:]</span>
-</span></span><span class="line"><span class="cl">         <span class="k">else</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">            <span class="n">unprocessed</span> <span class="o">=</span> <span class="p">[</span>
-</span></span><span class="line"><span class="cl">                           <span class="n">ui</span><span class="p">[</span><span class="s1">&#39;PutRequest&#39;</span><span class="p">][</span><span class="s1">&#39;Item&#39;</span><span class="p">][</span><span class="s1">&#39;user&#39;</span><span class="p">]</span>
-</span></span><span class="line"><span class="cl">                           <span class="k">for</span> <span class="n">ui</span> <span class="ow">in</span>
-</span></span><span class="line"><span class="cl">                           <span class="n">response</span><span class="p">[</span><span class="s1">&#39;UnprocessedItems&#39;</span><span class="p">][</span><span class="s1">&#39;my_table_name&#39;</span><span class="p">]</span>
-</span></span><span class="line"><span class="cl">                           <span class="p">]</span>
-</span></span><span class="line"><span class="cl">            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch_items</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">               <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;user&#39;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">unprocessed</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">                  <span class="n">items</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>      <span style="font-weight:bold">if</span> <span style="font-weight:bold;font-style:italic">len</span>(items) &gt; 25:
+</span></span><span style="display:flex;"><span>         batch_items = items[:25]
+</span></span><span style="display:flex;"><span>         batch_list = conn.new_batch_write_list()
+</span></span><span style="display:flex;"><span>         batch_list.add_batch(table, batch_items)
+</span></span><span style="display:flex;"><span>         response = conn.batch_write_item(batch_list)
+</span></span><span style="display:flex;"><span>         <span style="font-weight:bold">if</span> <span style="font-weight:bold">not</span> response[<span style="color:#666;font-style:italic">&#39;UnprocessedItems&#39;</span>]:
+</span></span><span style="display:flex;"><span>            items = items[25:]
+</span></span><span style="display:flex;"><span>         <span style="font-weight:bold">else</span>:
+</span></span><span style="display:flex;"><span>            unprocessed = [
+</span></span><span style="display:flex;"><span>                           ui[<span style="color:#666;font-style:italic">&#39;PutRequest&#39;</span>][<span style="color:#666;font-style:italic">&#39;Item&#39;</span>][<span style="color:#666;font-style:italic">&#39;user&#39;</span>]
+</span></span><span style="display:flex;"><span>                           <span style="font-weight:bold">for</span> ui <span style="font-weight:bold">in</span>
+</span></span><span style="display:flex;"><span>                           response[<span style="color:#666;font-style:italic">&#39;UnprocessedItems&#39;</span>][<span style="color:#666;font-style:italic">&#39;my_table_name&#39;</span>]
+</span></span><span style="display:flex;"><span>                           ]
+</span></span><span style="display:flex;"><span>            <span style="font-weight:bold">for</span> item <span style="font-weight:bold">in</span> batch_items:
+</span></span><span style="display:flex;"><span>               <span style="font-weight:bold">if</span> item[<span style="color:#666;font-style:italic">&#39;user&#39;</span>] <span style="font-weight:bold">not</span> <span style="font-weight:bold">in</span> unprocessed:
+</span></span><span style="display:flex;"><span>                  items.remove(item)
 </span></span></code></pre></div><p>On every <code>batch_write</code> request we take out what we've successfully written and retry everything else in the next pass. Yes, we're doing a <em>lot</em> of allocation with the list, but there's a reason for it. We're almost certain to get throttled by DynamoDB in a batch upload unless we massively over-provision.  This function minimizes the number of requests we make while constraining the length of the list. I modeled this and throttling would have to reach consistent double-digit percentages of unprocessed writes before we'd see significant loss of throughput or runaway memory usage.</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">    <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;xaao&#39;</span><span class="p">,</span><span class="s1">&#39;xabf&#39;</span><span class="p">,</span><span class="s1">&#39;xabw&#39;</span><span class="p">,</span><span class="o">...</span> <span class="p">]</span>
-</span></span><span class="line"><span class="cl">    <span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">    <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">write_data</span><span class="p">,</span> <span class="n">files</span><span class="p">)</span>
+<div class="highlight"><pre tabindex="0" style="background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="font-weight:bold">if</span> __name__ == <span style="color:#666;font-style:italic">&#39;__main__&#39;</span>:
+</span></span><span style="display:flex;"><span>    files = [<span style="color:#666;font-style:italic">&#39;xaao&#39;</span>,<span style="color:#666;font-style:italic">&#39;xabf&#39;</span>,<span style="color:#666;font-style:italic">&#39;xabw&#39;</span>,... ]
+</span></span><span style="display:flex;"><span>    pool = Pool(processes=<span style="font-weight:bold;font-style:italic">len</span>(files))
+</span></span><span style="display:flex;"><span>    pool.map(write_data, files)
 </span></span></code></pre></div><p>Last we use our multiprocessing pool to split the job over a large number of processes. I used <code>split -a 3 -l 300000</code> to split my big CSVs into a couple hundred files. With no shared memory between the processes, I can use the non-thread-safe code above without worry. This let me crank through all the input files within a few hours and I was ready for beer o'clock.</p>
 <aside>Download this example code <a href="https://github.com/tgross/blog.0x74696d.com/blob/trunk/static/_code/dynamodb-batch-uploads/batch_upload.py">here</a></aside>
 

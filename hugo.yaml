@@ -3,8 +3,6 @@ disablePathToLower: true
 languageCode: en-us
 title: "0x74696d"
 publishDir: "build"
-PygmentsCodeFences: true
-pygmentsuseclasses: true
 rssLimit: 20
 
 markup:
@@ -13,6 +11,10 @@ markup:
       typographer: false
     renderer:
       unsafe: true
+
+  highlight:
+    noClasses: true
+    style: algol_nu
 
 params:
   author: "Tim Gross"

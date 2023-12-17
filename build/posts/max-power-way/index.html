@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>0x74696d | The Max Power Way</title>
+  <meta name="author" content="map[]" />
+  <meta name="description" content="T-Minus 15.193792102158E&#43;9 years until the universe closes!" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+  
+  <link rel="stylesheet" href="/css/base.css" type="text/css" media="all" />
+  <link rel="stylesheet" href="/fonts/ss-social.css" type="text/css" />
+
+</head>
+
+<body>
+  <div class="header">
+    <div class="container">
+      <section class="name">
+        <a href="/"><b>0x74696d</b></a>
+      </section>
+
+      <ul class="menu">
+        <li><a href="/">Posts</a></li>
+        <li><a href="https://github.com/tgross?tab=repositories">Projects</a></li>
+        <li><a href="/community/">Community</a></li>
+        
+      </ul>
+
+    </div>
+  </div>
+
+<section class="container content">
+  <h1>The Max Power Way</h1>
+  <section class="byline">December 17, 2023</section>
+  <p>In a 1999 episode of the Simpsons, Homer briefly changes his name to Max Power
+in a bumbling attempt to adopt a more successful persona via nominative
+determinism. The episode contains this memorable exchange:</p>
+<blockquote>
+<p>Homer: &quot;Kids, there's three ways to do things. The right way, the wrong way,
+and the Max Power way!&quot;</p>
+<p>Bart: &quot;Isn't that the wrong way?'</p>
+<p>Homer: &quot;Yeah, but faster!&quot;</p>
+</blockquote>
+<p>That pretty much sums up my take on the value of Large Language Model (LLM)
+coding assistants.</p>
+<p>I'm mostly interested in two broad categories of criticism of LLMs. LLMs are
+tools and we can talk about their value <em>as tools</em> independently of any other
+criticism. And then there's the social impact of introducing those tools in the
+context of our industry. All the &quot;AGI breakout&quot; science fiction is deeply
+unserious.</p>
+<p>As tools, LLM coding assistants... just aren't all that impressive? Sure,
+there's definitely an initial &quot;wow&quot; moment. But then you realize that a lot of
+the code they generate is poor. This isn't unexpected. LLMs are trained not only
+on the &quot;best&quot; code but on all available code, and the typical code you can grab
+from a random repo is honestly pretty crap.</p>
+<p>LLMs have no understanding of your business domain, so I've seen LLM suggestions
+that are syntactically valid but just utter nonsense in the context of the work
+to be done. What makes this worse is the autocomplete-style UX of the typical
+tooling, so pairing with someone running VSCode with CoPilot and discussing a
+tricky business domain problem is like having the worst PM in the world shouting
+bad ideas the entire time.</p>
+<p>Large bodies of boilerplate code seem like worthy targets for LLMs. But this
+carries extra risk, because code that's monotonous and repetitive is exactly the
+kind of code humans are terrible at catching bugs in. This kind of problem is
+better solved by deterministic code generation from interface definition
+languages (IDL), like generating services from protobuf specs.</p>
+<p>Languages like Go also seem like promising targets for LLMs, because the
+language itself fights against abstractions and is repetitive and tedious to
+write. But it seems like every non-trivial Go project ends up building those
+abstractions anyways because it helps so much in <em>reading</em> the code. Go is
+&quot;simple&quot; (to a fault) but this means reading it is like reading through a
+straw. LLMs don't have enough context to build the kinds of whole program
+abstractions you want. And it seems that the average example online of Go's
+semi-structured concurrency with channels has subtle deadlocks, if the errors
+I've seen output by LLMs are to be believed.</p>
+<p>I've seen an argument that a LLM assistant is like having a junior programmer
+writing the code. You stand in for the presumably more experienced engineer who
+reviews and corrects as it goes. Except unlike a junior it doesn't learn except
+by retraining. If I had to correct a particularly dull junior engineer
+repeatedly for the same mistakes, I might gently steer them into a career in
+management.</p>
+<p>That &quot;junior assistant&quot; model isn't all that accessible to the junior engineer
+themselves, either. Human beings can learn skills by watching others do them. If
+I had to guess, watching the output of a machine is worse for learning than
+watching another human performing a skill because of all those nice mirror
+neurons we have. But it doesn't matter because humans <em>master</em> skills only by
+doing them. A junior engineer leaning on a LLM won't develop the skills they
+need to determine if the output of the LLM is any good.</p>
+<p>And that leads directly to the wider social problem. If the hype around LLMs
+allowed them to be just another tool in our toolbox, we could use them (or not)
+and it'd be a question of engineering tradeoffs. Most tools that fail to perform
+at the rate LLMs do are quickly set aside, brought out only for the narrow
+niches in which they work well. But a whole lot of people are buying into a hype
+that LLMs are a massive paradigm change that will disrupt the industry.</p>
+<p>Now, there's a few folks in the industry who are cheering on some kind of giant
+upheaval where millions of engineers lose their jobs. Maybe they think they'll
+be among the anointed few spared by the techno-fascists running OpenAI or
+whatever. No surprises there; every regressive movement co-opts a bunch of the
+targeted group, class traitors who we should encourage to go play in traffic.</p>
+<p>Because management culture treats workers like interchangeable cogs, we should
+expect that some organizations will try to replace workers with LLMs. Some
+companies will decide that they can get rid of all their expensive senior folks
+and just have cheaper juniors, or outsourced body shops, doing all the work with
+LLM assistants. I'm sure the compliance-security-industrial complex is already
+eagerly spinning up new product lines to solve the resulting disasters from
+that. Other companies will go the other direction and decide they can get rid of
+all their junior folks and multiply the effort of senior folks with LLMs. But
+without a pipeline of junior engineers, you eventually have no senior engineers.</p>
+<p>The successful organizations will be those who recognize that there's a
+neverending backlog of creative work to be done, and that creative workers can't
+be replaced by stochastic parrots. LLMs are just one tool and like all choice in
+tools, those closest to the work should be left to decide whether they are the
+right tool for the job. But recognizing that requires the kind of long horizon
+thinking that's notably absent from most companies. It may be up to tech workers
+to organize to make that future happen.</p>
+<!--  LocalWords:  LLMs
+ -->
+
+</section>
+<section class="meta">
+  <section class="blocks">
+
+  <a class="block" href="https://github.com/tgross" title="Visit my GitHub">
+    <span class="ss-social-circle ss-octocat"></span>
+    <div>Collaborate.</div>
+  </a>
+
+  <a class="block" href="mailto:tim+blog@0x74696d.com" title="Email me">
+    <span class="ss-social-circle ss-mail"></span>
+    <div>Communicate.</div>
+  </a>
+
+  <a class="block" href="/index.xml" rel="alternate" type="application/rss+xml" title="0x74696d RSS">
+    <span class="ss-social-circle ss-rss"></span>
+    <div>RSS.</div>
+  </a>
+  </section>
+
+  <div class="disclaimer">
+    <p>&copy; Timothy Gross</p>
+    <p>Except where otherwise noted, content on this site is licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/legalcode">Creative Common Attribution-ShareAlike 4.0 International License</a>. All code content is licensed under the <a href="/LICENSE">MIT license</a>, unless an excerpt from a larger work under another license.</p>
+  </div>
+  <div style="clear: both"></div>
+
+</section>
+
+</body>
+</html>

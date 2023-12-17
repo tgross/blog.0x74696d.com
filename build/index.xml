@@ -10,6 +10,98 @@
     
     
     <item>
+      <title>The Max Power Way</title>
+      <link>https://blog.0x74696d.com/posts/max-power-way/</link>
+      <pubDate>Sun, 17 Dec 2023 12:00:00 +0000</pubDate>
+      
+      <guid>https://blog.0x74696d.com/posts/max-power-way/</guid>
+      <description>&lt;p&gt;In a 1999 episode of the Simpsons, Homer briefly changes his name to Max Power
+in a bumbling attempt to adopt a more successful persona via nominative
+determinism. The episode contains this memorable exchange:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Homer: &amp;quot;Kids, there&#39;s three ways to do things. The right way, the wrong way,
+and the Max Power way!&amp;quot;&lt;/p&gt;
+&lt;p&gt;Bart: &amp;quot;Isn&#39;t that the wrong way?&#39;&lt;/p&gt;
+&lt;p&gt;Homer: &amp;quot;Yeah, but faster!&amp;quot;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;That pretty much sums up my take on the value of Large Language Model (LLM)
+coding assistants.&lt;/p&gt;
+&lt;p&gt;I&#39;m mostly interested in two broad categories of criticism of LLMs. LLMs are
+tools and we can talk about their value &lt;em&gt;as tools&lt;/em&gt; independently of any other
+criticism. And then there&#39;s the social impact of introducing those tools in the
+context of our industry. All the &amp;quot;AGI breakout&amp;quot; science fiction is deeply
+unserious.&lt;/p&gt;
+&lt;p&gt;As tools, LLM coding assistants... just aren&#39;t all that impressive? Sure,
+there&#39;s definitely an initial &amp;quot;wow&amp;quot; moment. But then you realize that a lot of
+the code they generate is poor. This isn&#39;t unexpected. LLMs are trained not only
+on the &amp;quot;best&amp;quot; code but on all available code, and the typical code you can grab
+from a random repo is honestly pretty crap.&lt;/p&gt;
+&lt;p&gt;LLMs have no understanding of your business domain, so I&#39;ve seen LLM suggestions
+that are syntactically valid but just utter nonsense in the context of the work
+to be done. What makes this worse is the autocomplete-style UX of the typical
+tooling, so pairing with someone running VSCode with CoPilot and discussing a
+tricky business domain problem is like having the worst PM in the world shouting
+bad ideas the entire time.&lt;/p&gt;
+&lt;p&gt;Large bodies of boilerplate code seem like worthy targets for LLMs. But this
+carries extra risk, because code that&#39;s monotonous and repetitive is exactly the
+kind of code humans are terrible at catching bugs in. This kind of problem is
+better solved by deterministic code generation from interface definition
+languages (IDL), like generating services from protobuf specs.&lt;/p&gt;
+&lt;p&gt;Languages like Go also seem like promising targets for LLMs, because the
+language itself fights against abstractions and is repetitive and tedious to
+write. But it seems like every non-trivial Go project ends up building those
+abstractions anyways because it helps so much in &lt;em&gt;reading&lt;/em&gt; the code. Go is
+&amp;quot;simple&amp;quot; (to a fault) but this means reading it is like reading through a
+straw. LLMs don&#39;t have enough context to build the kinds of whole program
+abstractions you want. And it seems that the average example online of Go&#39;s
+semi-structured concurrency with channels has subtle deadlocks, if the errors
+I&#39;ve seen output by LLMs are to be believed.&lt;/p&gt;
+&lt;p&gt;I&#39;ve seen an argument that a LLM assistant is like having a junior programmer
+writing the code. You stand in for the presumably more experienced engineer who
+reviews and corrects as it goes. Except unlike a junior it doesn&#39;t learn except
+by retraining. If I had to correct a particularly dull junior engineer
+repeatedly for the same mistakes, I might gently steer them into a career in
+management.&lt;/p&gt;
+&lt;p&gt;That &amp;quot;junior assistant&amp;quot; model isn&#39;t all that accessible to the junior engineer
+themselves, either. Human beings can learn skills by watching others do them. If
+I had to guess, watching the output of a machine is worse for learning than
+watching another human performing a skill because of all those nice mirror
+neurons we have. But it doesn&#39;t matter because humans &lt;em&gt;master&lt;/em&gt; skills only by
+doing them. A junior engineer leaning on a LLM won&#39;t develop the skills they
+need to determine if the output of the LLM is any good.&lt;/p&gt;
+&lt;p&gt;And that leads directly to the wider social problem. If the hype around LLMs
+allowed them to be just another tool in our toolbox, we could use them (or not)
+and it&#39;d be a question of engineering tradeoffs. Most tools that fail to perform
+at the rate LLMs do are quickly set aside, brought out only for the narrow
+niches in which they work well. But a whole lot of people are buying into a hype
+that LLMs are a massive paradigm change that will disrupt the industry.&lt;/p&gt;
+&lt;p&gt;Now, there&#39;s a few folks in the industry who are cheering on some kind of giant
+upheaval where millions of engineers lose their jobs. Maybe they think they&#39;ll
+be among the anointed few spared by the techno-fascists running OpenAI or
+whatever. No surprises there; every regressive movement co-opts a bunch of the
+targeted group, class traitors who we should encourage to go play in traffic.&lt;/p&gt;
+&lt;p&gt;Because management culture treats workers like interchangeable cogs, we should
+expect that some organizations will try to replace workers with LLMs. Some
+companies will decide that they can get rid of all their expensive senior folks
+and just have cheaper juniors, or outsourced body shops, doing all the work with
+LLM assistants. I&#39;m sure the compliance-security-industrial complex is already
+eagerly spinning up new product lines to solve the resulting disasters from
+that. Other companies will go the other direction and decide they can get rid of
+all their junior folks and multiply the effort of senior folks with LLMs. But
+without a pipeline of junior engineers, you eventually have no senior engineers.&lt;/p&gt;
+&lt;p&gt;The successful organizations will be those who recognize that there&#39;s a
+neverending backlog of creative work to be done, and that creative workers can&#39;t
+be replaced by stochastic parrots. LLMs are just one tool and like all choice in
+tools, those closest to the work should be left to decide whether they are the
+right tool for the job. But recognizing that requires the kind of long horizon
+thinking that&#39;s notably absent from most companies. It may be up to tech workers
+to organize to make that future happen.&lt;/p&gt;
+&lt;!--  LocalWords:  LLMs
+ --&gt;
+</description>
+    </item>
+    
+    <item>
       <title>Two Kinds of UX Blunder</title>
       <link>https://blog.0x74696d.com/posts/two-kinds-of-ux-blunder/</link>
       <pubDate>Sun, 27 Nov 2022 18:00:00 +0000</pubDate>
@@ -3010,57 +3102,6 @@ METHOD                                                                  # CALLS
 &lt;p&gt;More importantly, what&#39;s it to me? If someone&#39;s identity is tied up in a definition that means it&#39;s important to them. Unless I have my identity tied up in a different definition, it literally costs me &lt;em&gt;nothing&lt;/em&gt; to accept someone where they are. (And if I do have my identity tied up in a different definition, it&#39;s on me to examine myself about whether this definition is healthy, whether it&#39;s tied up in ego or privilege, etc.) If someone says that their title is ButcherGrills, who am I to say &amp;quot;well that&#39;s not what ButcherGrills really is&amp;quot;?&lt;/p&gt;
 &lt;p&gt;The most important definitions for us to agree upon are the ones that folks assign to themselves. Whether someone self-identifies as a sysadmin, devops engineer, or SRE; whether they self-identify as a he, her, or they; or whether they self-identify as working in observability, monitoring, or logging; we start from a better place of empathy and understanding if we take those identities as a given and work together from there.&lt;/p&gt;
 &lt;p&gt;But a hotdog is still not a sandwich.&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Software Defined Culture, Part 4 - Responsibility</title>
-      <link>https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/</link>
-      <pubDate>Sun, 18 Feb 2018 04:00:00 +0000</pubDate>
-      
-      <guid>https://blog.0x74696d.com/posts/software-defined-culture-4-responsibility/</guid>
-      <description>&lt;p&gt;This five-part series of posts covers a talk titled &lt;em&gt;Software Defined Culture&lt;/em&gt; that I gave at &lt;a href=&#34;https://www.devopsdays.org/events/2016-philadelphia/program/tim-gross/&#34;&gt;DevOps Days Philadelphia 2016&lt;/a&gt;, &lt;a href=&#34;https://gotochgo.com/2017/sessions/43&#34;&gt;GOTO Chicago 2017&lt;/a&gt;, and &lt;a href=&#34;https://vimeo.com/228067673&#34;&gt;Velocity San Jose 2017&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 4: Build for Responsibility&lt;/li&gt;
-&lt;/ol&gt;
-&lt;hr&gt;
-&lt;h1 id=&#34;building-for-responsibility&#34;&gt;Building for Responsibility&lt;/h1&gt;
-&lt;p&gt;This has been the section of the talk where I definitely lost some of the audience. In fairness, you were warned at the beginning that we were going to talk about culture and that it can be tricky. So if you&#39;ve been following along so far and don&#39;t think I&#39;m totally crazy yet... hold on to your butts!&lt;/p&gt;
-&lt;h2 id=&#34;every-tool-comes-with-a-community&#34;&gt;Every Tool Comes With a Community&lt;/h2&gt;
-&lt;p&gt;All our technical choices implicitly make us a part of the community of users of the tools we choose. Some of those communities have been intentionally and thoughtfully designed around making sure that everyone can participate in the community. The Rust language community is an amazing example of this. From the very beginning of their organization, they realized that the technical community would be stronger when everyone takes responsibility towards making it inclusive. From their &lt;a href=&#34;https://www.rust-lang.org/en-US/conduct.html&#34;&gt;Code of Conduct&lt;/a&gt;:&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;Even if you feel you were misinterpreted or unfairly accused, chances are good there was something you could&#39;ve communicated better — remember that it&#39;s your responsibility to make your fellow Rustaceans comfortable.&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;Now, I&#39;m not saying you should go and switch all your production code to Rust. I did recommend in Part 1 to choose boring technologies, after all! But it&#39;s clear that the Rust community has taken seriously its responsibility to be welcoming to all.&lt;/p&gt;
-&lt;p&gt;Other communities have well-deserved reputations for toxicity. When you choose a technology where a portion of the community forked the runtime in protest of the steward company&#39;s CTO defense of gender-neutral pronouns in documentation, you&#39;re implicitly saying you&#39;re okay with being part of that community. Maybe that&#39;s the right choice because the rest of the community outweighs the sexist assholes. But we should make those trade-offs with open eyes.&lt;/p&gt;
-&lt;p&gt;When you choose a language where the original developers defend their language design decisions because their co-workers are &lt;a href=&#34;https://channel9.msdn.com/Events/Lang-NEXT/Lang-NEXT-2014/From-Parallel-to-Concurrent&#34;&gt;&amp;quot;not capable of understanding a brilliant language but we want to use them to build good software&amp;quot;&lt;/a&gt;, then you shouldn&#39;t be surprised if this mentality has trickled into the community.&lt;/p&gt;
-&lt;p&gt;When we choose a technology for our organization, it determines what communities we&#39;ll be a part of. It determines who we&#39;ll hire. If your organization&#39;s mission is to build amazing compiler tools, then you might want to hire people who know that &amp;quot;a monad is a monoid in the category of endofunctor&amp;quot; (not me!). But if you&#39;re making line-of-business CRUD web apps that mostly serialize rows in and out of a database, you might not want to choose Haskell. Not because of any technical constraints, but because the community of developers you&#39;ll have access to are going to be bored out of their minds writing line-of-business CRUD web apps.&lt;/p&gt;
-&lt;h2 id=&#34;community-doesnt-stop-with-your-team&#34;&gt;Community Doesn&#39;t Stop With Your Team&lt;/h2&gt;
-&lt;p&gt;Our technical communities are only one part of building with responsibility in mind. There is also the larger community — our culture at large. The culture impact of our technical choices reflect our biases and they reflect our blind spots. When Google and Facebook demand the legal names of users, it&#39;s because they&#39;re not considering the risks that political activists, abuse victims, or trans persons would be taking by giving this information up. When a media website pushes down 10MB of crummy ads to go along with 100 words of news content, it&#39;s because they&#39;re not considering the impact this has on working class users with low-end limited data plans, who can&#39;t afford the stuff in those crummy ads anyways.&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://twitter.com/polotek/status/856183297180704768&#34;&gt;&lt;img src=&#34;https://blog.0x74696d.com/images/20180218/marco-rogers.png&#34; alt=&#34;Kalanick keeps asking for unethical/illegal things, but at some point we have to talk about how engineers at Uber keep saying yes.&#34;&gt;&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;When I gave this talk, I asked the audience to stop and reflect on what they were doing on a day to day basis. Am I making the world worse? This can be for whatever definition of &amp;quot;worse&amp;quot; you want to use. Maybe you&#39;re ok with ads, but not pharmaceutical ads. Maybe you&#39;re ok making embedded software for sensors but not for weapons. Maybe you&#39;re ok making weapons, so long as the software that delivers them is Free and Open Source. But whatever your definition is, you can ask yourself this question.&lt;/p&gt;
-&lt;p&gt;I then ask how many people work for organizations that are hiring. In a packed room of hundreds of people, virtually every hand goes up. If you think you&#39;re making the world worse, the market conditions in our industry are such that you don&#39;t have to continue to participate in that. Find somewhere that doesn&#39;t make the world worse.&lt;/p&gt;
-&lt;h2 id=&#34;professional-ethics&#34;&gt;Professional Ethics&lt;/h2&gt;
-&lt;p&gt;The software industry doesn&#39;t have a professional licensing body. That&#39;s probably the right call, at least for now. There&#39;s so much variation in what we do — the people who write web apps and the people who build embedded systems for airplanes are only barely in the same profession. But other industries do have licensing bodies, and I think we can learn a thing or two from our siblings in other professions.&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;Engineers shall hold paramount the safety, health and welfare of the public and shall strive to comply with the principles of sustainable development... Engineers shall act in such a manner as to uphold and enhance the honor, integrity, and dignity of the engineering profession.&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;This is from the &lt;a href=&#34;http://www.asce.org/code-of-ethics/&#34;&gt;Code of Ethics for the American Society of Civil Engineers&lt;/a&gt;. Imagine what the software industry would look like if we held to this code of ethics. Imagine if we had &lt;a href=&#34;https://www.youtube.com/watch?v=9QMGAtxUlAc&#34;&gt;shared principles&lt;/a&gt;. Imagine how it would change the impact we have on the world. We don&#39;t need a governing body to impose this on us.&lt;/p&gt;
-&lt;p&gt;We can start today.&lt;/p&gt;
-&lt;hr&gt;
-&lt;p&gt;If you&#39;d like to read the rest of the series:&lt;/p&gt;
-&lt;ol start=&#34;0&#34;&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture/&#34;&gt;Part 0: Software Defined Culture&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-1-reliability/&#34;&gt;Part 1: Build for Reliability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-2-operability/&#34;&gt;Part 2: Build for Operability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.0x74696d.com/posts/software-defined-culture-3-observability/&#34;&gt;Part 3: Build for Observability&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;Part 4: Build for Responsibility&lt;/li&gt;
-&lt;/ol&gt;
 </description>
     </item>
     

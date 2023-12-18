@@ -26,6 +26,11 @@ criticism. And then there's the social impact of introducing those tools in the
 context of our industry. All the "AGI breakout" science fiction is deeply
 unserious.
 
+<aside>Addendum (2023-12-18): there's a whole <em>other</em> thing we can be
+critical about, which is the fast-and-loose relationship LLMs have with
+intellectual property. But I'm going to intentionally punt on that for another
+day.</aside>
+
 As tools, LLM coding assistants... just aren't all that impressive? Sure,
 there's definitely an initial "wow" moment. But then you realize that a lot of
 the code they generate is poor. This isn't unexpected. LLMs are trained not only

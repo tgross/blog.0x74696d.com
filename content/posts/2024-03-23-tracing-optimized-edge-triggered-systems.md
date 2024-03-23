@@ -1,0 +1,119 @@
+---
+categories:
+- development
+date: 2024-03-23T00:00:00Z
+title: "Tracing Optimized Edge-Triggered Systems"
+slug: tracing-optimized-edge-triggered-systems
+---
+
+Today I want to start by talking about hardware signals and end with an
+explanation of why Nomad doesn't implement OpenTelemetry.
+
+The terms edge-triggered and level-triggered come from signal processing for
+computer processors. Very roughly, for the CPU to service I/O or other changes
+in external state, it needs to receive an interrupt (or "trap") that tells it to
+stop whatever it's currently doing to deal with the outside world. An
+edge-triggered interrupt sends the signal and then returns to the previous
+state, typically having set a register that the processor picks up on the next
+cycle. Whereas a level-triggered interrupt sets a value on the line and holds it
+there until the interrupt has been serviced on the next processor cycle.
+
+<img style="margin: 1em" src="/images/20240323/signals.svg" alt="rough plot of level-triggered vs edge-triggered signals">
+
+The same terms get applied to distributed systems. An edge-triggered distributed
+system receives discrete events and acts on them, whereas a level-triggered
+distributed system monitors some state and acts when that state reaches certain
+values.
+
+For example, under this loose definition, writing messages to a queue that get
+processed by workers is an edge-triggered system. A system where a
+reconciliation loops reads the current cluster state and then updates it is a
+level-triggered system. Note for distributed level-triggered systems, the state
+is typically _shared_ state from many inputs, as opposed to the signal line for
+processor interrupts.
+
+Note that these are much less rigorous definitions than the ones in signal
+processing! These are useful _models_ of systems but many real systems will fail
+to strictly fall into one model or the other.
+
+## Cause and Effect
+
+In distributed tracing, as implemented by projects like OpenTelemetry, we work
+with _distributed events_ that get tagged with an ID at their conception. In a
+web service, we might create the event at the browser client and add spans at
+the load balancer, web server, application server, and database, on both the
+request and response. The data model also handles fan-out, because each upstream
+service adds its spans to the same event.
+
+Tracing provides a causal path through the whole system, because you can
+correlate the actions of all components that acted on a given event. This is an
+excellent fit for edge-triggered systems because each origin event results in a single unit of work.
+
+The tracing model falls apart quickly in level-triggered distributed systems
+because the "level" is shared state. Multiple independent events can set the
+level, so there's not a single origin event. Think of this like a thermostat set
+to cool a building down to 20°C. If one person starts the oven, and another
+person leaves the door open, it doesn't matter to the thermostat which of those
+"events" allowed the temperature to get too high. There are multiple causes and
+the data model for distributed tracing doesn't allow for this kind of fan-in of
+events. You can only create the trace from the point at which the control loop
+detected the level.
+
+## Edge-Triggered Scheduling
+
+In Nomad, any change to the cluster state creates one or more "evaluations",
+which are the unit of work for the scheduler for a specific job. The change in
+state can be an allocation failing, a user submitting a new job, a periodic job
+firing, or any of a [dozen other triggers][eval-triggers]. Evaluations are
+written to Raft and enqueued in an evaluation broker on the leader. Scheduler
+workers running across the control plane dequeue evaluations from the broker;
+the workers run in parallel but the broker ensures that each job has at most one
+evaluation in-flight at a time.
+
+The scheduler workers take a copy-on-write in-memory snapshot of the cluster
+state at the moment they receive the evaluation, and reconcile the desired state
+with the actual state. They submit the resulting scheduling decisions ("plans")
+to a leader to be serialized and written to state ("applied"). This is largely
+the architecture described in the [Omega paper (PDF)][], and it's clearly an
+edge-triggered system.[^1] So in theory it should be possible to use distributed
+tracing here from the origin of an evaluation all the way through the resulting
+plan.
+
+However, suppose that a job has ten running allocations and all of them
+fail. Each failure event will result in an evaluation for the job. But if they
+fail close together or the scheduler is busy processing other jobs, it's
+possible all ten evaluations will be added to the broker before any scheduler
+worker can dequeue them. Remember that the scheduler works with a snapshot taken
+at the time the evaluation is received (the _current_ state), not a snapshot
+somehow taken at the time the evaluation was created. For efficiency, it's safe
+to throw out all of the other evaluations that happened between scheduling two
+evaluations for a given job. And that's exactly [what Nomad does][].
+
+This sort of load-shedding optimization means evaluations can fan-in to a single
+scheduling event. Creating an evaluation effectively sets a dirty bit for its
+job, where that bit only means "this job needs reconciling", and it doesn't
+matter how many evaluations set that bit. Just like in a level-triggered system!
+
+From a product development standpoint this gap is a conundrum. Distributed
+tracing is a popular idea and we should give users what they ask for, right?[^2]
+But if we implemented distributed tracing in Nomad it would be with traces
+intentionally broken between the RPCs that create evaluations and the traces
+created for the scheduler. Tracing each evaluation from start to finish would be
+misleading, and having misleading traces is arguably worse than having no traces
+at all. At least for now, the juice isn't worth the squeeze.
+
+
+[^1]: As an aside, Kubernetes is often described casually as though
+    level-triggered. But based on my own limited work on Kubernetes controllers,
+    at least some are fairly similar to Nomad as described above, where they're
+    polling the [Events API][], and using those events to kick off more complex
+    state queries.
+
+[^2]: Although to be honest I've seen shockingly few deployments that haven't
+    been scaled back due to cost overruns.
+
+
+[eval-triggers]: https://github.com/hashicorp/nomad/blob/main/contributing/architecture-eval-triggers.md
+[Omega paper (PDF)]:  https://storage.googleapis.com/pub-tools-public-publication-data/pdf/41684.pdf
+[what Nomad does]: https://www.hashicorp.com/blog/load-shedding-in-the-nomad-eval-broker
+[Events API]: https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/

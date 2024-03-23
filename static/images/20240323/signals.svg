@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<svg
+    width="1000pt" height="200pt" viewBox="0 0 1000 200"
+	xmlns="http://www.w3.org/2000/svg"
+	xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <rect width="450" height="200" fill="#FFFFFF" />
+    <text x="200" y="30" fill="#000000" font-size="20" text-anchor="middle">level-triggered</text>
+
+    <polyline points="0,180 50,180 60,80 250,80 260,180 450,180" fill="#FFFFFF" stroke="#06d092" stroke-width="3" />
+    <text x="70" y="110" fill="#000000" font-size="20">
+    <tspan>interrupt sets level</tspan>
+    <tspan x="70" dy="25">and holds it</tspan></text>
+    <text x="270" y="140" fill="#000000" font-size="20">
+    <tspan>interrupt serviced</tspan>
+    <tspan x="270" dy="25">and level reset</tspan></text>
+
+    <rect x="500" width="450" height="200" fill="#FFFFFF" />
+    <text x="700" y="30" fill="#000000" font-size="20" text-anchor="middle">edge-triggered</text>
+
+    <polyline points="500,180 550,180 570,80 590,180 950,180" fill="#FFFFFF" stroke="#06d092" stroke-width="3" />
+    <text x="590" y="110" fill="#000000" font-size="20">
+    <tspan>interrupt occurs</tspan>
+    <tspan x="590" dy="25">and triggers service</tspan></text>
+
+</svg>

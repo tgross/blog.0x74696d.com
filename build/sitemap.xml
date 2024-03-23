@@ -3,10 +3,13 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://blog.0x74696d.com/</loc>
-    <lastmod>2023-12-17T12:00:00+00:00</lastmod>
+    <lastmod>2024-03-23T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://blog.0x74696d.com/posts/</loc>
-    <lastmod>2023-12-17T12:00:00+00:00</lastmod>
+    <lastmod>2024-03-23T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://blog.0x74696d.com/posts/tracing-optimized-edge-triggered-systems/</loc>
+    <lastmod>2024-03-23T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://blog.0x74696d.com/posts/max-power-way/</loc>
     <lastmod>2023-12-17T12:00:00+00:00</lastmod>
@@ -171,8 +174,6 @@
     <lastmod>2013-05-12T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://blog.0x74696d.com/index.html</loc>
-  </url><url>
-    <loc>https://blog.0x74696d.com/posts/2023-12-18-max-power-way/</loc>
   </url><url>
     <loc>https://blog.0x74696d.com/community/</loc>
   </url>

@@ -47,7 +47,8 @@ service adds its spans to the same event.
 
 Tracing provides a causal path through the whole system, because you can
 correlate the actions of all components that acted on a given event. This is an
-excellent fit for edge-triggered systems because each origin event results in a single unit of work.
+excellent fit for edge-triggered systems because each origin event results in a
+single unit of work.
 
 The tracing model falls apart quickly in level-triggered distributed systems
 because the "level" is shared state. Multiple independent events can set the
@@ -57,7 +58,7 @@ person leaves the door open, it doesn't matter to the thermostat which of those
 "events" allowed the temperature to get too high. There are multiple causes and
 the data model for distributed tracing doesn't allow for this kind of fan-in of
 events. You can only create the trace from the point at which the control loop
-detected the level.
+detected the level. "Which event caused this?" isn't a meaningful question.
 
 ## Edge-Triggered Scheduling
 
